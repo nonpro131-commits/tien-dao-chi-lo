@@ -3,7 +3,7 @@
 // Chiến lược: Cache First cho game chính, Network First cho updates
 // ============================================================
 
-const CACHE_NAME = 'tien-dao-v1';
+const CACHE_NAME = 'tien-dao-v2';
 
 // Các file cần cache khi cài app (install event)
 const CORE_FILES = [
