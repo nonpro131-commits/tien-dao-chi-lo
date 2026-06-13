@@ -1159,6 +1159,14 @@ const db = getFirestore(app);
 
 window._cloudUser = null; // { username, userKey, hash }
 
+// ── Khôi phục session sau reload ──────────────────────────
+(function restoreSession() {
+  try {
+    const saved = localStorage.getItem("_tdcl_session");
+    if (saved) window._cloudUser = JSON.parse(saved);
+  } catch(e) {}
+})();
+
 // ── Hash mật khẩu ─────────────────────────────────────────
 async function hashPassword(pw) {
   const buf = await crypto.subtle.digest("SHA-256",
@@ -1206,6 +1214,7 @@ window._cloudLogin = async function() {
 
     // Đăng nhập thành công
     window._cloudUser = { username: data.username, userKey: key, hash };
+    localStorage.setItem("_tdcl_session", JSON.stringify(window._cloudUser));
     msgEl.textContent = "✅ Đăng nhập thành công!";
     msgEl.style.color = "#70e880";
 
@@ -1219,9 +1228,9 @@ window._cloudLogin = async function() {
 
     setTimeout(() => {
       document.getElementById("cloud-auth-screen").style.display = "none";
-      // Cập nhật nút title: "Chơi Mới" → tên tài khoản
       _updateTitleLoginBtn();
-      location.reload(); // reload để load save mới
+      // Nếu có save cloud → đã lưu vào localStorage, reload để áp dụng
+      if (data.saveData) location.reload();
     }, 900);
 
   } catch(e) {
@@ -1269,6 +1278,7 @@ window._cloudRegister = async function() {
     });
 
     window._cloudUser = { username, userKey: key, hash };
+    localStorage.setItem("_tdcl_session", JSON.stringify(window._cloudUser));
     msgEl.textContent = "✅ Tạo tài khoản thành công! Save đã lên cloud.";
     msgEl.style.color = "#70e880";
     btnEl.textContent = "Đăng Ký & Lưu Lên Cloud"; btnEl.style.opacity="1"; btnEl.style.pointerEvents="all";
@@ -1309,6 +1319,7 @@ window._cloudLogout = function() {
   );
   if (!ok) return;
   window._cloudUser = null;
+  localStorage.removeItem("_tdcl_session");
   location.reload();
 };
 
