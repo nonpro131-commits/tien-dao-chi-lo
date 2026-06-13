@@ -1212,25 +1212,29 @@ window._cloudLogin = async function() {
       return;
     }
 
-    // Đăng nhập thành công
+    // Đăng nhập thành công — đăng xuất tài khoản cũ nếu có
     window._cloudUser = { username: data.username, userKey: key, hash };
     localStorage.setItem("_tdcl_session", JSON.stringify(window._cloudUser));
     msgEl.textContent = "✅ Đăng nhập thành công!";
     msgEl.style.color = "#70e880";
 
-    // Tự động tải save cloud vào localStorage rồi reload
+    // Apply save cloud trực tiếp vào game, không reload
     if (data.saveData) {
       try {
         const parsed = typeof data.saveData === "string" ? JSON.parse(data.saveData) : data.saveData;
         localStorage.setItem("tdcl", JSON.stringify(parsed));
+        // Áp dụng vào state hiện tại nếu game đang chạy
+        if (window.G && window.S) {
+          Object.assign(window.S, parsed);
+          if (typeof window.G.calcBuffs === "function") window.G.calcBuffs();
+          if (typeof window.G.renderHUD === "function") window.G.renderHUD();
+        }
       } catch(e) { console.warn("[Cloud] Parse save lỗi:", e); }
     }
 
     setTimeout(() => {
       document.getElementById("cloud-auth-screen").style.display = "none";
       _updateTitleLoginBtn();
-      // Nếu có save cloud → đã lưu vào localStorage, reload để áp dụng
-      if (data.saveData) location.reload();
     }, 900);
 
   } catch(e) {
@@ -1340,14 +1344,28 @@ function _updateTitleLoginBtn() {
   const newBtn   = document.getElementById("btn-choimoi");
   if (!loginBtn || !newBtn) return;
   if (window._cloudUser) {
-    // Ẩn "Đăng Nhập", đổi "Chơi Mới" → tên tài khoản
-    loginBtn.style.display = "none";
+    // Đổi "Chơi Mới" → tên tài khoản
     newBtn.textContent = "▶ " + window._cloudUser.username;
     newBtn.onclick = function(){ if(typeof G!=="undefined") G.continueGame(); };
+    // Đổi "Đăng Nhập" → "Đổi Tài Khoản"
+    loginBtn.textContent = "Đổi Tài Khoản";
+    loginBtn.onclick = function(){
+      // Reset form đăng nhập
+      const u = document.getElementById("cloud-username");
+      const p = document.getElementById("cloud-password");
+      const m = document.getElementById("cloud-msg");
+      const b = document.getElementById("cloud-login-btn");
+      if(u) u.value=""; if(p) p.value=""; if(m) m.textContent="";
+      if(b){ b.textContent="Xác Nhận"; b.style.opacity="1"; b.style.pointerEvents="all"; }
+      document.getElementById("cloud-auth-screen").style.display="flex";
+    };
   } else {
-    loginBtn.style.display = "";
     newBtn.textContent = "Chơi Mới";
     newBtn.onclick = function(){ if(typeof G!=="undefined") G.startNewGame(); };
+    loginBtn.textContent = "Đăng Nhập";
+    loginBtn.onclick = function(){
+      document.getElementById("cloud-auth-screen").style.display="flex";
+    };
   }
 }
 window._updateTitleLoginBtn = _updateTitleLoginBtn;
