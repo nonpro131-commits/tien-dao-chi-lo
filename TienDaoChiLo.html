@@ -1226,8 +1226,14 @@ window._cloudLogin = async function() {
         // Áp dụng vào state hiện tại nếu game đang chạy
         if (window.G && window.S) {
           Object.assign(window.S, parsed);
+          if (!Array.isArray(window.S.chucNghiep)) window.S.chucNghiep = [];
+          if (!window.S.danLoConfigs) window.S.danLoConfigs = {};
+          if (!window.S.achClaimed || typeof window.S.achClaimed !== "object") window.S.achClaimed = {};
           if (typeof window.G.calcBuffs === "function") window.G.calcBuffs();
           if (typeof window.G.renderHUD === "function") window.G.renderHUD();
+          if (typeof window.G.checkUnlocks === "function") window.G.checkUnlocks();
+          if (typeof window.G.closeScreen === "function") window.G.closeScreen();
+          if (typeof window.G.goto === "function") window.G.goto(window.S.currentPassage || "start");
         }
       } catch(e) { console.warn("[Cloud] Parse save lỗi:", e); }
     }
@@ -1235,6 +1241,10 @@ window._cloudLogin = async function() {
     setTimeout(() => {
       document.getElementById("cloud-auth-screen").style.display = "none";
       _updateTitleLoginBtn();
+      // Tự động vào game nếu có save data
+      if (data.saveData) {
+        document.getElementById("title-screen").style.display = "none";
+      }
     }, 900);
 
   } catch(e) {
@@ -8834,7 +8844,7 @@ function loadGame(){ try{
   if(S.ageNguyenAnh === undefined) S.ageNguyenAnh = -1;
   _danLoConfigs = S.danLoConfigs; // re-sync sau loadGame
   closeScreen(); calcBuffs(); renderHUD(); checkUnlocks();
-  goto(S.currentPassage||"start"); alert("✅ Đã tải!");
+  goto(S.currentPassage||"start");
 }catch(e){ alert("❌ "+e.message); } }
 function resetGame(){ localStorage.removeItem("tdcl"); location.reload(); }
 
