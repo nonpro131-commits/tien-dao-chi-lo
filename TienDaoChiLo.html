@@ -1140,6 +1140,228 @@ body.story-closed #main{
 </head>
 <body>
 
+<!-- ===== FIREBASE ===== -->
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyArt7yX7IO4GImWJDVv3aTk47EUkFTKF3k",
+  authDomain: "tien-dao-gane.firebaseapp.com",
+  projectId: "tien-dao-gane",
+  storageBucket: "tien-dao-gane.firebasestorage.app",
+  messagingSenderId: "533118817350",
+  appId: "1:533118817350:web:9ca62f13f27f389a2da647"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+
+window._cloudUser = null; // { username, userKey, hash }
+
+// ── Hash mật khẩu ─────────────────────────────────────────
+async function hashPassword(pw) {
+  const buf = await crypto.subtle.digest("SHA-256",
+    new TextEncoder().encode(pw + "tdcl_salt_2026"));
+  return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,"0")).join("");
+}
+
+function _userKey(username) {
+  return username.toLowerCase().replace(/[^a-z0-9_\u00c0-\u024f\u1e00-\u1eff]/gi, "_");
+}
+
+// ── Đăng nhập từ Title Screen ─────────────────────────────
+// Chỉ đăng nhập, KHÔNG tạo tài khoản mới ở đây
+window._cloudLogin = async function() {
+  const username = document.getElementById("cloud-username").value.trim();
+  const password = document.getElementById("cloud-password").value;
+  const msgEl = document.getElementById("cloud-msg");
+  const btnEl = document.getElementById("cloud-login-btn");
+
+  msgEl.textContent = "";
+  if (!username || !password) { msgEl.textContent = "Vui lòng nhập đủ thông tin."; msgEl.style.color="#ffaa60"; return; }
+  if (password.length < 4) { msgEl.textContent = "Mật khẩu ít nhất 4 ký tự."; msgEl.style.color="#ffaa60"; return; }
+
+  btnEl.textContent = "Đang kết nối...";
+  btnEl.style.opacity = "0.6"; btnEl.style.pointerEvents = "none";
+
+  try {
+    const hash = await hashPassword(password);
+    const key = _userKey(username);
+    const snap = await getDoc(doc(db, "players", key));
+
+    if (!snap.exists()) {
+      msgEl.textContent = "❌ Tài khoản không tồn tại.";
+      msgEl.style.color = "#ff6060";
+      btnEl.textContent = "Xác Nhận"; btnEl.style.opacity="1"; btnEl.style.pointerEvents="all";
+      return;
+    }
+    const data = snap.data();
+    if (data.passwordHash !== hash) {
+      msgEl.textContent = "❌ Sai mật khẩu.";
+      msgEl.style.color = "#ff6060";
+      btnEl.textContent = "Xác Nhận"; btnEl.style.opacity="1"; btnEl.style.pointerEvents="all";
+      return;
+    }
+
+    // Đăng nhập thành công
+    window._cloudUser = { username: data.username, userKey: key, hash };
+    msgEl.textContent = "✅ Đăng nhập thành công!";
+    msgEl.style.color = "#70e880";
+
+    // Tự động tải save cloud vào localStorage rồi reload
+    if (data.saveData) {
+      try {
+        const parsed = typeof data.saveData === "string" ? JSON.parse(data.saveData) : data.saveData;
+        localStorage.setItem("tdcl", JSON.stringify(parsed));
+      } catch(e) { console.warn("[Cloud] Parse save lỗi:", e); }
+    }
+
+    setTimeout(() => {
+      document.getElementById("cloud-auth-screen").style.display = "none";
+      // Cập nhật nút title: "Chơi Mới" → tên tài khoản
+      _updateTitleLoginBtn();
+      location.reload(); // reload để load save mới
+    }, 900);
+
+  } catch(e) {
+    msgEl.textContent = "❌ Lỗi kết nối: " + e.message;
+    msgEl.style.color = "#ff6060";
+    btnEl.textContent = "Xác Nhận"; btnEl.style.opacity="1"; btnEl.style.pointerEvents="all";
+  }
+};
+
+// ── Đăng ký tài khoản từ trong game (Cài Đặt) ─────────────
+window._cloudRegister = async function() {
+  const username = document.getElementById("reg-username").value.trim();
+  const password = document.getElementById("reg-password").value;
+  const msgEl = document.getElementById("reg-msg");
+  const btnEl = document.getElementById("reg-btn");
+
+  msgEl.textContent = "";
+  if (!username || !password) { msgEl.textContent = "Vui lòng nhập đủ thông tin."; msgEl.style.color="#ffaa60"; return; }
+  if (username.length < 2 || username.length > 20) { msgEl.textContent = "Tên từ 2–20 ký tự."; msgEl.style.color="#ffaa60"; return; }
+  if (password.length < 4) { msgEl.textContent = "Mật khẩu ít nhất 4 ký tự."; msgEl.style.color="#ffaa60"; return; }
+
+  btnEl.textContent = "Đang tạo..."; btnEl.style.opacity="0.6"; btnEl.style.pointerEvents="none";
+
+  try {
+    const hash = await hashPassword(password);
+    const key = _userKey(username);
+    const snap = await getDoc(doc(db, "players", key));
+
+    if (snap.exists()) {
+      msgEl.textContent = "❌ Tên này đã có người dùng, chọn tên khác.";
+      msgEl.style.color="#ff6060";
+      btnEl.textContent="Đăng Ký & Lưu Lên Cloud"; btnEl.style.opacity="1"; btnEl.style.pointerEvents="all";
+      return;
+    }
+
+    // Lấy save hiện tại
+    const currentSave = localStorage.getItem("tdcl") || null;
+
+    await setDoc(doc(db, "players", key), {
+      username,
+      passwordHash: hash,
+      createdAt: Date.now(),
+      saveData: currentSave,
+      lastSaved: Date.now()
+    });
+
+    window._cloudUser = { username, userKey: key, hash };
+    msgEl.textContent = "✅ Tạo tài khoản thành công! Save đã lên cloud.";
+    msgEl.style.color = "#70e880";
+    btnEl.textContent = "Đăng Ký & Lưu Lên Cloud"; btnEl.style.opacity="1"; btnEl.style.pointerEvents="all";
+
+    // Refresh màn hình cài đặt để hiện trạng thái mới
+    setTimeout(() => { if(typeof G!=="undefined") G.openSettings(); }, 1500);
+
+  } catch(e) {
+    msgEl.textContent = "❌ Lỗi: " + e.message;
+    msgEl.style.color="#ff6060";
+    btnEl.textContent="Đăng Ký & Lưu Lên Cloud"; btnEl.style.opacity="1"; btnEl.style.pointerEvents="all";
+  }
+};
+
+// ── Upload save lên cloud ──────────────────────────────────
+window._cloudSave = async function(saveObj) {
+  if (!window._cloudUser) return false;
+  try {
+    await setDoc(doc(db, "players", window._cloudUser.userKey), {
+      username: window._cloudUser.username,
+      passwordHash: window._cloudUser.hash,
+      saveData: JSON.stringify(saveObj),
+      lastSaved: Date.now()
+    }, { merge: true });
+    return true;
+  } catch(e) {
+    console.warn("[Cloud] Lưu thất bại:", e.message);
+    return false;
+  }
+};
+
+// ── Đăng xuất ─────────────────────────────────────────────
+window._cloudLogout = function() {
+  const ok = confirm(
+    "Đăng xuất tài khoản " + (window._cloudUser ? `"${window._cloudUser.username}"` : "") + "?\n\n" +
+    "Tiến trình vẫn được lưu trên cloud.\n" +
+    "Màn hình sẽ quay về Chơi Mới."
+  );
+  if (!ok) return;
+  window._cloudUser = null;
+  location.reload();
+};
+
+// ── Cảnh báo khi chưa đăng ký mà muốn thoát/đăng xuất ────
+window._warnNotRegistered = function() {
+  return confirm(
+    "⚠️ Bạn chưa đăng ký tài khoản!\n\n" +
+    "Dữ liệu chỉ lưu trên máy này.\n" +
+    "Xóa app hoặc đổi thiết bị sẽ MẤT toàn bộ tiến trình.\n\n" +
+    "Vào Cài Đặt → Đăng Ký để bảo vệ save của bạn.\n\n" +
+    "Vẫn muốn tiếp tục thoát?"
+  );
+};
+
+// ── Cập nhật nút title screen ─────────────────────────────
+function _updateTitleLoginBtn() {
+  const loginBtn = document.getElementById("btn-login");
+  const newBtn   = document.getElementById("btn-choimoi");
+  if (!loginBtn || !newBtn) return;
+  if (window._cloudUser) {
+    // Ẩn "Đăng Nhập", đổi "Chơi Mới" → tên tài khoản
+    loginBtn.style.display = "none";
+    newBtn.textContent = "▶ " + window._cloudUser.username;
+    newBtn.onclick = function(){ if(typeof G!=="undefined") G.continueGame(); };
+  } else {
+    loginBtn.style.display = "";
+    newBtn.textContent = "Chơi Mới";
+    newBtn.onclick = function(){ if(typeof G!=="undefined") G.startNewGame(); };
+  }
+}
+window._updateTitleLoginBtn = _updateTitleLoginBtn;
+</script>
+
+<!-- ===== CLOUD AUTH SCREEN (Đăng Nhập từ Title) ===== -->
+<div id="cloud-auth-screen" style="display:none;position:fixed;inset:0;z-index:3500;background:rgba(0,0,0,.92);backdrop-filter:blur(8px);align-items:center;justify-content:center;">
+  <div style="width:90%;max-width:360px;background:rgba(8,6,2,.99);border:1px solid rgba(201,168,76,.3);border-radius:16px;padding:28px 24px;box-shadow:0 0 60px rgba(0,0,0,.8);">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+      <div style="font-size:15px;font-weight:700;color:#d6b15f;letter-spacing:1px;">☁️ Đăng Nhập</div>
+      <div onclick="document.getElementById('cloud-auth-screen').style.display='none'" style="color:#5a4020;font-size:20px;cursor:pointer;line-height:1;">✕</div>
+    </div>
+    <div style="font-size:11px;color:#5a4020;margin-bottom:18px;line-height:1.7;">Nhập tên tài khoản và mật khẩu để vào game.<br>Save trên cloud sẽ được tải tự động.</div>
+    <input id="cloud-username" type="text" maxlength="20" placeholder="Tên tài khoản..." autocomplete="off"
+      style="width:100%;padding:11px 14px;background:rgba(201,168,76,.04);border:1px solid rgba(201,168,76,.2);border-radius:10px;font-size:14px;color:#f0ddb0;font-family:inherit;outline:none;margin-bottom:10px;box-sizing:border-box;">
+    <input id="cloud-password" type="password" maxlength="32" placeholder="Mật khẩu..." autocomplete="off"
+      style="width:100%;padding:11px 14px;background:rgba(201,168,76,.04);border:1px solid rgba(201,168,76,.2);border-radius:10px;font-size:14px;color:#f0ddb0;font-family:inherit;outline:none;margin-bottom:14px;box-sizing:border-box;">
+    <div id="cloud-msg" style="font-size:11px;min-height:16px;margin-bottom:12px;color:#ffaa60;text-align:center;"></div>
+    <div id="cloud-login-btn" onclick="window._cloudLogin()"
+      style="width:100%;padding:12px;background:rgba(201,168,76,.08);border:1px solid rgba(201,168,76,.35);border-radius:10px;font-size:14px;font-weight:600;color:#f0d98c;text-align:center;cursor:pointer;letter-spacing:1px;box-sizing:border-box;">
+      Xác Nhận
+    </div>
+  </div>
+</div>
+
 <!-- ===== TITLE SCREEN ===== -->
 <div id="title-screen">
   <div class="title-glow"></div>
@@ -1152,8 +1374,8 @@ body.story-closed #main{
   </div>
   
   <div id="title-menu" style="display:none;">
-    <div class="title-btn" onclick="G.startNewGame()">Chơi Mới</div>
-    <div class="title-btn" onclick="G.continueGame()" id="btn-continue" style="opacity:.4;pointer-events:none;">Tiếp Tục</div>
+    <div class="title-btn" id="btn-choimoi" onclick="G.startNewGame()">Chơi Mới</div>
+    <div class="title-btn" id="btn-login" onclick="document.getElementById('cloud-auth-screen').style.display='flex'">Đăng Nhập</div>
     <div class="title-btn" onclick="G.openSettings()">Cài Đặt</div>
     <div class="title-btn danger" onclick="G.quitGame()">Thoát</div>
   </div>
@@ -2555,6 +2777,8 @@ function goto(id){
   const box = document.getElementById("story-box");
   box.classList.remove("fade-in"); void box.offsetWidth; box.classList.add("fade-in");
   p.fn(ctx);
+  // Auto-save sau mỗi lần chuyển màn hình
+  saveGame();
 }
 
 /* ===== HUD ACTIONS ===== */
@@ -8250,10 +8474,32 @@ function openScreen(id){
       b.innerHTML = buildShopHTML("the_tu_luyen");
     },
     achievement:()=>{ t.textContent="🏆 Thành Tựu"; b.innerHTML=buildAchievementHTML(); },
-    system:()=>{ t.textContent="⚙️ Hệ Thống"; b.innerHTML=`
-      <button class="roll-btn" onclick="G.saveGame()">💾 Lưu Game</button>
-      <button class="roll-btn" onclick="G.loadGame()">📂 Tải Game</button>
-      <button class="roll-btn" style="border-color:rgba(200,50,50,.3);color:#e07070" onclick="if(confirm('Reset toàn bộ?')){G.resetGame()}">🔄 Bắt Đầu Lại</button>`; },
+    system:()=>{ 
+      t.textContent="⚙️ Hệ Thống";
+      const isLoggedIn = !!window._cloudUser;
+      b.innerHTML=`
+        <div style="padding:4px 0 12px;font-size:11px;color:#5a4020;letter-spacing:.5px;">Cài đặt sẽ được thêm sau.</div>
+        ${isLoggedIn ? `
+          <div style="padding:10px 12px;background:rgba(90,176,255,.06);border:1px solid rgba(90,176,255,.2);border-radius:10px;margin-bottom:8px;">
+            <div style="font-size:10px;color:#5ab0ff;margin-bottom:2px;">☁️ Tài khoản</div>
+            <div style="font-size:14px;font-weight:700;color:#f0c14b;">${window._cloudUser.username}</div>
+          </div>
+          <button class="roll-btn" style="border-color:rgba(180,50,50,.3);color:#e07070" onclick="window._cloudLogout()">Đăng Xuất</button>
+        ` : `
+          <div style="padding:12px;background:rgba(201,168,76,.04);border:1px solid rgba(201,168,76,.15);border-radius:10px;">
+            <div style="font-size:12px;font-weight:700;color:#d6b15f;margin-bottom:8px;">☁️ Đăng Ký Tài Khoản</div>
+            <div style="font-size:10px;color:#5a4020;margin-bottom:10px;line-height:1.6;">Lưu save lên cloud để chơi trên nhiều thiết bị.</div>
+            <input id="reg-username" type="text" maxlength="20" placeholder="Tên tài khoản..." autocomplete="off"
+              style="width:100%;padding:9px 12px;background:rgba(201,168,76,.04);border:1px solid rgba(201,168,76,.2);border-radius:8px;font-size:13px;color:#f0ddb0;font-family:inherit;outline:none;margin-bottom:8px;box-sizing:border-box;">
+            <input id="reg-password" type="password" maxlength="32" placeholder="Mật khẩu (tối thiểu 4 ký tự)..." autocomplete="off"
+              style="width:100%;padding:9px 12px;background:rgba(201,168,76,.04);border:1px solid rgba(201,168,76,.2);border-radius:8px;font-size:13px;color:#f0ddb0;font-family:inherit;outline:none;margin-bottom:10px;box-sizing:border-box;">
+            <div id="reg-msg" style="font-size:10px;min-height:14px;margin-bottom:8px;color:#ffaa60;text-align:center;"></div>
+            <div id="reg-btn" onclick="window._cloudRegister()"
+              style="width:100%;padding:10px;background:rgba(201,168,76,.08);border:1px solid rgba(201,168,76,.3);border-radius:8px;font-size:13px;font-weight:600;color:#f0d98c;text-align:center;cursor:pointer;box-sizing:border-box;">
+              Đăng Ký & Lưu Lên Cloud
+            </div>
+          </div>
+        `}`; },
   };
   if(screens[id]) screens[id]();
 }
@@ -8538,7 +8784,14 @@ function showNotif(opts){
 }
 
 /* ===== SAVE/LOAD ===== */
-function saveGame(){ try{ localStorage.setItem("tdcl",JSON.stringify(S)); alert("✅ Đã lưu!"); }catch(e){ alert("❌ "+e.message); } }
+function saveGame(){
+  try{
+    localStorage.setItem("tdcl",JSON.stringify(S));
+    if(window._cloudUser && typeof window._cloudSave === "function"){
+      window._cloudSave(S);
+    }
+  }catch(e){ console.warn("Save lỗi:",e); }
+}
 function loadGame(){ try{
   const d=localStorage.getItem("tdcl");
   if(!d){alert("Chưa có save.");return;}
@@ -8579,11 +8832,10 @@ function showTitleMenu(){
   document.getElementById("title-click-hint").style.display="none";
   const menu = document.getElementById("title-menu");
   menu.style.display = "flex";
-  // Check if save exists
-  if(localStorage.getItem("tdcl")){
-    const btn = document.getElementById("btn-continue");
-    btn.style.opacity="1";
-    btn.style.pointerEvents="all";
+  // Nếu đã có save local → có thể tiếp tục (dùng btn-choimoi khi chưa đăng nhập)
+  // Nếu đã đăng nhập cloud → cập nhật nút
+  if(window._cloudUser && typeof window._updateTitleLoginBtn === "function"){
+    window._updateTitleLoginBtn();
   }
 }
 
@@ -8704,16 +8956,19 @@ function openSettings(){
 }
 
 function quitGame(){
-  if(confirm("Bạn có muốn thoát game không?\n(Dữ liệu đã lưu sẽ được giữ lại)")){
-    window.close();
-    // Fallback if window.close doesn't work
-    document.getElementById("title-screen").innerHTML = `
-      <div style="text-align:center;color:#5a4020;font-size:14px;letter-spacing:2px;">
-        <div style="font-size:30px;margin-bottom:16px;">✦</div>
-        Cảm ơn đã chơi<br><br>
-        <div style="font-size:12px;color:#3a2010;">Tiên Đạo Chi Lộ</div>
-      </div>`;
+  if(!window._cloudUser){
+    const ok = window._warnNotRegistered ? window._warnNotRegistered() : confirm("Thoát game?");
+    if(!ok) return;
+  } else {
+    if(!confirm("Bạn có muốn thoát game không?\n(Dữ liệu đã lưu trên cloud)")) return;
   }
+  window.close();
+  document.getElementById("title-screen").innerHTML = `
+    <div style="text-align:center;color:#5a4020;font-size:14px;letter-spacing:2px;">
+      <div style="font-size:30px;margin-bottom:16px;">✦</div>
+      Cảm ơn đã chơi<br><br>
+      <div style="font-size:12px;color:#3a2010;">Tiên Đạo Chi Lộ</div>
+    </div>`;
 }
 
 /* ===== INTRO TYPEWRITER (paragraph-by-paragraph) ===== */
@@ -11125,12 +11380,6 @@ function init(){
   document.getElementById("player-name-input").addEventListener("keydown", function(e){
     if(e.key === "Enter") confirmName();
   });
-  
-  // Check if there's a save to enable continue
-  if(localStorage.getItem("tdcl")){
-    const btn = document.getElementById("btn-continue");
-    if(btn){ btn.style.opacity="1"; btn.style.pointerEvents="all"; }
-  }
 }
 
 /* ===== EVENT SLIDER ===== */
@@ -11186,6 +11435,9 @@ return {
   toggleHUD, toggleFS, toggleStory, doBreakthrough, _execBreakthrough, doMindBreakthrough, openScreen, closeScreen, goto,
   showRollScreen, doRoll, confirmRoll, calcLinhKhi,
   saveGame, loadGame, resetGame,
+  openCloudPanel: function(){
+    document.getElementById("cloud-auth-screen").style.display="flex";
+  },
   startNewGame, confirmName, continueGame, openSettings, quitGame, _selectAvatar,
   _showAvatarScreen, _showWelcomePopup,
   _showThienDaoPopup, _showDeaPopup,
