@@ -6,7 +6,7 @@
 const CACHE_NAME = 'tien-dao-v3';
 
 // ★ ĐỔI SỐ NÀY MỖI KHI DEPLOY BẢN MỚI ★
-const APP_VERSION = '1.0.8';
+const APP_VERSION = '1.0.9';
 
 // Các file cần cache khi cài app (install event)
 const CORE_FILES = [
