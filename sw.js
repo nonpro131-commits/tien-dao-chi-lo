@@ -3,10 +3,10 @@
 // Chiến lược: Cache First cho game chính, Network First cho updates
 // ============================================================
 
-const CACHE_NAME = 'tien-dao-v2';
+const CACHE_NAME = 'tien-dao-v3';
 
 // ★ ĐỔI SỐ NÀY MỖI KHI DEPLOY BẢN MỚI ★
-const APP_VERSION = '1.0.6';
+const APP_VERSION = '1.0.7';
 
 // Các file cần cache khi cài app (install event)
 const CORE_FILES = [
@@ -14,6 +14,13 @@ const CORE_FILES = [
   './manifest.json',
   './icon-192.png',
   './icon-512.png',
+  './assets/images/title-bg.jpg',
+  './assets/images/avatar0.jpg',
+  './assets/images/avatar1.jpg',
+  './assets/images/avatar2.jpg',
+  './assets/images/avatar3.jpg',
+  './assets/images/avatar4.jpg',
+  './assets/images/avatar5.jpg',
 ];
 
 // ── INSTALL: cache những file cốt lõi ──────────────────────
