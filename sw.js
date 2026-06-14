@@ -5,13 +5,15 @@
 
 const CACHE_NAME = 'tien-dao-v2';
 
+// ★ ĐỔI SỐ NÀY MỖI KHI DEPLOY BẢN MỚI ★
+const APP_VERSION = '1.0.0';
+
 // Các file cần cache khi cài app (install event)
 const CORE_FILES = [
   './TienDaoChiLo.html',
   './manifest.json',
   './icon-192.png',
   './icon-512.png',
-  // Font từ Google (sẽ cache khi lần đầu load)
 ];
 
 // ── INSTALL: cache những file cốt lõi ──────────────────────
@@ -19,7 +21,6 @@ self.addEventListener('install', event => {
   console.log('[SW] Installing cache:', CACHE_NAME);
   event.waitUntil(
     caches.open(CACHE_NAME).then(cache => {
-      // Cache từng file riêng để 1 file lỗi không block toàn bộ
       return Promise.allSettled(
         CORE_FILES.map(url =>
           cache.add(url).catch(err => {
@@ -28,8 +29,7 @@ self.addEventListener('install', event => {
         )
       );
     }).then(() => {
-      console.log('[SW] Install hoàn tất');
-      // Kích hoạt ngay mà không cần đóng tab cũ
+      console.log('[SW] Install hoàn tất, version:', APP_VERSION);
       return self.skipWaiting();
     })
   );
@@ -49,7 +49,7 @@ self.addEventListener('activate', event => {
           })
       );
     }).then(() => {
-      console.log('[SW] Activate hoàn tất, đang kiểm soát tất cả clients');
+      console.log('[SW] Activate hoàn tất');
       return self.clients.claim();
     })
   );
@@ -59,49 +59,37 @@ self.addEventListener('activate', event => {
 self.addEventListener('fetch', event => {
   const url = new URL(event.request.url);
 
-  // Bỏ qua các request không phải GET
   if (event.request.method !== 'GET') return;
 
-  // Bỏ qua các request đến domain khác (analytics, CDN bên ngoài...)
-  // ngoại trừ Google Fonts — ta sẽ cache fonts
   const isGoogleFonts = url.hostname.includes('fonts.googleapis.com') ||
                         url.hostname.includes('fonts.gstatic.com');
   const isSameOrigin = url.origin === self.location.origin;
 
   if (!isSameOrigin && !isGoogleFonts) return;
 
-  // Chiến lược: Cache First (ưu tiên cache, chỉ gọi mạng khi miss)
-  // Phù hợp cho game — file ít thay đổi, ưu tiên offline
   event.respondWith(
     caches.match(event.request).then(cached => {
       if (cached) {
-        // Có trong cache → trả luôn, đồng thời update ngầm (stale-while-revalidate)
-        const fetchUpdate = fetch(event.request).then(fresh => {
+        // Stale-while-revalidate: trả cache ngay, update ngầm
+        fetch(event.request).then(fresh => {
           if (fresh && fresh.status === 200) {
             caches.open(CACHE_NAME).then(cache => {
               cache.put(event.request, fresh.clone());
             });
           }
-          return fresh;
-        }).catch(() => {}); // ignore network errors when updating in background
-
+        }).catch(() => {});
         return cached;
       }
 
-      // Không có trong cache → tải từ mạng và lưu vào cache
       return fetch(event.request).then(response => {
         if (!response || response.status !== 200) return response;
-
         const toCache = response.clone();
         caches.open(CACHE_NAME).then(cache => {
           cache.put(event.request, toCache);
         });
-
         return response;
       }).catch(() => {
-        // Mất mạng và không có cache → trả offline page nếu có
         console.warn('[SW] Không thể tải:', event.request.url);
-        // Fallback về game chính nếu đang cố tải HTML
         if (event.request.headers.get('accept').includes('text/html')) {
           return caches.match('./TienDaoChiLo.html');
         }
@@ -110,14 +98,30 @@ self.addEventListener('fetch', event => {
   );
 });
 
-// ── MESSAGE: nhận lệnh từ game (ví dụ: force update) ────────
+// ── MESSAGE: nhận lệnh từ game ────────
 self.addEventListener('message', event => {
   if (event.data === 'SKIP_WAITING') {
     self.skipWaiting();
   }
   if (event.data === 'CLEAR_CACHE') {
-    caches.delete(CACHE_NAME).then(() => {
-      console.log('[SW] Đã xóa cache theo lệnh.');
+    caches.keys().then(keys =>
+      Promise.all(keys.map(k => caches.delete(k)))
+    ).then(() => {
+      console.log('[SW] Đã xóa toàn bộ cache.');
+      // Thông báo lại cho tất cả clients
+      self.clients.matchAll().then(clients => {
+        clients.forEach(c => c.postMessage({ type: 'CACHE_CLEARED' }));
+      });
     });
+  }
+  if (event.data === 'GET_VERSION') {
+    // Hỗ trợ cả postMessage trực tiếp lẫn MessageChannel
+    const port = event.ports && event.ports[0];
+    const payload = { type: 'SW_VERSION', version: APP_VERSION };
+    if (port) {
+      port.postMessage(payload);
+    } else if (event.source) {
+      event.source.postMessage(payload);
+    }
   }
 });
