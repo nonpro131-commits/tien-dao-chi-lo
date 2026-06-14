@@ -16,7 +16,7 @@
 
 <script>
 // ★ ĐỔI SỐ NÀY MỖI KHI DEPLOY BẢN MỚI (phải khớp với sw.js) ★
-const APP_VERSION = '1.0.3';
+const APP_VERSION = '1.0.4';
 
 // ── Đăng ký Service Worker + kiểm tra update ──
 if ('serviceWorker' in navigator) {
@@ -1237,7 +1237,7 @@ body.story-closed #main{
 <!-- ===== FIREBASE ===== -->
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { getFirestore, doc, setDoc, getDoc, getDocs, collection, query, orderBy, limit } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyArt7yX7IO4GImWJDVv3aTk47EUkFTKF3k",
@@ -1624,6 +1624,7 @@ window._updateTitleLoginBtn = _updateTitleLoginBtn;
     <div id="hud-btn" onclick="G.toggleHUD()">☰</div>
     <div id="quick-btns">
       <div class="qbtn" onclick="G.openScreen('giftcode')">🎁<span>Mã Quà</span></div>
+      <div class="qbtn" onclick="G.openScreen('bxh')">🏅<span>BXH</span></div>
     </div>
   </div>
   <div id="achievement-btn" onclick="G.openScreen('achievement')">🏆<span>Thành Tựu</span></div>
@@ -8581,6 +8582,16 @@ function openScreen(id){
         <div style="font-size:13px;font-weight:700;color:#d6b15f;margin-bottom:6px;">Sự Kiện Đặc Biệt</div>
         <div style="font-size:11px;color:#5a4020;line-height:1.7">Hiện chưa có sự kiện nào đang diễn ra.<br>Hãy quay lại sau!</div>
       </div>`; },
+    bxh:()=>{
+      t.textContent="🏅 Bảng Xếp Hạng";
+      b.style.padding="0";
+      b.style.overflow="hidden";
+      b.style.display="flex";
+      b.style.flexDirection="column";
+      b.style.height="100%";
+      b.innerHTML = buildBxhHTML();
+      loadBxhData("tuvi");
+    },
     giftcode:()=>{ t.textContent="🎁 Mã Đổi Quà"; b.innerHTML=`
       <div style="font-size:12px;color:#9a8860;margin-bottom:14px;line-height:1.6">Nhập mã để nhận phần thưởng đặc biệt.</div>
       <input id="giftcode-input" type="text" maxlength="24" placeholder="Nhập mã tại đây..."
@@ -8895,6 +8906,199 @@ function claimAchievement(achId){
   const tEl = document.getElementById("screen-title");
   if(b && tEl && tEl.textContent.includes("Thành Tựu")){
     b.innerHTML = buildAchievementHTML();
+  }
+}
+
+/* ===== BẢNG XẾP HẠNG ===== */
+// Cache 6h
+let _bxhCache = {}; // { tuvi: { data:[], fetchedAt: timestamp } }
+const BXH_CACHE_MS = 6 * 60 * 60 * 1000; // 6 giờ
+let _bxhTab = "tuvi";
+
+// Stage tối thiểu để vào BXH: Luyện Khí Hậu Kỳ = stage 3
+const BXH_MIN_STAGE = 3;
+
+function buildBxhHTML() {
+  const tabs = [
+    { id:"tuvi",    icon:"⚔️",  label:"BXH Tu Vi" },
+    { id:"luyen_dan", icon:"🔥", label:"BXH Luyện Đan Sư" },
+    { id:"luyen_khi", icon:"🔨", label:"BXH Luyện Khí Sư" },
+    { id:"luyen_phu", icon:"📜", label:"BXH Luyện Phù Sư" },
+    { id:"tran_phap", icon:"🔶", label:"BXH Trận Pháp Sư" },
+  ];
+  const sidebarHTML = tabs.map(tab =>
+    `<div class="shop-tab ${_bxhTab===tab.id?"active":""}" onclick="G._bxhSwitch('${tab.id}')">
+      <span class="stab-icon">${tab.icon}</span>${tab.label}
+    </div>`
+  ).join("");
+
+  return `
+    <div class="shop-layout" style="height:100%;">
+      <div class="shop-sidebar">${sidebarHTML}</div>
+      <div class="shop-content" id="bxh-content-area" style="padding:0;overflow:hidden;display:flex;flex-direction:column;">
+        <div id="bxh-list" style="flex:1;overflow-y:auto;padding:10px 12px 80px;"></div>
+        <!-- Sticky: hiển thị rank người chơi hiện tại dù lướt đâu cũng thấy -->
+        <div id="bxh-my-rank" style="
+          position:sticky;bottom:0;left:0;right:0;
+          background:rgba(6,8,14,.97);
+          border-top:1px solid rgba(201,168,76,.25);
+          padding:9px 14px;
+          display:none;
+          align-items:center;
+          gap:10px;
+          flex-shrink:0;
+          z-index:10;
+        "></div>
+      </div>
+    </div>`;
+}
+
+async function loadBxhData(tab) {
+  _bxhTab = tab || _bxhTab;
+  const listEl  = document.getElementById("bxh-list");
+  const myRankEl = document.getElementById("bxh-my-rank");
+  if(!listEl) return;
+
+  // Chỉ tuvi có dữ liệu thật; các tab khác báo "chưa cập nhật"
+  if(_bxhTab !== "tuvi") {
+    if(myRankEl) myRankEl.style.display="none";
+    listEl.innerHTML = `
+      <div style="text-align:center;padding:50px 20px;">
+        <div style="font-size:32px;margin-bottom:12px;">🔒</div>
+        <div style="font-size:13px;font-weight:700;color:#5a4020;margin-bottom:6px;">Chưa Cập Nhật</div>
+        <div style="font-size:11px;color:#3a2010;">Tính năng này sẽ ra mắt sớm.</div>
+      </div>`;
+    return;
+  }
+
+  // Dùng cache nếu còn hợp lệ
+  const cached = _bxhCache[_bxhTab];
+  if(cached && (Date.now() - cached.fetchedAt) < BXH_CACHE_MS) {
+    renderBxhList(cached.data, listEl, myRankEl);
+    return;
+  }
+
+  // Loading
+  listEl.innerHTML = `<div style="text-align:center;padding:40px 20px;color:#7a6030;font-size:12px;">⏳ Đang tải bảng xếp hạng...</div>`;
+  if(myRankEl) myRankEl.style.display="none";
+
+  try {
+    const q = query(collection(db, "players"), limit(500));
+    const snap = await getDocs(q);
+
+    const entries = [];
+    snap.forEach(docSnap => {
+      const d = docSnap.data();
+      if(!d.saveData) return;
+      try {
+        const sv = typeof d.saveData === "string" ? JSON.parse(d.saveData) : d.saveData;
+        const stage = sv.stage || 0;
+        if(stage < BXH_MIN_STAGE) return; // Chưa đủ Luyện Khí Hậu Kỳ
+        entries.push({
+          username: d.username || docSnap.id,
+          stage: stage,
+          stageName: sv.stageName || "Phàm Nhân",
+          exp: sv.exp || 0,
+          firstReached: d.lastSaved || 0, // dùng để phân biệt ai lên trước
+        });
+      } catch(e) {}
+    });
+
+    // Sắp xếp: stage cao → exp cao → ai lên trước (lastSaved nhỏ hơn = lên trước)
+    entries.sort((a, b) => {
+      if(b.stage !== a.stage) return b.stage - a.stage;
+      if(b.exp !== a.exp) return b.exp - a.exp;
+      return a.firstReached - b.firstReached;
+    });
+
+    const top100 = entries.slice(0, 100);
+    _bxhCache[_bxhTab] = { data: top100, allData: entries, fetchedAt: Date.now() };
+    renderBxhList(top100, listEl, myRankEl, entries);
+  } catch(e) {
+    listEl.innerHTML = `<div style="text-align:center;padding:40px 20px;color:#ff6060;font-size:12px;">❌ Lỗi tải BXH: ${e.message}</div>`;
+  }
+}
+
+function renderBxhList(top100, listEl, myRankEl, allEntries) {
+  const myName = window._cloudUser ? window._cloudUser.username : null;
+
+  // Tìm rank người chơi
+  const fullList = allEntries || top100;
+  let myRank = -1;
+  let myEntry = null;
+  if(myName) {
+    myRank = fullList.findIndex(e => e.username === myName);
+    if(myRank >= 0) myEntry = fullList[myRank];
+  }
+
+  const RANK_COLORS = ["#f0c14b","#b8c8d8","#c87840"];
+  const RANK_LABELS = ["🥇","🥈","🥉"];
+  const RANK_BG     = [
+    "rgba(240,193,75,.10)","rgba(184,200,216,.07)","rgba(200,120,64,.07)"
+  ];
+
+  let html = "";
+  if(top100.length === 0) {
+    html = `<div style="text-align:center;padding:40px 20px;color:#5a4020;font-size:12px;">
+      Chưa có tu sĩ nào đủ điều kiện.<br>
+      <span style="font-size:10px;color:#3a2010">Cần đạt <b>Luyện Khí Hậu Kỳ</b> trở lên</span>
+    </div>`;
+  } else {
+    html = `<div style="font-size:9px;color:#5a4020;letter-spacing:.5px;margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid rgba(201,168,76,.1);">
+      🔄 Reset mỗi 6 giờ · Cần <b style="color:#d6b15f">Luyện Khí Hậu Kỳ</b> để vào BXH
+    </div>`;
+    top100.forEach((e, i) => {
+      const rank = i + 1;
+      const isMe = myName && e.username === myName;
+      const color = rank <= 3 ? RANK_COLORS[rank-1] : "#9a8060";
+      const label = rank <= 3 ? RANK_LABELS[rank-1] : rank;
+      const bg    = rank <= 3 ? RANK_BG[rank-1] : (isMe ? "rgba(201,168,76,.06)" : "transparent");
+      const meBorder = isMe ? "border:1px solid rgba(201,168,76,.35);" : "border:1px solid transparent;";
+      html += `
+        <div style="display:flex;align-items:center;gap:10px;padding:7px 10px;border-radius:8px;
+          background:${bg};${meBorder}margin-bottom:4px;">
+          <div style="width:28px;text-align:center;flex-shrink:0;font-size:${rank<=3?'16':'12'}px;font-weight:700;color:${color};">${label}</div>
+          <div style="flex:1;min-width:0;">
+            <div style="font-size:12px;font-weight:700;color:${isMe?'#f0d98c':'#d0c090'};
+              white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+              ${e.username}${isMe?' <span style="font-size:9px;color:#d6b15f;font-weight:400;">(bạn)</span>':''}
+            </div>
+            <div style="font-size:10px;color:#7a6030;margin-top:1px;">${e.stageName}</div>
+          </div>
+        </div>`;
+    });
+  }
+  listEl.innerHTML = html;
+
+  // Sticky bottom: hiển thị rank người chơi
+  if(myRankEl) {
+    if(!myName) {
+      myRankEl.style.display="flex";
+      myRankEl.innerHTML = `<div style="font-size:10px;color:#5a4020;flex:1;text-align:center;">
+        🔒 Đăng nhập để xem thứ hạng của bạn
+      </div>`;
+    } else if(myEntry) {
+      const rank = myRank + 1;
+      const color = rank <= 3 ? RANK_COLORS[rank-1] : "#d6b15f";
+      const label = rank <= 3 ? RANK_LABELS[rank-1] : `#${rank}`;
+      myRankEl.style.display="flex";
+      myRankEl.innerHTML = `
+        <div style="font-size:18px;font-weight:700;color:${color};flex-shrink:0;">${label}</div>
+        <div style="flex:1;min-width:0;">
+          <div style="font-size:12px;font-weight:700;color:#f0d98c;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${myEntry.username}</div>
+          <div style="font-size:10px;color:#7a6030;">${myEntry.stageName}</div>
+        </div>
+        <div style="font-size:9px;color:#5a4020;text-align:right;">Thứ hạng<br>của bạn</div>`;
+    } else {
+      // Đăng nhập nhưng chưa đủ điều kiện
+      myRankEl.style.display="flex";
+      myRankEl.innerHTML = `
+        <div style="font-size:14px;flex-shrink:0;">❓</div>
+        <div style="flex:1;">
+          <div style="font-size:11px;font-weight:700;color:#7a6030;">Top ???</div>
+          <div style="font-size:9px;color:#5a4020;">Cần đạt Luyện Khí Hậu Kỳ để vào BXH</div>
+        </div>`;
+    }
   }
 }
 
@@ -11633,6 +11837,8 @@ return {
   claimFree1h, buyCard, _shopSwitch,
   _ldSwitch,
   _lkSwitchSect,
+  _bxhSwitch: function(tab){ _bxhTab=tab; const b=document.getElementById("screen-body"); if(b){ b.style.padding="0";b.style.overflow="hidden";b.style.display="flex";b.style.flexDirection="column";b.style.height="100%"; b.innerHTML=buildBxhHTML(); } loadBxhData(tab); },
+  loadBxhData, buildBxhHTML,
   _exchSetMode, _exchSetGrade, _exchUpdate, _exchSetAmt, _exchConfirm,
   buyDuocLieu,
   buyDanDuocShop,
