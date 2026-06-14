@@ -1244,6 +1244,9 @@ window._cloudLogin = async function() {
       // Tự động vào game nếu có save data
       if (data.saveData) {
         document.getElementById("title-screen").style.display = "none";
+        if (window.G && typeof window.G.continueGame === "function") {
+          window.G.continueGame();
+        }
       }
     }, 900);
 
