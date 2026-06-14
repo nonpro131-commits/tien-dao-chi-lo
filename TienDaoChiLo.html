@@ -16,7 +16,7 @@
 
 <script>
 // ★ ĐỔI SỐ NÀY MỖI KHI DEPLOY BẢN MỚI (phải khớp với sw.js) ★
-const APP_VERSION = '1.0.4';
+const APP_VERSION = '1.0.5';
 
 // ── Đăng ký Service Worker + kiểm tra update ──
 if ('serviceWorker' in navigator) {
@@ -1471,6 +1471,13 @@ function _updateTitleLoginBtn() {
   }
 }
 window._updateTitleLoginBtn = _updateTitleLoginBtn;
+
+// Expose Firestore helpers ra window để dùng trong script chính
+window._fsGetDocs    = getDocs;
+window._fsCollection = collection;
+window._fsQuery      = query;
+window._fsLimit      = limit;
+window._fsDb         = db;
 </script>
 
 <!-- ===== CLOUD AUTH SCREEN (Đăng Nhập từ Title) ===== -->
@@ -8983,8 +8990,8 @@ async function loadBxhData(tab) {
   if(myRankEl) myRankEl.style.display="none";
 
   try {
-    const q = query(collection(db, "players"), limit(500));
-    const snap = await getDocs(q);
+    const q = window._fsQuery(window._fsCollection(window._fsDb, "players"), window._fsLimit(500));
+    const snap = await window._fsGetDocs(q);
 
     const entries = [];
     snap.forEach(docSnap => {
