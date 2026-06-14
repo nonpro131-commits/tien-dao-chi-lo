@@ -16,7 +16,7 @@
 
 <script>
 // ★ ĐỔI SỐ NÀY MỖI KHI DEPLOY BẢN MỚI (phải khớp với sw.js) ★
-const APP_VERSION = '1.0.5';
+const APP_VERSION = '1.0.6';
 
 // ── Đăng ký Service Worker + kiểm tra update ──
 if ('serviceWorker' in navigator) {
@@ -1401,7 +1401,10 @@ window._cloudSave = async function(saveObj) {
       username: window._cloudUser.username,
       passwordHash: window._cloudUser.hash,
       saveData: JSON.stringify(saveObj),
-      lastSaved: Date.now()
+      lastSaved: Date.now(),
+      stage: saveObj.stage || 0,
+      stageName: saveObj.stageName || "Phàm Nhân",
+      exp: saveObj.exp || 0
     }, { merge: true });
     return true;
   } catch(e) {
@@ -5473,7 +5476,7 @@ function buildDanDuocShopContent(){
 
   let html = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
     <div style="font-size:9px;color:#5a4020;letter-spacing:.4px;">HÀNG HÔM NAY · Reset sau: <b style="color:#c8a84a">${cdStr}</b></div>
-    <div onclick="G.ddResetShop()" style="font-size:10px;padding:3px 9px;background:rgba(201,168,76,.08);border:1px solid rgba(201,168,76,.3);border-radius:6px;color:#c8a84a;cursor:pointer;white-space:nowrap;">🔄 Reset <span style="color:#7a6030">(3🏅)</span></div>
+    <div onclick="G.ddResetShop()" style="font-size:10px;padding:3px 9px;background:rgba(201,168,76,.08);border:1px solid rgba(201,168,76,.3);border-radius:6px;color:#c8a84a;cursor:pointer;white-space:nowrap;">🔄 Reset <span style="color:#7a6030">(3??)</span></div>
   </div>
   <div style="font-size:9.5px;color:#5a8050;margin-bottom:10px;padding:6px 8px;background:rgba(80,200,80,.05);border:1px solid rgba(80,200,80,.15);border-radius:7px;">
     💡 Sau khi mua, vào <b style="color:#c8a84a">Nhẫn Trữ Vật</b> để sử dụng đan dược.
@@ -8919,7 +8922,7 @@ function claimAchievement(achId){
 /* ===== BẢNG XẾP HẠNG ===== */
 // Cache 6h
 let _bxhCache = {}; // { tuvi: { data:[], fetchedAt: timestamp } }
-const BXH_CACHE_MS = 6 * 60 * 60 * 1000; // 6 giờ
+const BXH_CACHE_MS = 5 * 60 * 1000; // 5 phút
 let _bxhTab = "tuvi";
 
 // Stage tối thiểu để vào BXH: Luyện Khí Hậu Kỳ = stage 3
@@ -8996,19 +8999,30 @@ async function loadBxhData(tab) {
     const entries = [];
     snap.forEach(docSnap => {
       const d = docSnap.data();
-      if(!d.saveData) return;
-      try {
-        const sv = typeof d.saveData === "string" ? JSON.parse(d.saveData) : d.saveData;
-        const stage = sv.stage || 0;
-        if(stage < BXH_MIN_STAGE) return; // Chưa đủ Luyện Khí Hậu Kỳ
-        entries.push({
-          username: d.username || docSnap.id,
-          stage: stage,
-          stageName: sv.stageName || "Phàm Nhân",
-          exp: sv.exp || 0,
-          firstReached: d.lastSaved || 0, // dùng để phân biệt ai lên trước
-        });
-      } catch(e) {}
+      // Đọc stage từ top-level (nhanh, không cần parse saveData)
+      // Fallback: parse saveData nếu chưa có top-level stage
+      let stage = 0, stageName = "Phàm Nhân", exp = 0;
+      if(typeof d.stage === "number") {
+        stage    = d.stage;
+        stageName = d.stageName || "Phàm Nhân";
+        exp      = d.exp || 0;
+      } else if(d.saveData) {
+        try {
+          const sv = typeof d.saveData === "string" ? JSON.parse(d.saveData) : d.saveData;
+          stage    = sv.stage || 0;
+          stageName = sv.stageName || "Phàm Nhân";
+          exp      = sv.exp || 0;
+        } catch(e) { return; }
+      } else { return; }
+
+      if(stage < BXH_MIN_STAGE) return; // Chưa đủ Luyện Khí Hậu Kỳ
+      entries.push({
+        username: d.username || docSnap.id,
+        stage,
+        stageName,
+        exp,
+        firstReached: d.lastSaved || 0,
+      });
     });
 
     // Sắp xếp: stage cao → exp cao → ai lên trước (lastSaved nhỏ hơn = lên trước)
