@@ -16,7 +16,7 @@
 
 <script>
 // ★ ĐỔI SỐ NÀY MỖI KHI DEPLOY BẢN MỚI (phải khớp với sw.js) ★
-const APP_VERSION = '1.0.2';
+const APP_VERSION = '1.0.3';
 
 // ── Đăng ký Service Worker + kiểm tra update ──
 if ('serviceWorker' in navigator) {
@@ -1411,13 +1411,19 @@ window._cloudSave = async function(saveObj) {
 };
 
 // ── Đăng xuất ─────────────────────────────────────────────
-window._cloudLogout = function() {
+window._cloudLogout = async function() {
   const ok = confirm(
     "Đăng xuất tài khoản " + (window._cloudUser ? `"${window._cloudUser.username}"` : "") + "?\n\n" +
     "Tiến trình vẫn được lưu trên cloud.\n" +
     "Màn hình sẽ quay về Chơi Mới."
   );
   if (!ok) return;
+  // Lưu game lên cloud trước khi đăng xuất
+  if (typeof G !== "undefined" && typeof G.saveGame === "function") {
+    G.saveGame();
+  }
+  // Chờ cloud save hoàn tất rồi mới reload
+  await new Promise(r => setTimeout(r, 600));
   window._cloudUser = null;
   localStorage.removeItem("_tdcl_session");
   location.reload();
@@ -9114,6 +9120,7 @@ function _confirmAvatar(){
 function continueGame(){
   loadGame();
   document.getElementById("title-screen").style.display="none";
+  startClock();
 }
 
 function openSettings(){
@@ -9641,7 +9648,10 @@ function getManaRegen(){
   return MANA_REGEN_BY_STAGE[idx] || 0;
 }
 
+let _clockStarted = false;
 function startClock(){
+  if(_clockStarted) return; // Tránh chạy nhiều interval khi gọi lại
+  _clockStarted = true;
   // Bắt đầu từ 00:01:00
   if(S.hour===0 && S.minute===0 && S.second===0){ S.minute = 1; }
   let regenTick = 0; // đếm để hồi mana mỗi 5 giây
