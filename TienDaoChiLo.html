@@ -16,7 +16,7 @@
 
 <script>
 // ★ ĐỔI SỐ NÀY MỖI KHI DEPLOY BẢN MỚI (phải khớp với sw.js) ★
-const APP_VERSION = '1.0.9';
+const APP_VERSION = '1.0.1';
 
 // ── Đăng ký Service Worker + kiểm tra update ──
 if ('serviceWorker' in navigator) {
@@ -5543,15 +5543,24 @@ const PHAP_KHI_SECTS = [
   { id:"the_cuc",    name:"Thể Cực",   color:"#a0a0a0", bg:"rgba(20,20,20,.45)",  border:"rgba(120,120,120,.22)", icon:"💪"  },
   { id:"van_phap",   name:"Vạn Pháp",  color:"#a0a0a0", bg:"rgba(20,20,20,.45)",  border:"rgba(120,120,120,.22)", icon:"✨"  },
 ];
+const PK_IMG_non       = "./assets/images/phapkhi/non.jpg";
+const PK_IMG_ao        = "./assets/images/phapkhi/ao.jpg";
+const PK_IMG_quan      = "./assets/images/phapkhi/quan.jpg";
+const PK_IMG_giay      = "./assets/images/phapkhi/giay.jpg";
+const PK_IMG_van_kiem  = "./assets/images/phapkhi/van_kiem.png";
+const PK_IMG_thai_dao  = "./assets/images/phapkhi/thai_dao.png";
+const PK_IMG_nhat_quyen= "./assets/images/phapkhi/nhat_quyen.png";
+const PK_IMG_van_phap_khi="./assets/images/phapkhi/van_phap_khi.png";
+
 const PHAP_KHI_SLOTS = [
-  { id:"non",          name:"Trâm",      icon:'<img src="./assets/images/phapkhi/non.jpg" style="width:38px;height:auto;filter:invert(1) brightness(0.85);display:block;">', priceMin:5, priceMax:15 },
-  { id:"ao",           name:"Áo",        icon:'<img src="./assets/images/phapkhi/ao.jpg" style="width:38px;height:auto;filter:invert(1) brightness(0.85);display:block;">', priceMin:5,  priceMax:15 },
-  { id:"quan",         name:"Quần",      icon:'<img src="./assets/images/phapkhi/quan.jpg" style="width:38px;height:auto;filter:invert(1) brightness(0.85);display:block;">', priceMin:20, priceMax:30 },
-  { id:"giay",         name:"Giày",      icon:'<img src="./assets/images/phapkhi/giay.jpg" style="width:38px;height:auto;filter:invert(1) brightness(0.85);display:block;">', priceMin:3,  priceMax:7  },
-  { id:"van_kiem",     name:"Vân Kiếm",  icon:'<img src="./assets/images/phapkhi/van_kiem.png" style="width:42px;height:auto;filter:invert(1) brightness(0.85);display:block;">', priceMin:30, priceMax:45 },
-  { id:"thai_dao",     name:"Thái Đao",   icon:'<img src="./assets/images/phapkhi/thai_dao.png" style="width:42px;height:auto;filter:invert(1) brightness(0.85);display:block;">', priceMin:30, priceMax:45 },
-  { id:"nhat_quyen",   name:"Nhất Quyền", icon:'<img src="./assets/images/phapkhi/nhat_quyen.png" style="width:42px;height:auto;filter:invert(1) brightness(0.85);display:block;">', priceMin:30, priceMax:45 },
-  { id:"van_phap_khi", name:"Vạn Pháp",   icon:'<img src="./assets/images/phapkhi/van_phap_khi.png" style="width:42px;height:auto;filter:invert(1) brightness(0.85);display:block;">', priceMin:30, priceMax:45 },
+  { id:"non",          name:"Trâm",      icon:`<img src="${PK_IMG_non}" style="width:38px;height:auto;filter:invert(1) brightness(0.85);display:block;">`, priceMin:5, priceMax:15 },
+  { id:"ao",           name:"Áo",        icon:`<img src="${PK_IMG_ao}" style="width:38px;height:auto;filter:invert(1) brightness(0.85);display:block;">`, priceMin:5,  priceMax:15 },
+  { id:"quan",         name:"Quần",      icon:`<img src="${PK_IMG_quan}" style="width:38px;height:auto;filter:invert(1) brightness(0.85);display:block;">`, priceMin:20, priceMax:30 },
+  { id:"giay",         name:"Giày",      icon:`<img src="${PK_IMG_giay}" style="width:38px;height:auto;filter:invert(1) brightness(0.85);display:block;">`, priceMin:3,  priceMax:7  },
+  { id:"van_kiem",     name:"Vân Kiếm",  icon:`<img src="${PK_IMG_van_kiem}" style="width:42px;height:auto;filter:invert(1) brightness(0.85);display:block;">`, priceMin:30, priceMax:45 },
+  { id:"thai_dao",     name:"Thái Đao",   icon:`<img src="${PK_IMG_thai_dao}" style="width:42px;height:auto;filter:invert(1) brightness(0.85);display:block;">`, priceMin:30, priceMax:45 },
+  { id:"nhat_quyen",   name:"Nhất Quyền", icon:`<img src="${PK_IMG_nhat_quyen}" style="width:42px;height:auto;filter:invert(1) brightness(0.85);display:block;">`, priceMin:30, priceMax:45 },
+  { id:"van_phap_khi", name:"Vạn Pháp",   icon:`<img src="${PK_IMG_van_phap_khi}" style="width:42px;height:auto;filter:invert(1) brightness(0.85);display:block;">`, priceMin:30, priceMax:45 },
 ];
 
 // Khởi tạo shop pháp khí (roll ngẫu nhiên mỗi lần reset)
