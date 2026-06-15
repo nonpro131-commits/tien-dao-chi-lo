@@ -16,7 +16,7 @@
 
 <script>
 // ★ ĐỔI SỐ NÀY MỖI KHI DEPLOY BẢN MỚI (phải khớp với sw.js) ★
-const APP_VERSION = '1.0.9';
+const APP_VERSION = '1.0.1';
 
 // ── Đăng ký Service Worker + kiểm tra update ──
 if ('serviceWorker' in navigator) {
@@ -2080,7 +2080,7 @@ function calcStage(){
   const d = STAGE_DATA[S.stage];
   if(d){
     S.stageName = d.n;
-    S.agemax    = d.agemax;
+    S.agemax    = Math.max(S.age + 1, d.agemax - (S._ageDrain || 0)); // trừ thọ nguyên bị mất do đột phá thất bại
     S.soul      = Math.max(S.soul||0, d.soul); // soul chỉ tăng, không bao giờ bị reset về thấp hơn
     S.expmax    = d.exp || 100;
   } else {
@@ -2096,11 +2096,11 @@ function _recordBreakthroughAge(){
 
 function calcLinhCan(){
   const rates = {
-    "Thiên Linh Căn":    {"Cực Phẩm":8,  "Thượng Phẩm":7,"Trung Phẩm":6,"Hạ Phẩm":5},
-    "Địa Linh Căn":      {"Cực Phẩm":4.9,"Thượng Phẩm":4.5,"Trung Phẩm":4.2,"Hạ Phẩm":4},
-    "Huyền Linh Căn":    {"Cực Phẩm":3.5,"Thượng Phẩm":3,"Trung Phẩm":2.5,"Hạ Phẩm":2},
-    "Hoàng Linh Căn":    {"Viên Mãn":1.75,"Cực Phẩm":1.6,"Thượng Phẩm":1.5,"Trung Phẩm":1.1,"Hạ Phẩm":1},
-    "Ngũ Hành Linh Căn": {"Viên Mãn":12,"Cực Phẩm":11,"Thượng Phẩm":10,"Trung Phẩm":9,"Hạ Phẩm":9},
+    "Thiên Linh Căn":    {"Cực Phẩm":9, "Thượng Phẩm":9,"Trung Phẩm":9,"Hạ Phẩm":9},
+    "Địa Linh Căn":      {"Cực Phẩm":8, "Thượng Phẩm":8,"Trung Phẩm":8,"Hạ Phẩm":8},
+    "Huyền Linh Căn":    {"Cực Phẩm":3, "Thượng Phẩm":3,"Trung Phẩm":3,"Hạ Phẩm":3},
+    "Hoàng Linh Căn":    {"Viên Mãn":1, "Cực Phẩm":1,  "Thượng Phẩm":1,"Trung Phẩm":1,"Hạ Phẩm":1},
+    "Ngũ Hành Linh Căn": {"Viên Mãn":10,"Cực Phẩm":10, "Thượng Phẩm":10,"Trung Phẩm":10,"Hạ Phẩm":10},
   };
   const r = rates[S.linhcan];
   if(r && r[S.linhcanCap]){ S.baseExpRate = r[S.linhcanCap]; S.baseManaRate = r[S.linhcanCap]; }
@@ -2120,7 +2120,7 @@ const LC_MANA_MULTI = {
   "Địa Linh Căn":      2,
   "Huyền Linh Căn":    3.5,
   "Hoàng Linh Căn":    5,
-  "Ngũ Hành Linh Căn": 1,
+  "Ngũ Hành Linh Căn": 5.5,
 };
 
 function calcLinhKhi(){
@@ -2993,19 +2993,19 @@ function toggleFS(){
 const BREAK_BASE_RATE = {
   // ── TRÚC CƠ (đột phá từ stage 4) ──
   trucco: {
-    "Thiên Linh Căn":    {"Hạ Phẩm":65, "Trung Phẩm":72, "Thượng Phẩm":80, "Cực Phẩm":88},
-    "Địa Linh Căn":      {"Hạ Phẩm":52, "Trung Phẩm":58, "Thượng Phẩm":64, "Cực Phẩm":70},
-    "Huyền Linh Căn":    {"Hạ Phẩm":38, "Trung Phẩm":44, "Thượng Phẩm":50, "Cực Phẩm":56},
-    "Hoàng Linh Căn":    {"Hạ Phẩm":22, "Trung Phẩm":26, "Thượng Phẩm":30, "Cực Phẩm":34, "Viên Mãn":40},
-    "Ngũ Hành Linh Căn": {"Hạ Phẩm":70, "Trung Phẩm":78, "Thượng Phẩm":85, "Cực Phẩm":92, "Viên Mãn":98},
+    "Thiên Linh Căn":    {"Hạ Phẩm":70, "Trung Phẩm":70, "Thượng Phẩm":70, "Cực Phẩm":70},
+    "Địa Linh Căn":      {"Hạ Phẩm":50, "Trung Phẩm":50, "Thượng Phẩm":50, "Cực Phẩm":50},
+    "Huyền Linh Căn":    {"Hạ Phẩm":25, "Trung Phẩm":25, "Thượng Phẩm":25, "Cực Phẩm":25},
+    "Hoàng Linh Căn":    {"Hạ Phẩm":10, "Trung Phẩm":10, "Thượng Phẩm":10, "Cực Phẩm":10, "Viên Mãn":10},
+    "Ngũ Hành Linh Căn": {"Hạ Phẩm":90, "Trung Phẩm":90, "Thượng Phẩm":90, "Cực Phẩm":90, "Viên Mãn":90},
   },
   // ── KIM ĐAN (đột phá từ stage 8) ──
   kimdan: {
-    "Thiên Linh Căn":    {"Hạ Phẩm":45, "Trung Phẩm":52, "Thượng Phẩm":60, "Cực Phẩm":70},
-    "Địa Linh Căn":      {"Hạ Phẩm":32, "Trung Phẩm":38, "Thượng Phẩm":44, "Cực Phẩm":52},
-    "Huyền Linh Căn":    {"Hạ Phẩm":20, "Trung Phẩm":25, "Thượng Phẩm":30, "Cực Phẩm":36},
-    "Hoàng Linh Căn":    {"Hạ Phẩm":10, "Trung Phẩm":13, "Thượng Phẩm":16, "Cực Phẩm":20, "Viên Mãn":25},
-    "Ngũ Hành Linh Căn": {"Hạ Phẩm":50, "Trung Phẩm":60, "Thượng Phẩm":70, "Cực Phẩm":82, "Viên Mãn":95},
+    "Thiên Linh Căn":    {"Hạ Phẩm":50, "Trung Phẩm":50, "Thượng Phẩm":50, "Cực Phẩm":50},
+    "Địa Linh Căn":      {"Hạ Phẩm":30, "Trung Phẩm":30, "Thượng Phẩm":30, "Cực Phẩm":30},
+    "Huyền Linh Căn":    {"Hạ Phẩm":10, "Trung Phẩm":10, "Thượng Phẩm":10, "Cực Phẩm":10},
+    "Hoàng Linh Căn":    {"Hạ Phẩm":5,  "Trung Phẩm":5,  "Thượng Phẩm":5,  "Cực Phẩm":5,  "Viên Mãn":5},
+    "Ngũ Hành Linh Căn": {"Hạ Phẩm":75, "Trung Phẩm":75, "Thượng Phẩm":75, "Cực Phẩm":75, "Viên Mãn":75},
   },
 };
 
@@ -3134,7 +3134,10 @@ function doBreakthrough(){
       <b style="color:#f0c14b;font-size:13px;">Tỷ lệ thành công: ${rate}%</b>
     </div>
     <div style="font-size:10px;color:#5a3820;margin-bottom:14px;padding:7px 10px;background:rgba(200,60,60,.07);border:1px solid rgba(200,60,60,.2);border-radius:7px;">
-      ⚠ Thất bại: mất <b style="color:#e84545">40% tu vi</b> · Tâm Ma <b style="color:#e84545">+${tamMaOnFail}</b>
+      ${type==="trucco"
+        ? `⚠ Thất bại: <b style="color:#e84545">HP −80%</b> · Tâm Ma <b style="color:#e84545">+${tamMaOnFail}</b> · Thọ Nguyên <b style="color:#e84545">−20 năm</b><br><span style="color:#c04040;font-size:9px;">Ngoan cố đột phá khi thân thể suy yếu có thể dẫn đến tử vong!</span>`
+        : `⚠ Thất bại: mất <b style="color:#e84545">40% tu vi</b> · Tâm Ma <b style="color:#e84545">+${tamMaOnFail}</b>`
+      }
     </div>
     <div style="display:flex;gap:8px;">
       <div onclick="document.getElementById('breakthrough-popup').remove()" style="flex:1;padding:9px;border-radius:9px;font-size:12px;font-weight:700;color:#9a8060;border:1px solid rgba(201,168,76,.2);background:rgba(201,168,76,.04);cursor:pointer;transition:all .15s;" onmouseover="this.style.background='rgba(201,168,76,.1)'" onmouseout="this.style.background='rgba(201,168,76,.04)'">← Quay Lại</div>
@@ -3178,18 +3181,68 @@ function _execBreakthrough(type, rate, tamMaOnFail){
     const expLoss = Math.floor(S.expmax * 0.40);
     S.exp = Math.max(0, S.exp - expLoss);
     S.tamMa = (S.tamMa || 0) + tamMaOnFail;
+
+    let extraLines = [];
+
+    if(type === "trucco"){
+      // Trúc Cơ thất bại: HP −80%, tâm ma +100 (đã cộng trên), agemax −20
+      const hpLossTrucCo = Math.floor(S.hpmax * 0.80);
+      S.hp = Math.max(1, S.hp - hpLossTrucCo);
+      S.tamMa = (S.tamMa || 0); // tamMaOnFail đã = 100 cho đại cảnh
+      // Giảm agemax của stage hiện tại trong STAGES (nếu có) và lưu vào S
+      S._ageDrain = (S._ageDrain || 0) + 20;
+      extraLines = [
+        `<b style="color:#e84545">HP −80% (Kinh Mạch Tổn Thương Nặng!)</b>`,
+        `<b style="color:#e84545">Thọ Nguyên −20 năm</b>`,
+      ];
+    }
+
     calcBuffs(); renderHUD();
-    // Refresh cultivate screen để cập nhật nút
-    openScreen("cultivate");
+
+    // Hiện popup cảnh báo dưỡng thương sau khi Trúc Cơ thất bại
+    if(type === "trucco"){
+      closeScreen();
+      const hpPctAfter = S.hpmax > 0 ? Math.floor(S.hp / S.hpmax * 100) : 0;
+      const warnPopup = document.createElement("div");
+      warnPopup.id = "trucco-fail-popup";
+      warnPopup.style.cssText = "position:fixed;inset:0;z-index:3000;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.9);backdrop-filter:blur(8px);padding:16px;";
+      warnPopup.innerHTML = `
+        <div style="width:100%;max-width:360px;background:rgba(14,2,2,.99);border:2px solid rgba(220,40,40,.5);border-radius:16px;padding:26px 20px;text-align:center;box-shadow:0 0 80px rgba(220,40,40,.25);animation:tcfPopIn .35s cubic-bezier(.16,1,.3,1);">
+          <style>@keyframes tcfPopIn{from{opacity:0;transform:scale(.88)}to{opacity:1;transform:scale(1)}}</style>
+          <div style="font-size:40px;margin-bottom:10px;">💀</div>
+          <div style="font-size:16px;font-weight:700;color:#e84545;letter-spacing:2px;margin-bottom:10px;">Trúc Cơ Đột Phá Thất Bại!</div>
+          <div style="font-size:11px;color:#9a3030;margin-bottom:14px;line-height:1.9;">
+            Linh lực cuồng loạn, kinh mạch bị tổn thương nặng nề.<br>
+            Nguyên khí đại tổn — <b style="color:#e84545">thân thể cần dưỡng thương khẩn cấp!</b>
+          </div>
+          <div style="margin-bottom:14px;padding:12px 14px;background:rgba(200,30,30,.08);border:1px solid rgba(200,30,30,.3);border-radius:10px;text-align:left;">
+            <div style="font-size:11px;color:#e84545;margin-bottom:5px;">🩸 <b>HP còn lại: ${hpPctAfter}%</b> (giảm 80%)</div>
+            <div style="font-size:11px;color:#e84545;margin-bottom:5px;">💀 <b>Tâm Ma +${tamMaOnFail}</b></div>
+            <div style="font-size:11px;color:#e84545;margin-bottom:5px;">⏳ <b>Thọ Nguyên −20 năm</b></div>
+            <div style="font-size:10px;color:#c04040;margin-bottom:5px;">📖 Tu vi −${fmt(expLoss)} (40%)</div>
+          </div>
+          <div style="font-size:11px;color:#c03030;margin-bottom:16px;padding:9px 12px;background:rgba(220,30,30,.06);border:1px solid rgba(200,30,30,.25);border-radius:8px;">
+            ⚠ <b style="color:#ff6060">Cảnh Báo:</b> Nếu ngoan cố đột phá khi thân thể<br>chưa hồi phục, ngươi sẽ <b style="color:#ff4040">vong mạng!</b>
+          </div>
+          <div onclick="document.getElementById('trucco-fail-popup').remove()" style="padding:11px 28px;background:rgba(200,30,30,.1);border:1px solid rgba(200,30,30,.4);border-radius:10px;font-size:13px;font-weight:700;color:#e08080;cursor:pointer;letter-spacing:1px;display:inline-block;transition:all .2s;" onmouseover="this.style.background='rgba(200,30,30,.22)'" onmouseout="this.style.background='rgba(200,30,30,.1)'">⚕ Dưỡng Thương</div>
+        </div>`;
+      warnPopup.onclick = e => { if(e.target===warnPopup) warnPopup.remove(); };
+      document.body.appendChild(warnPopup);
+    } else {
+      // Refresh cultivate screen để cập nhật nút (Kim Đan)
+      openScreen("cultivate");
+    }
+
     showNotif({
       icon:"💀",
       title:`${typeName} Đột Phá Thất Bại!`,
       lines:[
         `<b style="color:#e84545">Tu vi −${fmt(expLoss)} (40%)</b>`,
         `<b style="color:#e84545">Tâm Ma +${tamMaOnFail}</b>`,
-        `<span style="color:#7a4030">Tiếp tục tích lũy và thử lại...</span>`
+        ...extraLines,
+        `<span style="color:#7a4030">${type==="trucco"?"Hãy dưỡng thương trước khi thử lại!":"Tiếp tục tích lũy và thử lại..."}</span>`
       ],
-      color:"#e84545", pulseColor:"#c02020", duration:4000
+      color:"#e84545", pulseColor:"#c02020", duration:5000
     });
   }
 }
@@ -4673,10 +4726,10 @@ function buildDanDuocContent(){
 }
 
 /* ===== SHOP SYSTEM ===== */
-const SHOP_FREE_1H_CD = 5 * 60 * 60 * 1000; // 5 giờ thực
+const SHOP_FREE_1H_CD = 15 * 60 * 1000; // 15 phút thực
 
 const CARD_SHOP_ITEMS = [
-  { key:"card1h",  label:"Thẻ 1 Giờ",   icon:"⏳", sec:3600,     desc:"Tu luyện <b>1 giờ</b> game tức thời",          price:10,   currency:"cong_hien", hasFree:true  },
+  { key:"card1h",  label:"Thẻ 1 Giờ",   icon:"⏳", sec:3600,     desc:"Tu luyện <b>1 giờ</b> game tức thời",          price:7,    currency:"cong_hien", hasFree:true  },
   { key:"card5h",  label:"Thẻ 5 Giờ",   icon:"⌛", sec:18000,    desc:"Tu luyện <b>5 giờ</b> game tức thời",          price:50,   currency:"cong_hien", hasFree:false },
   { key:"card10h", label:"Thẻ 10 Giờ",  icon:"🕰️", sec:36000,   desc:"Tu luyện <b>10 giờ</b> game tức thời",         price:100,  currency:"cong_hien", hasFree:false },
   { key:"card1d",  label:"Thẻ 1 Ngày",  icon:"📅", sec:86400,    desc:"Tu luyện <b>1 ngày</b> game tức thời",         price:240,  currency:"cong_hien", hasFree:false },
@@ -4722,9 +4775,11 @@ function buyCard(key){
     S[key] = (S[key]||0) + 1;
     updateShopCH();
     showShopMsg("✅ Mua thành công 1 × "+item.label+"!","success");
-    openScreen("shop"); // refresh
-    // Cuộn về đầu sau khi refresh
-    setTimeout(()=>{ const ca=document.getElementById("shop-content-area"); if(ca) ca.scrollTop=0; }, 50);
+    // Refresh nội dung tại chỗ, giữ nguyên vị trí scroll
+    const ca = document.getElementById("shop-content-area");
+    const scrollTop = ca ? ca.scrollTop : 0;
+    _shopSwitch(_shopTab);
+    setTimeout(()=>{ const c=document.getElementById("shop-content-area"); if(c) c.scrollTop=scrollTop; }, 10);
   }
 }
 
@@ -4784,12 +4839,12 @@ function buildShopHTML(tab){
     const freeReady = shopFree1hReady();
     const cdStr = shopFree1hCooldownStr();
     const free1hHTML = `
-    <div class="shop-section-title">Miễn Phí · Hồi mỗi 5 giờ</div>
+    <div class="shop-section-title">Miễn Phí · Hồi mỗi 15 phút</div>
     <div class="shop-item">
       <div class="shop-item-icon">🎁</div>
       <div class="shop-item-info">
         <div class="shop-item-name">Thẻ Tu Luyện 1 Giờ <span class="free-badge">FREE</span></div>
-        <div class="shop-item-desc">Nhận <b>1 thẻ tu luyện 1h</b> miễn phí. Hồi lại sau <b>5 giờ</b> thực.</div>
+        <div class="shop-item-desc">Nhận <b>1 thẻ tu luyện 1h</b> miễn phí. Hồi lại sau <b>15 phút</b> thực.</div>
         ${!freeReady?`<div class="cooldown-text">⏳ Còn: ${cdStr}</div>`:""}
       </div>
       <div class="shop-item-right">
@@ -4797,7 +4852,19 @@ function buildShopHTML(tab){
         <div class="shop-btn free ${freeReady?"":"disabled"}" onclick="G.claimFree1h()">Nhận</div>
       </div>
     </div>
-    <div class="shop-section-title">Mua Bằng Điểm Cống Hiến</div>`;
+    <div class="shop-section-title">Mua Bằng Điểm Cống Hiến</div>
+    <div class="shop-item">
+      <div class="shop-item-icon">⏳</div>
+      <div class="shop-item-info">
+        <div class="shop-item-name">Thẻ 1 Giờ</div>
+        <div class="shop-item-desc">Tu luyện <b>1 giờ</b> game tức thời</div>
+      </div>
+      <div class="shop-item-right">
+        <div class="shop-item-count">Đang có: ×${S.card1h||0}</div>
+        <div class="shop-price"><span class="pcur">🏅</span>7</div>
+        <div class="shop-btn ${(S.diemCongHien||0)>=7?"":"disabled"}" onclick="G.buyCard('card1h')">${(S.diemCongHien||0)>=7?"Mua":"Thiếu điểm"}</div>
+      </div>
+    </div>`;
 
     const paidHTML = CARD_SHOP_ITEMS.map(item=>{
       if(item.soldOut){
@@ -4812,7 +4879,7 @@ function buildShopHTML(tab){
           </div>
         </div>`;
       }
-      if(item.hasFree) return ""; // already shown in free section
+      if(item.hasFree) return ""; // already shown in free section, skip here — but card1h has buy button in free section
       const canAfford = (S.diemCongHien||0) >= (item.price||0);
       return `<div class="shop-item">
         <div class="shop-item-icon">${item.icon}</div>
@@ -5058,12 +5125,12 @@ function _shopSwitch(tab){
     const freeReady = shopFree1hReady();
     const cdStr = shopFree1hCooldownStr();
     contentHTML = `
-    <div class="shop-section-title">Miễn Phí · Hồi mỗi 5 giờ</div>
+    <div class="shop-section-title">Miễn Phí · Hồi mỗi 15 phút</div>
     <div class="shop-item">
       <div class="shop-item-icon">🎁</div>
       <div class="shop-item-info">
         <div class="shop-item-name">Thẻ Tu Luyện 1 Giờ <span class="free-badge">FREE</span></div>
-        <div class="shop-item-desc">Nhận <b>1 thẻ tu luyện 1h</b> miễn phí. Hồi lại sau <b>5 giờ</b> thực.</div>
+        <div class="shop-item-desc">Nhận <b>1 thẻ tu luyện 1h</b> miễn phí. Hồi lại sau <b>15 phút</b> thực.</div>
         ${!freeReady?`<div class="cooldown-text">⏳ Còn: ${cdStr}</div>`:""}
       </div>
       <div class="shop-item-right">
@@ -5072,6 +5139,18 @@ function _shopSwitch(tab){
       </div>
     </div>
     <div class="shop-section-title">Mua Bằng Điểm Cống Hiến</div>
+    <div class="shop-item">
+      <div class="shop-item-icon">⏳</div>
+      <div class="shop-item-info">
+        <div class="shop-item-name">Thẻ 1 Giờ</div>
+        <div class="shop-item-desc">Tu luyện <b>1 giờ</b> game tức thời</div>
+      </div>
+      <div class="shop-item-right">
+        <div class="shop-item-count">Đang có: ×${S.card1h||0}</div>
+        <div class="shop-price"><span class="pcur">🏅</span>7</div>
+        <div class="shop-btn ${(S.diemCongHien||0)>=7?"":"disabled"}" onclick="G.buyCard('card1h')">${(S.diemCongHien||0)>=7?"Mua":"Thiếu điểm"}</div>
+      </div>
+    </div>
     ${CARD_SHOP_ITEMS.map(item=>{
       if(item.soldOut){
         return `<div class="shop-item" style="opacity:.35;">
@@ -11385,6 +11464,55 @@ function _showCotTruyenPopup(){
 function doCamNhanLinhKhi(){
   if(S.stage !== 0) return;
 
+  // ── Kiểm tra HP trước khi cảm nhận ──
+  const hpPctNow = S.hpmax > 0 ? (S.hp / S.hpmax) : 1;
+  if(hpPctNow < 0.50){
+    // HP dưới 50% → không thể cảm nhận, hiện cảnh báo
+    const warnPopup = document.createElement("div");
+    warnPopup.id = "cn-warn-popup";
+    warnPopup.style.cssText = "position:fixed;inset:0;z-index:3000;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.82);backdrop-filter:blur(6px);padding:20px;";
+    warnPopup.innerHTML = `
+      <div style="width:100%;max-width:320px;background:rgba(12,4,4,.99);border:2px solid rgba(200,60,60,.4);border-radius:16px;padding:26px 20px;text-align:center;box-shadow:0 0 40px rgba(200,60,60,.2);animation:cnPopIn .3s cubic-bezier(.16,1,.3,1);">
+        <style>@keyframes cnPopIn{from{opacity:0;transform:scale(.88)}to{opacity:1;transform:scale(1)}}</style>
+        <div style="font-size:36px;margin-bottom:10px;">🩸</div>
+        <div style="font-size:14px;font-weight:700;color:#e84545;letter-spacing:1.5px;margin-bottom:8px;">Thân Thể Quá Suy Yếu</div>
+        <div style="font-size:11px;color:#7a4040;margin-bottom:14px;line-height:1.8;">
+          HP hiện tại dưới <b style="color:#e84545">50%</b> — kinh mạch tổn thương nặng,<br>
+          không thể tiếp nhận linh khí thiên địa.<br>
+          <br>Hãy <b style="color:#d6b15f">dưỡng thương</b> đến khi HP đạt <b style="color:#70e880">80%</b> trở lên.
+        </div>
+        <div style="font-size:11px;color:#5a3020;margin-bottom:16px;padding:8px 12px;background:rgba(200,60,60,.07);border:1px solid rgba(200,60,60,.2);border-radius:8px;">
+          HP hiện tại: <b style="color:#e84545">${Math.floor(hpPctNow*100)}%</b> &nbsp;·&nbsp; Cần tối thiểu: <b style="color:#70e880">80%</b>
+        </div>
+        <div onclick="document.getElementById('cn-warn-popup').remove()" style="padding:11px 28px;background:rgba(200,60,60,.1);border:1px solid rgba(200,60,60,.35);border-radius:10px;font-size:13px;font-weight:700;color:#e08888;cursor:pointer;letter-spacing:1px;display:inline-block;transition:all .2s;" onmouseover="this.style.background='rgba(200,60,60,.22)'" onmouseout="this.style.background='rgba(200,60,60,.1)'">← Quay Lại</div>
+      </div>`;
+    warnPopup.onclick = e => { if(e.target===warnPopup) warnPopup.remove(); };
+    document.body.appendChild(warnPopup);
+    return;
+  }
+  if(hpPctNow < 0.80){
+    // HP từ 50-79% → cảnh báo cần đạt 80% mới thử
+    const warnPopup = document.createElement("div");
+    warnPopup.id = "cn-warn-popup";
+    warnPopup.style.cssText = "position:fixed;inset:0;z-index:3000;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.82);backdrop-filter:blur(6px);padding:20px;";
+    warnPopup.innerHTML = `
+      <div style="width:100%;max-width:320px;background:rgba(10,8,2,.99);border:2px solid rgba(220,140,40,.35);border-radius:16px;padding:26px 20px;text-align:center;box-shadow:0 0 40px rgba(220,140,40,.15);animation:cnPopIn .3s cubic-bezier(.16,1,.3,1);">
+        <style>@keyframes cnPopIn{from{opacity:0;transform:scale(.88)}to{opacity:1;transform:scale(1)}}</style>
+        <div style="font-size:36px;margin-bottom:10px;">⚠️</div>
+        <div style="font-size:14px;font-weight:700;color:#f0a030;letter-spacing:1.5px;margin-bottom:8px;">Thân Thể Chưa Hồi Phục</div>
+        <div style="font-size:11px;color:#7a6030;margin-bottom:14px;line-height:1.8;">
+          Cần HP đạt <b style="color:#70e880">80%</b> trở lên mới có thể<br>tiếp tục cảm nhận linh khí.
+        </div>
+        <div style="font-size:11px;color:#5a4020;margin-bottom:16px;padding:8px 12px;background:rgba(220,140,40,.07);border:1px solid rgba(220,140,40,.2);border-radius:8px;">
+          HP hiện tại: <b style="color:#f0a030">${Math.floor(hpPctNow*100)}%</b> &nbsp;·&nbsp; Cần: <b style="color:#70e880">80%</b>
+        </div>
+        <div onclick="document.getElementById('cn-warn-popup').remove()" style="padding:11px 28px;background:rgba(220,140,40,.1);border:1px solid rgba(220,140,40,.35);border-radius:10px;font-size:13px;font-weight:700;color:#f0c060;cursor:pointer;letter-spacing:1px;display:inline-block;transition:all .2s;" onmouseover="this.style.background='rgba(220,140,40,.22)'" onmouseout="this.style.background='rgba(220,140,40,.1)'">← Quay Lại</div>
+      </div>`;
+    warnPopup.onclick = e => { if(e.target===warnPopup) warnPopup.remove(); };
+    document.body.appendChild(warnPopup);
+    return;
+  }
+
   const lc  = S.linhcan    || "";
   const cap = S.linhcanCap || "Hạ Phẩm";
 
@@ -11470,19 +11598,29 @@ function doCamNhanLinhKhi(){
     });
 
   } else {
-    // ── THẤT BẠI ──
+    // ── THẤT BẠI: trừ 20% HP ──
+    const hpLoss = Math.floor(S.hpmax * 0.20);
+    S.hp = Math.max(1, S.hp - hpLoss);
+    calcBuffs(); renderHUD();
+    const hpAfterPct = S.hpmax > 0 ? Math.floor(S.hp / S.hpmax * 100) : 0;
+    const canRetry = (S.hp / S.hpmax) >= 0.80;
     const rollDisp = roll.toFixed(1);
+    const retryNote = canRetry
+      ? `<div style="font-size:10px;color:#70a870;margin-top:4px;">HP vẫn đủ (≥80%) — có thể thử lại ngay.</div>`
+      : `<div style="font-size:10px;color:#e84545;margin-top:4px;">⚠ HP dưới 80% — cần dưỡng thương trước khi thử lại.</div>`;
     popup.innerHTML = `
       <div style="width:100%;max-width:340px;background:rgba(12,4,4,.99);border:2px solid rgba(180,60,60,.35);border-radius:16px;padding:28px 20px;text-align:center;box-shadow:0 0 40px rgba(180,60,60,.15);animation:cnPopIn .35s cubic-bezier(.16,1,.3,1);">
         <style>@keyframes cnPopIn{from{opacity:0;transform:scale(.88)}to{opacity:1;transform:scale(1)}}</style>
         <div style="font-size:40px;margin-bottom:12px;">💨</div>
         <div style="font-size:15px;font-weight:700;color:#e08888;letter-spacing:1.5px;margin-bottom:8px;">Cảm Nhận Thất Bại</div>
         <div style="font-size:11px;color:#7a4040;margin-bottom:14px;line-height:1.8;">
-          Linh khí thiên địa quá mong manh, kinh mạch<br>chưa thể tiếp nhận. Hãy thử lại sau...
+          Linh khí thiên địa quá mong manh, kinh mạch<br>phản tấu gây tổn thương nội tạng!
         </div>
         <div style="margin-bottom:16px;padding:10px 14px;background:rgba(180,60,60,.06);border:1px solid rgba(180,60,60,.2);border-radius:10px;">
+          <div style="font-size:11px;color:#e84545;font-weight:700;margin-bottom:4px;">🩸 HP −${fmt(hpLoss)} (−20%) · Còn lại: ${hpAfterPct}%</div>
           <div style="font-size:10px;color:#7a4040;">Roll: ${rollDisp} / cần dưới ${rate} — sai lệch ${(rollDisp - rate).toFixed(1)}%</div>
           <div style="font-size:10px;color:#7a4040;margin-top:2px;">Linh Căn: <b style="color:${lcColor}">${lc}${cap?" · "+cap:""}</b> · Tỷ lệ: ${rate}%</div>
+          ${retryNote}
         </div>
         <div onclick="document.getElementById('cam-nhan-popup').remove()" style="
           padding:11px 28px;background:rgba(180,60,60,.08);border:1px solid rgba(180,60,60,.3);
@@ -11497,8 +11635,8 @@ function doCamNhanLinhKhi(){
       icon:"💨",
       title:"Cảm Nhận Thất Bại",
       lines:[
-        `<b style="color:#e08888">Kinh mạch chưa khai thông</b>`,
-        `<span style="color:#7a4040">Tiếp tục cố gắng...</span>`
+        `<b style="color:#e08888">Kinh mạch phản tấu — HP −20%</b>`,
+        `<span style="color:#7a4040">HP còn lại: ${hpAfterPct}% · ${canRetry?"Có thể thử lại":"Cần dưỡng thương trước!"}</span>`
       ],
       color:"#e08888",
       pulseColor:"#c02020",
