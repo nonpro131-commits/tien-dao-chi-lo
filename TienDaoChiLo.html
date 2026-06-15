@@ -16,7 +16,7 @@
 
 <script>
 // ★ ĐỔI SỐ NÀY MỖI KHI DEPLOY BẢN MỚI (phải khớp với sw.js) ★
-const APP_VERSION = '1.0.7';
+const APP_VERSION = '1.0.8';
 
 // ── Đăng ký Service Worker + kiểm tra update ──
 if ('serviceWorker' in navigator) {
@@ -1237,7 +1237,7 @@ body.story-closed #main{
 <!-- ===== FIREBASE ===== -->
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-import { getFirestore, doc, setDoc, getDoc, getDocs, deleteDoc, collection, query, orderBy, limit } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { getFirestore, doc, setDoc, getDoc, getDocs, collection, query, orderBy, limit } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyArt7yX7IO4GImWJDVv3aTk47EUkFTKF3k",
@@ -1431,43 +1431,6 @@ window._cloudLogout = async function() {
   window._cloudUser = null;
   localStorage.removeItem("_tdcl_session");
   location.reload();
-};
-
-// ── Xóa tài khoản (cả đã đăng ký lẫn chưa đăng ký) ────────
-window._deleteAccount = async function() {
-  const isLoggedIn = !!window._cloudUser;
-
-  if (isLoggedIn) {
-    // Trường hợp ĐÃ ĐĂNG KÝ: xóa Firestore + localStorage + đăng xuất
-    const ok = confirm(
-      "⚠️ XÓA TÀI KHOẢN \"" + window._cloudUser.username + "\"?\n\n" +
-      "Toàn bộ dữ liệu trên cloud và máy này sẽ bị xóa vĩnh viễn.\n" +
-      "Hành động này KHÔNG THỂ hoàn tác!\n\n" +
-      "Bạn có chắc chắn muốn xóa?"
-    );
-    if (!ok) return;
-    try {
-      const docRef = doc(db, "saves", window._cloudUser.username);
-      await deleteDoc(docRef);
-    } catch (e) {
-      console.warn("[deleteAccount] Lỗi xóa Firestore:", e);
-    }
-    localStorage.removeItem("tdcl");
-    localStorage.removeItem("_tdcl_session");
-    window._cloudUser = null;
-    location.reload();
-  } else {
-    // Trường hợp CHƯA ĐĂNG KÝ: chỉ xóa localStorage
-    const ok = confirm(
-      "⚠️ XÓA DỮ LIỆU LOCAL?\n\n" +
-      "Toàn bộ tiến trình lưu trên máy này sẽ bị xóa.\n" +
-      "Bạn chưa đăng ký tài khoản nên không có bản sao cloud.\n\n" +
-      "Hành động này KHÔNG THỂ hoàn tác!"
-    );
-    if (!ok) return;
-    localStorage.removeItem("tdcl");
-    location.reload();
-  }
 };
 
 // ── Cảnh báo khi chưa đăng ký mà muốn thoát/đăng xuất ────
@@ -8676,38 +8639,8 @@ function openScreen(id){
             <div style="font-size:10px;color:#5ab0ff;margin-bottom:2px;">☁️ Tài khoản</div>
             <div style="font-size:14px;font-weight:700;color:#f0c14b;">${window._cloudUser.username}</div>
           </div>
-          <button class="roll-btn" style="border-color:rgba(180,50,50,.3);color:#e07070;margin-bottom:8px;" onclick="window._cloudLogout()">Đăng Xuất</button>
-        ` : `
-          <div style="padding:12px;background:rgba(201,168,76,.04);border:1px solid rgba(201,168,76,.15);border-radius:10px;margin-bottom:14px;">
-            <div style="font-size:12px;font-weight:700;color:#d6b15f;margin-bottom:8px;">☁️ Đăng Ký Tài Khoản</div>
-            <div style="font-size:10px;color:#5a4020;margin-bottom:10px;line-height:1.6;">Lưu save lên cloud để chơi trên nhiều thiết bị.</div>
-            <input id="reg-username" type="text" maxlength="20" placeholder="Tên tài khoản..." autocomplete="off"
-              style="width:100%;padding:9px 12px;background:rgba(201,168,76,.04);border:1px solid rgba(201,168,76,.2);border-radius:8px;font-size:13px;color:#f0ddb0;font-family:inherit;outline:none;margin-bottom:8px;box-sizing:border-box;">
-            <input id="reg-password" type="password" maxlength="32" placeholder="Mật khẩu (tối thiểu 4 ký tự)..." autocomplete="off"
-              style="width:100%;padding:9px 12px;background:rgba(201,168,76,.04);border:1px solid rgba(201,168,76,.2);border-radius:8px;font-size:13px;color:#f0ddb0;font-family:inherit;outline:none;margin-bottom:10px;box-sizing:border-box;">
-            <div id="reg-msg" style="font-size:10px;min-height:14px;margin-bottom:8px;color:#ffaa60;text-align:center;"></div>
-            <div id="reg-btn" onclick="window._cloudRegister()"
-              style="width:100%;padding:10px;background:rgba(201,168,76,.08);border:1px solid rgba(201,168,76,.3);border-radius:8px;font-size:13px;font-weight:600;color:#f0d98c;text-align:center;cursor:pointer;box-sizing:border-box;">
-              Đăng Ký & Lưu Lên Cloud
-            </div>
-          </div>
-        `}
-
-        <!-- ── Xóa Tài Khoản ── -->
-        <div style="padding:12px;background:rgba(180,50,50,.03);border:1px solid rgba(180,50,50,.15);border-radius:10px;margin-bottom:10px;">
-          <div style="font-size:10px;color:#804040;letter-spacing:.5px;margin-bottom:6px;text-transform:uppercase;">🗑️ Xóa Tài Khoản</div>
-          <div style="font-size:10px;color:#5a3030;line-height:1.6;margin-bottom:10px;">
-            ${isLoggedIn
-              ? "Xóa vĩnh viễn tài khoản cloud và toàn bộ dữ liệu. Không thể hoàn tác."
-              : "Xóa toàn bộ dữ liệu lưu trên máy này. Bạn chưa có tài khoản cloud nên không thể phục hồi."}
-          </div>
-          <div onclick="window._deleteAccount()" style="
-            width:100%;padding:9px;text-align:center;
-            background:rgba(180,50,50,.08);border:1px solid rgba(180,50,50,.3);
-            border-radius:8px;font-size:12px;font-weight:700;color:#e07070;
-            cursor:pointer;box-sizing:border-box;letter-spacing:.5px;
-          ">${isLoggedIn ? "Xóa Tài Khoản & Dữ Liệu" : "Xóa Dữ Liệu Local"}</div>
-        </div>
+          <button class="roll-btn" style="border-color:rgba(180,50,50,.3);color:#e07070;margin-bottom:14px;" onclick="window._cloudLogout()">Đăng Xuất</button>
+        ` : ``}
 
         <!-- ── Phiên bản & Cập nhật ── -->
         <div style="padding:12px;background:rgba(201,168,76,.03);border:1px solid rgba(201,168,76,.12);border-radius:10px;">
