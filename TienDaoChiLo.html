@@ -16,7 +16,7 @@
 
 <script>
 // ★ ĐỔI SỐ NÀY MỖI KHI DEPLOY BẢN MỚI (phải khớp với sw.js) ★
-const APP_VERSION = '1.0.2';
+const APP_VERSION = '1.0.3';
 
 // ── Đăng ký Service Worker + kiểm tra update ──
 if ('serviceWorker' in navigator) {
@@ -1295,7 +1295,7 @@ body.story-closed #main{
 <!-- ===== FIREBASE ===== -->
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-import { getFirestore, doc, setDoc, getDoc, getDocs, collection, query, orderBy, limit } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { getFirestore, doc, setDoc, getDoc, getDocs, collection, query, orderBy, limit, deleteDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyArt7yX7IO4GImWJDVv3aTk47EUkFTKF3k",
@@ -1308,6 +1308,20 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
+
+// Expose hàm xóa tài khoản ra ngoài module scope
+window._cloudDeleteAccount = async function(userKey) {
+  try {
+    await deleteDoc(doc(db, "players", userKey));
+    for(const tab of ["tuvi","luyen_dan","luyen_khi","luyen_phu","tran_phap"]){
+      await deleteDoc(doc(db, "bxh_"+tab, userKey)).catch(()=>{});
+    }
+    return true;
+  } catch(e) {
+    console.warn("[Cloud] Delete error:", e);
+    return false;
+  }
+};
 
 window._cloudUser = null; // { username, userKey, hash }
 
@@ -4845,7 +4859,7 @@ const SHOP_FREE_1H_CD = 15 * 60 * 1000; // 15 phút thực
 const CARD_SHOP_ITEMS = [
   { key:"card1h",  label:"Thẻ 1 Giờ",   icon:"⏳", sec:3600,     desc:"Tu luyện <b>1 giờ</b> game tức thời",          price:7,    currency:"cong_hien", hasFree:true  },
   { key:"card5h",  label:"Thẻ 5 Giờ",   icon:"⌛", sec:18000,    desc:"Tu luyện <b>5 giờ</b> game tức thời",          price:50,   currency:"cong_hien", hasFree:false },
-  { key:"card10h", label:"Thẻ 10 Giờ",  icon:"??️", sec:36000,   desc:"Tu luyện <b>10 giờ</b> game tức thời",         price:100,  currency:"cong_hien", hasFree:false },
+  { key:"card10h", label:"Thẻ 10 Giờ",  icon:"🕰️", sec:36000,   desc:"Tu luyện <b>10 giờ</b> game tức thời",         price:100,  currency:"cong_hien", hasFree:false },
   { key:"card1d",  label:"Thẻ 1 Ngày",  icon:"📅", sec:86400,    desc:"Tu luyện <b>1 ngày</b> game tức thời",         price:240,  currency:"cong_hien", hasFree:false },
   { key:"card5d",  label:"Thẻ 5 Ngày",  icon:"🗓️", sec:432000,  desc:"Tu luyện <b>5 ngày</b> game tức thời",         price:1100, currency:"cong_hien", hasFree:false },
   { key:"card15d", label:"Thẻ 15 Ngày", icon:"📆", sec:1296000,  desc:"Tu luyện <b>15 ngày</b> game tức thời",        price:3000, currency:"cong_hien", hasFree:false },
@@ -12192,22 +12206,13 @@ async function _dieAccept(){
 
   // Xóa khỏi Firebase nếu đã đăng nhập cloud
   if(window._cloudUser && window._cloudUser.userKey){
-    try{
-      const key = window._cloudUser.userKey;
-      // Xóa tài khoản (players collection)
-      await deleteDoc(doc(db, "players", key)).catch(()=>{});
-      // Xóa BXH
-      for(const tab of ["tuvi","luyen_dan","luyen_khi","luyen_phu","tran_phap"]){
-        await deleteDoc(doc(db, "bxh_"+tab, key)).catch(()=>{});
-      }
-    }catch(e){ console.warn("Delete error:", e); }
+    await window._cloudDeleteAccount(window._cloudUser.userKey);
   }
 
   // Xóa local
   localStorage.removeItem("tdcl");
   localStorage.removeItem("_tdcl_session");
   window._cloudUser = null;
-  // Reload để về màn hình title
   location.reload();
 }
 
