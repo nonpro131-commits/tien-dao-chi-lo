@@ -16,7 +16,7 @@
 
 <script>
 // ★ ĐỔI SỐ NÀY MỖI KHI DEPLOY BẢN MỚI (phải khớp với sw.js) ★
-const APP_VERSION = '1.0.3';
+const APP_VERSION = '1.0.4';
 
 // ── Đăng ký Service Worker + kiểm tra update ──
 if ('serviceWorker' in navigator) {
@@ -1620,6 +1620,13 @@ window._fsDb         = db;
     <div style="display:flex;justify-content:space-between;align-items:center;font-size:10px;">
       <span id="fb-time" style="color:#d6b15f;font-weight:700;letter-spacing:1px;font-variant-numeric:tabular-nums;">00:01:00</span>
       <span id="fb-date" style="color:#5a4020;">01/01/1035</span>
+      <div id="settings-side-btn" onclick="G.openSettings()" title="Cài Đặt" style="
+        width:22px;height:22px;display:none;align-items:center;justify-content:center;
+        background:rgba(8,6,2,.92);border:1px solid rgba(201,168,76,.25);
+        border-radius:6px;color:#c8a84a;font-size:12px;
+        cursor:pointer;pointer-events:all;
+        box-shadow:0 1px 6px rgba(0,0,0,.4);
+        transition:border-color .15s,color .15s;">⚙️</div>
     </div>
   </div>
   <div class="fbar-card">
@@ -1633,8 +1640,8 @@ window._fsDb         = db;
   <div style="display:flex;flex-direction:row;align-items:center;gap:6px;pointer-events:all;">
     <div id="hud-btn" onclick="G.toggleHUD()">☰</div>
     <div id="quick-btns">
-      <div class="qbtn" onclick="G.openScreen('giftcode')">🎁<span>Mã Quà</span></div>
-      <div class="qbtn" onclick="G.openScreen('bxh')">🏅<span>BXH</span></div>
+      <div class="qbtn" style="min-width:52px;max-width:64px;" onclick="G.openScreen('giftcode')">🎁<span>Mã Quà</span></div>
+      <div class="qbtn" style="min-width:52px;max-width:64px;" onclick="G.openScreen('bxh')">🏅<span>BXH</span></div>
     </div>
   </div>
   <div id="achievement-btn" onclick="G.openScreen('achievement')">🏆<span>Thành Tựu</span></div>
@@ -1681,13 +1688,6 @@ window._fsDb         = db;
       border-radius:9px;font-size:18px;cursor:pointer;
       box-shadow:0 2px 10px rgba(0,0,0,.4);
       transition:border-color .15s;">💎</div>
-    <div id="settings-side-btn" onclick="G.openSettings()" title="Cài Đặt" style="
-      width:34px;height:34px;display:none;align-items:center;justify-content:center;
-      background:rgba(8,6,2,.92);border:1px solid rgba(201,168,76,.25);
-      border-radius:9px;color:#c8a84a;font-size:15px;
-      cursor:pointer;pointer-events:all;
-      box-shadow:0 2px 10px rgba(0,0,0,.4);
-      transition:border-color .15s,color .15s;">⚙️</div>
   </div>
 </div>
 
@@ -3123,7 +3123,7 @@ function doBreakthrough(){
   // Hiện popup xác nhận đột phá với tỷ lệ
   const popup = document.createElement("div");
   popup.id = "breakthrough-popup";
-  popup.style.cssText = "position:fixed;inset:0;z-index:1500;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.88);backdrop-filter:blur(6px);padding:16px;";
+  popup.style.cssText = "position:fixed;inset:0;z-index:3000;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.88);backdrop-filter:blur(6px);padding:16px;";
   popup.innerHTML = `<div style="width:100%;max-width:360px;background:rgba(8,6,2,.99);border:2px solid rgba(240,193,75,.4);border-radius:16px;padding:22px 20px;text-align:center;box-shadow:0 0 60px rgba(240,193,75,.15);">
     <div style="font-size:32px;margin-bottom:10px;">⚗️</div>
     <div style="font-size:15px;font-weight:700;color:#f0d98c;margin-bottom:6px;">Đột Phá ${typeName} Kỳ</div>
@@ -4722,6 +4722,8 @@ function buyCard(key){
     updateShopCH();
     showShopMsg("✅ Mua thành công 1 × "+item.label+"!","success");
     openScreen("shop"); // refresh
+    // Cuộn về đầu sau khi refresh
+    setTimeout(()=>{ const ca=document.getElementById("shop-content-area"); if(ca) ca.scrollTop=0; }, 50);
   }
 }
 
@@ -7780,10 +7782,10 @@ function openScreen(id){
           <div style="display:flex;flex-direction:column;align-items:center;padding:18px 8px 24px;gap:0;">
             <!-- Hình nhân vật mờ -->
             <div style="position:relative;display:flex;align-items:center;justify-content:center;margin-bottom:22px;">
-              <div style="position:absolute;width:180px;height:180px;border-radius:50%;background:radial-gradient(circle,rgba(201,168,76,.08) 0%,transparent 70%);animation:cultivate-glow 3s ease-in-out infinite;pointer-events:none;"></div>
+              <div style="position:absolute;width:120px;height:120px;border-radius:50%;background:radial-gradient(circle,rgba(201,168,76,.08) 0%,transparent 70%);animation:cultivate-glow 3s ease-in-out infinite;pointer-events:none;"></div>
               <img src="${S.avatar||_TL}"
                 style="
-                  width:180px;height:auto;
+                  width:120px;height:auto;
                   mix-blend-mode:screen;
                   filter:brightness(0.5) sepia(0.6) hue-rotate(20deg) saturate(0.8) drop-shadow(0 0 6px rgba(201,168,76,.2));
                   transition:filter .4s ease;
@@ -7837,11 +7839,11 @@ function openScreen(id){
           <!-- Hình người ngồi thiền -->
           <div style="position:relative;display:flex;align-items:center;justify-content:center;margin-bottom:22px;">
             <!-- Glow nền khi active -->
-            ${isActive ? `<div style="position:absolute;width:180px;height:180px;border-radius:50%;background:radial-gradient(circle,rgba(80,220,200,.18) 0%,transparent 70%);animation:cultivate-glow 2.5s ease-in-out infinite;pointer-events:none;"></div>` : ''}
+            ${isActive ? `<div style="position:absolute;width:120px;height:120px;border-radius:50%;background:radial-gradient(circle,rgba(80,220,200,.18) 0%,transparent 70%);animation:cultivate-glow 2.5s ease-in-out infinite;pointer-events:none;"></div>` : ''}
             <!-- Ảnh nhân vật: mix-blend-mode:screen loại bỏ nền đen -->
             <img src="${S.avatar||_TL}"
               style="
-                width:180px;height:auto;
+                width:120px;height:auto;
                 mix-blend-mode:screen;
                 filter:${isActive
                   ? 'brightness(0.92) sepia(0.5) hue-rotate(140deg) saturate(2) drop-shadow(0 0 12px rgba(80,220,200,.7))'
