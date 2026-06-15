@@ -16,7 +16,7 @@
 
 <script>
 // ★ ĐỔI SỐ NÀY MỖI KHI DEPLOY BẢN MỚI (phải khớp với sw.js) ★
-const APP_VERSION = '1.0.1';
+const APP_VERSION = '1.0.2';
 
 // ── Đăng ký Service Worker + kiểm tra update ──
 if ('serviceWorker' in navigator) {
@@ -12186,25 +12186,27 @@ function _dieDoRevive(){
   }
 }
 
-function _dieAccept(){
+async function _dieAccept(){
   if(!confirm("⚠️ Xác nhận chấp nhận thất bại?\n\nTài khoản sẽ bị XÓA VĨNH VIỄN.\nNgươi sẽ bị xóa khỏi Bảng Xếp Hạng và không thể đăng nhập lại.\n\nHành động này KHÔNG THỂ HÒA GIẢI!")) return;
   if(!confirm("⚠️ Lần cuối xác nhận — THỰC SỰ xóa tài khoản?")) return;
 
-  // Xóa khỏi BXH trên Firebase nếu đã đăng nhập cloud
-  if(window._cloudUser && window._cloudUser.uid){
+  // Xóa khỏi Firebase nếu đã đăng nhập cloud
+  if(window._cloudUser && window._cloudUser.userKey){
     try{
-      const db = firebase.firestore();
-      ["tuvi","luyen_dan","luyen_khi","luyen_phu","tran_phap"].forEach(tab=>{
-        db.collection("bxh_"+tab).doc(window._cloudUser.uid).delete().catch(()=>{});
-      });
-      // Xóa save cloud
-      db.collection("saves").doc(window._cloudUser.uid).delete().catch(()=>{});
-    }catch(e){ console.warn("BXH delete error:", e); }
+      const key = window._cloudUser.userKey;
+      // Xóa tài khoản (players collection)
+      await deleteDoc(doc(db, "players", key)).catch(()=>{});
+      // Xóa BXH
+      for(const tab of ["tuvi","luyen_dan","luyen_khi","luyen_phu","tran_phap"]){
+        await deleteDoc(doc(db, "bxh_"+tab, key)).catch(()=>{});
+      }
+    }catch(e){ console.warn("Delete error:", e); }
   }
 
   // Xóa local
   localStorage.removeItem("tdcl");
   localStorage.removeItem("_tdcl_session");
+  window._cloudUser = null;
   // Reload để về màn hình title
   location.reload();
 }
