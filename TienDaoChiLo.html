@@ -16,7 +16,7 @@
 
 <script>
 // ★ ĐỔI SỐ NÀY MỖI KHI DEPLOY BẢN MỚI (phải khớp với sw.js) ★
-const APP_VERSION = '1.0.5';
+const APP_VERSION = '1.0.6';
 
 // ── Đăng ký Service Worker + kiểm tra update ──
 if ('serviceWorker' in navigator) {
@@ -1544,23 +1544,23 @@ window._fsDb         = db;
     <!-- Grid 5 ảnh + nút upload -->
     <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px;" id="ava-grid">
       <div class="ava-opt" onclick="G._selectAvatar(0)" style="cursor:pointer;border-radius:10px;overflow:hidden;border:2px solid transparent;transition:all .2s;aspect-ratio:3/4;position:relative;">
-        <img src="./assets/images/avatar1.jpg" style="width:100%;height:100%;object-fit:cover;object-position:top;">
+        <img src="./avatar1.jpg" style="width:100%;height:100%;object-fit:cover;object-position:top;">
         <div class="ava-check" style="display:none;position:absolute;inset:0;background:rgba(201,168,76,.25);align-items:center;justify-content:center;font-size:22px;">✓</div>
       </div>
       <div class="ava-opt" onclick="G._selectAvatar(1)" style="cursor:pointer;border-radius:10px;overflow:hidden;border:2px solid transparent;transition:all .2s;aspect-ratio:3/4;position:relative;">
-        <img src="./assets/images/avatar2.jpg" style="width:100%;height:100%;object-fit:cover;object-position:top;">
+        <img src="./avatar2.jpg" style="width:100%;height:100%;object-fit:cover;object-position:top;">
         <div class="ava-check" style="display:none;position:absolute;inset:0;background:rgba(201,168,76,.25);align-items:center;justify-content:center;font-size:22px;">✓</div>
       </div>
       <div class="ava-opt" onclick="G._selectAvatar(2)" style="cursor:pointer;border-radius:10px;overflow:hidden;border:2px solid transparent;transition:all .2s;aspect-ratio:3/4;position:relative;">
-        <img src="./assets/images/avatar3.jpg" style="width:100%;height:100%;object-fit:cover;object-position:top;">
+        <img src="./avatar3.jpg" style="width:100%;height:100%;object-fit:cover;object-position:top;">
         <div class="ava-check" style="display:none;position:absolute;inset:0;background:rgba(201,168,76,.25);align-items:center;justify-content:center;font-size:22px;">✓</div>
       </div>
       <div class="ava-opt" onclick="G._selectAvatar(3)" style="cursor:pointer;border-radius:10px;overflow:hidden;border:2px solid transparent;transition:all .2s;aspect-ratio:3/4;position:relative;">
-        <img src="./assets/images/avatar4.jpg" style="width:100%;height:100%;object-fit:cover;object-position:top;">
+        <img src="./avatar4.jpg" style="width:100%;height:100%;object-fit:cover;object-position:top;">
         <div class="ava-check" style="display:none;position:absolute;inset:0;background:rgba(201,168,76,.25);align-items:center;justify-content:center;font-size:22px;">✓</div>
       </div>
       <div class="ava-opt" onclick="G._selectAvatar(4)" style="cursor:pointer;border-radius:10px;overflow:hidden;border:2px solid transparent;transition:all .2s;aspect-ratio:3/4;position:relative;">
-        <img src="./assets/images/avatar5.jpg" style="width:100%;height:100%;object-fit:cover;object-position:top;">
+        <img src="./avatar5.jpg" style="width:100%;height:100%;object-fit:cover;object-position:top;">
         <div class="ava-check" style="display:none;position:absolute;inset:0;background:rgba(201,168,76,.25);align-items:center;justify-content:center;font-size:22px;">✓</div>
       </div>
       <!-- Nút upload ảnh tự chọn -->
@@ -1792,13 +1792,13 @@ window._fsDb         = db;
 </div>
 
 <script>
-const _TL="./assets/images/title-bg.jpg";
-const AVA_0="./assets/images/avatar0.jpg";
-const AVA_1="./assets/images/avatar1.jpg";
-const AVA_2="./assets/images/avatar2.jpg";
-const AVA_3="./assets/images/avatar3.jpg";
-const AVA_4="./assets/images/avatar4.jpg";
-const AVA_5="./assets/images/avatar5.jpg";
+const _TL="./title-bg.jpg";
+const AVA_0="./avatar0.jpg";
+const AVA_1="./avatar1.jpg";
+const AVA_2="./avatar2.jpg";
+const AVA_3="./avatar3.jpg";
+const AVA_4="./avatar4.jpg";
+const AVA_5="./avatar5.jpg";
 
 const G = (function(){
 

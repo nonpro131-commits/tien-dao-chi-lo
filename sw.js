@@ -6,7 +6,7 @@
 const CACHE_NAME = 'tien-dao-v4';
 
 // ★ ĐỔI SỐ NÀY MỖI KHI DEPLOY BẢN MỚI ★
-const APP_VERSION = '1.0.5';
+const APP_VERSION = '1.0.6';
 
 // Các file cần cache khi cài app (install event)
 const CORE_FILES = [
@@ -14,13 +14,13 @@ const CORE_FILES = [
   './manifest.json',
   './icon-192.png',
   './icon-512.png',
-  './assets/images/title-bg.jpg',
-  './assets/images/avatar0.jpg',
-  './assets/images/avatar1.jpg',
-  './assets/images/avatar2.jpg',
-  './assets/images/avatar3.jpg',
-  './assets/images/avatar4.jpg',
-  './assets/images/avatar5.jpg',
+  './title-bg.jpg',
+  './avatar0.jpg',
+  './avatar1.jpg',
+  './avatar2.jpg',
+  './avatar3.jpg',
+  './avatar4.jpg',
+  './avatar5.jpg',
 ];
 
 // ── INSTALL: cache những file cốt lõi ──────────────────────
