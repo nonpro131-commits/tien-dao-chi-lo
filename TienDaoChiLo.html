@@ -16,7 +16,7 @@
 
 <script>
 // ★ ĐỔI SỐ NÀY MỖI KHI DEPLOY BẢN MỚI (phải khớp với sw.js) ★
-const APP_VERSION = '1.0.8';
+const APP_VERSION = '1.0.9';
 
 // ── Đăng ký Service Worker + kiểm tra update ──
 if ('serviceWorker' in navigator) {
@@ -1384,7 +1384,7 @@ window._cloudRegister = async function() {
     btnEl.textContent = "Đăng Ký & Lưu Lên Cloud"; btnEl.style.opacity="1"; btnEl.style.pointerEvents="all";
 
     // Refresh màn hình cài đặt để hiện trạng thái mới
-    setTimeout(() => { if(typeof G!=="undefined") G.openSettings(); }, 1500);
+    setTimeout(() => { if(typeof G!=="undefined"){ window._settingsFromGame=true; G.openSettings(); } }, 1500);
 
   } catch(e) {
     msgEl.textContent = "❌ Lỗi: " + e.message;
@@ -1518,7 +1518,7 @@ window._fsDb         = db;
   <div id="title-menu" style="display:none;">
     <div class="title-btn" id="btn-choimoi" onclick="G.startNewGame()">Chơi Mới</div>
     <div class="title-btn" id="btn-login" onclick="document.getElementById('cloud-auth-screen').style.display='flex'">Đăng Nhập</div>
-    <div class="title-btn" onclick="G.openSettings()">Cài Đặt</div>
+    <div class="title-btn" onclick="window._settingsFromGame=false;G.openSettings()">Cài Đặt</div>
     <div class="title-btn danger" onclick="G.quitGame()">Thoát</div>
   </div>
   
@@ -1621,7 +1621,7 @@ window._fsDb         = db;
     <div style="display:flex;justify-content:space-between;align-items:center;font-size:10px;">
       <span id="fb-time" style="color:#d6b15f;font-weight:700;letter-spacing:1px;font-variant-numeric:tabular-nums;">00:01:00</span>
       <span id="fb-date" style="color:#5a4020;">01/01/1035</span>
-      <div id="settings-side-btn" onclick="G.openSettings()" title="Cài Đặt" style="
+      <div id="settings-side-btn" onclick="window._settingsFromGame=true;G.openSettings()" title="Cài Đặt" style="
         width:22px;height:22px;display:none;align-items:center;justify-content:center;
         background:rgba(8,6,2,.92);border:1px solid rgba(201,168,76,.25);
         border-radius:6px;color:#c8a84a;font-size:12px;
@@ -8640,6 +8640,20 @@ function openScreen(id){
             <div style="font-size:14px;font-weight:700;color:#f0c14b;">${window._cloudUser.username}</div>
           </div>
           <button class="roll-btn" style="border-color:rgba(180,50,50,.3);color:#e07070;margin-bottom:14px;" onclick="window._cloudLogout()">Đăng Xuất</button>
+        ` : window._settingsFromGame ? `
+          <div style="padding:12px;background:rgba(201,168,76,.04);border:1px solid rgba(201,168,76,.15);border-radius:10px;margin-bottom:14px;">
+            <div style="font-size:12px;font-weight:700;color:#d6b15f;margin-bottom:8px;">☁️ Đăng Ký Tài Khoản</div>
+            <div style="font-size:10px;color:#5a4020;margin-bottom:10px;line-height:1.6;">Lưu save lên cloud để chơi trên nhiều thiết bị.</div>
+            <input id="reg-username" type="text" maxlength="20" placeholder="Tên tài khoản..." autocomplete="off"
+              style="width:100%;padding:9px 12px;background:rgba(201,168,76,.04);border:1px solid rgba(201,168,76,.2);border-radius:8px;font-size:13px;color:#f0ddb0;font-family:inherit;outline:none;margin-bottom:8px;box-sizing:border-box;">
+            <input id="reg-password" type="password" maxlength="32" placeholder="Mật khẩu (tối thiểu 4 ký tự)..." autocomplete="off"
+              style="width:100%;padding:9px 12px;background:rgba(201,168,76,.04);border:1px solid rgba(201,168,76,.2);border-radius:8px;font-size:13px;color:#f0ddb0;font-family:inherit;outline:none;margin-bottom:10px;box-sizing:border-box;">
+            <div id="reg-msg" style="font-size:10px;min-height:14px;margin-bottom:8px;color:#ffaa60;text-align:center;"></div>
+            <div id="reg-btn" onclick="window._cloudRegister()"
+              style="width:100%;padding:10px;background:rgba(201,168,76,.08);border:1px solid rgba(201,168,76,.3);border-radius:8px;font-size:13px;font-weight:600;color:#f0d98c;text-align:center;cursor:pointer;box-sizing:border-box;">
+              Đăng Ký & Lưu Lên Cloud
+            </div>
+          </div>
         ` : ``}
 
         <!-- ── Phiên bản & Cập nhật ── -->
