@@ -16,7 +16,7 @@
 
 <script>
 // ★ ĐỔI SỐ NÀY MỖI KHI DEPLOY BẢN MỚI (phải khớp với sw.js) ★
-const APP_VERSION = '1.0.1';
+const APP_VERSION = '1.0.2';
 
 // ── Đăng ký Service Worker + kiểm tra update ──
 if ('serviceWorker' in navigator) {
@@ -8016,6 +8016,17 @@ function openScreen(id){
               ${lc ? `<div style="margin-top:6px;font-size:11px;color:#7a6030;">Tỷ lệ thành công: <b style="color:#f0c14b;font-size:13px;">${rate}%</b></div>` : ''}
             </div>
 
+            <!-- Nút Nghỉ Ngơi -->
+            <div style="width:100%;max-width:320px;margin-bottom:8px;text-align:center;font-size:9.5px;color:#7a6030;letter-spacing:.5px;">🌙 Nghỉ Ngơi</div>
+            <div onclick="G.doNghiNgoi()" style="
+              width:100%;max-width:320px;padding:10px 6px;text-align:center;margin-bottom:14px;
+              background:rgba(80,100,160,.1);border:1px solid rgba(80,100,160,.4);
+              border-radius:10px;font-size:12px;font-weight:700;color:#a0b0e0;
+              cursor:pointer;letter-spacing:.5px;transition:all .2s;
+            " onmouseover="this.style.background='rgba(80,100,160,.2)'" onmouseout="this.style.background='rgba(80,100,160,.1)'">
+              🌙 Nghỉ Ngơi (+2 tiếng · HP +5%)
+            </div>
+
             <!-- Nút Cảm Nhận Linh Khí -->
             <div onclick="G.doCamNhanLinhKhi()" style="
               width:100%;max-width:320px;padding:14px 6px;text-align:center;
@@ -8101,6 +8112,20 @@ function openScreen(id){
             ⬆ Xuất Định
           </div>
           ` : `
+          <!-- Nghỉ Ngơi -->
+          ${(()=>{
+            const ni = getNghiNgoiInfo();
+            const manaStr = ni.manaPct>0 ? ` · Mana +${Math.floor(ni.manaPct*100)}%` : '';
+            return `<div style="width:100%;max-width:320px;margin-bottom:6px;text-align:center;font-size:9.5px;color:#7a6030;letter-spacing:.5px;">🌙 Nghỉ Ngơi</div>
+            <div onclick="G.doNghiNgoi()" style="
+              width:100%;max-width:320px;padding:10px 6px;text-align:center;margin-bottom:14px;
+              background:rgba(80,100,160,.1);border:1px solid rgba(80,100,160,.4);
+              border-radius:10px;font-size:12px;font-weight:700;color:#a0b0e0;
+              cursor:pointer;letter-spacing:.5px;transition:all .2s;
+            " onmouseover="this.style.background='rgba(80,100,160,.2)'" onmouseout="this.style.background='rgba(80,100,160,.1)'">
+              🌙 Nghỉ Ngơi (+${ni.label} · HP +${Math.floor(ni.hpPct*100)}%${manaStr})
+            </div>`;
+          })()}
           <!-- Chưa tu luyện: 2 nút cạnh nhau (hoặc nút Đột Phá nếu đã đầy) -->
           ${(()=>{
             const canBreak = S.exp >= S.expmax && S.stage > 0;
@@ -8125,7 +8150,7 @@ function openScreen(id){
             } else {
               return `<div style="width:100%;max-width:320px;margin-bottom:12px;padding:9px 12px;background:rgba(16,44,20,.25);border:1px solid rgba(60,160,70,.15);border-radius:10px;">
                 <div style="font-size:9px;color:#5a8050;line-height:1.6;text-align:center;">
-                  ?? Bình thường: nhận tu vi sau <b style="color:#80d870;">30 phút</b> · Ước tính <b style="color:#c8a84a;">~${fmt(calcCultExp(30*60))}</b> / lần
+                  🌿 Bình thường: nhận tu vi sau <b style="color:#80d870;">30 phút</b> · Ước tính <b style="color:#c8a84a;">~${fmt(calcCultExp(30*60))}</b> / lần
                 </div>
               </div>
               <div style="display:flex;gap:8px;width:100%;max-width:320px;">
@@ -11608,6 +11633,70 @@ function _showCotTruyenPopup(){
 }
 
 /* ===== CẢM NHẬN LINH KHÍ (Phàm Nhân → Luyện Khí Sơ Kỳ) ===== */
+// ===== NGHỈ NGƠI: tăng thời gian game, hồi HP/Mana theo cảnh giới =====
+const NGHI_NGOI_TABLE = [
+  // {maxStage, sec, hpPct, manaPct, label}
+  { maxStage: 0,  sec: 2*3600,            hpPct: 0.05, manaPct: 0,    label: "2 tiếng" },   // Phàm Nhân
+  { maxStage: 3,  sec: 2*3600,            hpPct: 0.10, manaPct: 0.10, label: "2 tiếng" },   // Luyện Khí
+  { maxStage: 7,  sec: 3*86400,           hpPct: 0.05, manaPct: 0.05, label: "3 ngày" },    // Trúc Cơ
+  { maxStage: 11, sec: 15*86400,          hpPct: 0.05, manaPct: 0.05, label: "15 ngày" },   // Kim Đan
+  { maxStage: 15, sec: 3*30*86400,        hpPct: 0.05, manaPct: 0.05, label: "3 tháng" },   // Nguyên Anh
+  { maxStage: 19, sec: 1*12*30*86400,     hpPct: 0.05, manaPct: 0.05, label: "1 năm" },     // Hóa Thần
+  { maxStage: 23, sec: 10*12*30*86400,    hpPct: 0.05, manaPct: 0.05, label: "10 năm" },    // Luyện Hư
+  { maxStage: 27, sec: 50*12*30*86400,    hpPct: 0.05, manaPct: 0.05, label: "50 năm" },    // Hợp Thể
+  { maxStage: 31, sec: 100*12*30*86400,   hpPct: 0.05, manaPct: 0.05, label: "100 năm" },   // Đại Thừa
+  { maxStage: 999,sec: 250*12*30*86400,   hpPct: 0.05, manaPct: 0.05, label: "250 năm" },   // Độ Kiếp+
+];
+
+function getNghiNgoiInfo(){
+  const stage = S.stage || 0;
+  return NGHI_NGOI_TABLE.find(r => stage <= r.maxStage) || NGHI_NGOI_TABLE[NGHI_NGOI_TABLE.length-1];
+}
+
+function doNghiNgoi(){
+  if(_isDead) return;
+  const info = getNghiNgoiInfo();
+
+  // Tăng thời gian game (tự động cuộn giờ/ngày/tháng/năm, có thể làm tăng tuổi → kiểm tra Die)
+  advanceGameTime(info.sec);
+
+  // Hồi HP/Mana theo % của HP/Mana TỐI ĐA — không hồi nếu đã chết (HP<=0)
+  if((S.hp||0) > 0){
+    if(info.hpPct > 0 && S.hpmax){
+      const healHp = Math.max(0, Math.floor(S.hpmax * info.hpPct));
+      S.hp = Math.min(S.hpmax, S.hp + healHp);
+    }
+    if(info.manaPct > 0 && S.manamax){
+      const healMana = Math.max(0, Math.floor(S.manamax * info.manaPct));
+      S.mana = Math.min(S.manamax, S.mana + healMana);
+    }
+  }
+
+  calcBuffs(); renderHUD();
+  saveGame();
+
+  // Kiểm tra Die ngay (tuổi có thể đã vượt agemax do thời gian trôi qua)
+  if(!_isDead){
+    checkDie();
+    if(_isDead) return;
+  }
+
+  showNotif({
+    icon:"🌙",
+    title:"✦ Nghỉ Ngơi ✦",
+    lines:[
+      `Thời gian trôi qua: <b style="color:#c8a84a">${info.label}</b>`,
+      info.manaPct>0
+        ? `<span style="color:#70d870">HP +${Math.floor(info.hpPct*100)}%</span> · <span style="color:#80d8ff">Mana +${Math.floor(info.manaPct*100)}%</span>`
+        : `<span style="color:#70d870">HP +${Math.floor(info.hpPct*100)}%</span> · <span style="color:#8a6040">Mana không hồi (Phàm Nhân)</span>`
+    ],
+    color:"#c8a84a", duration:3000
+  });
+
+  // Refresh màn hình cultivate (nút Nghỉ Ngơi chỉ xuất hiện ở đây)
+  openScreen("cultivate");
+}
+
 function doCamNhanLinhKhi(){
   if(S.stage !== 0) return;
 
@@ -12233,7 +12322,7 @@ async function _dieAccept(){
 
 return { 
   openTamPhapBookPopup, _learnTamPhapBook,
-  doCamNhanLinhKhi, _showLuyenKhiTutorial, _showAnisAfterCotTruyen,
+  doCamNhanLinhKhi, doNghiNgoi, _showLuyenKhiTutorial, _showAnisAfterCotTruyen,
   _leaveSectVisit, __rungVanYeuEnter,
   toggleHUD, toggleFS, toggleStory, doBreakthrough, _execBreakthrough, doMindBreakthrough, openScreen, closeScreen, goto,
   showRollScreen, doRoll, confirmRoll, calcLinhKhi,
