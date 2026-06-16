@@ -14,9 +14,12 @@
 <meta name="apple-mobile-web-app-title" content="Tiên Đạo">
 <link rel="apple-touch-icon" href="icon-192.png">
 
+<!-- Hiệu ứng Đột Phá (Tụ Khí → Bộc Phát) — file riêng, expose window.BreakthroughFX -->
+<script src="breakthrough-fx.js"></script>
+
 <script>
 // ★ ĐỔI SỐ NÀY MỖI KHI DEPLOY BẢN MỚI (phải khớp với sw.js) ★
-const APP_VERSION = '1.0.2';
+const APP_VERSION = '1.0.3';
 
 // ── Đăng ký Service Worker + kiểm tra update ──
 if ('serviceWorker' in navigator) {
@@ -3198,6 +3201,7 @@ function doBreakthrough(){
     const _sc1 = S.stage<=4?"#80d8ff":S.stage<=8?"#70d870":S.stage<=12?"#f0c14b":S.stage<=16?"#c0a0ff":S.stage<=20?"#ff9060":"#ff6060";
     const _isTieuCanh2 = (S.stage % 4 !== 1);
     const _isDaiCanh2  = (S.stage % 4 === 1 && S.stage > 1);
+    if(window.BreakthroughFX) window.BreakthroughFX.play(_isDaiCanh2?"major":"minor", true, _sc1);
     if(_isDaiCanh2){
       showNotif({icon:"🌌",title:"✦ Đại Cảnh Đột Phá! ✦",lines:[`<b style="color:${_sc1}">${S.stageName}</b>`,"Cảnh giới mới khai mở!",`<span style="color:#8a7040">HP · Linh Khí hồi đầy!</span>`],color:_sc1,pulseColor:_sc1,duration:4500});
     } else {
@@ -3234,7 +3238,7 @@ function doBreakthrough(){
     </div>
     <div style="display:flex;gap:8px;">
       <div onclick="document.getElementById('breakthrough-popup').remove()" style="flex:1;padding:9px;border-radius:9px;font-size:12px;font-weight:700;color:#9a8060;border:1px solid rgba(201,168,76,.2);background:rgba(201,168,76,.04);cursor:pointer;transition:all .15s;" onmouseover="this.style.background='rgba(201,168,76,.1)'" onmouseout="this.style.background='rgba(201,168,76,.04)'">← Quay Lại</div>
-      <div onclick="G._execBreakthrough('${type}',${rate},${tamMaOnFail});document.getElementById('breakthrough-popup').remove();" style="flex:2;padding:9px;border-radius:9px;font-size:13px;font-weight:700;color:#f0d98c;border:1px solid rgba(240,193,75,.45);background:rgba(240,193,75,.1);cursor:pointer;transition:all .15s;" onmouseover="this.style.background='rgba(240,193,75,.2)'" onmouseout="this.style.background='rgba(240,193,75,.1)'">✦ Vận Công Đột Phá</div>
+      <div onclick="(function(btn){btn.style.pointerEvents='none';btn.style.opacity='.6';const _p=document.getElementById('breakthrough-popup');const _go=()=>{G._execBreakthrough('${type}',${rate},${tamMaOnFail});if(_p)_p.remove();};if(window.BreakthroughFX){window.BreakthroughFX.charge(1300,'${lcColor}').then(_go);}else{_go();}})(this)" style="flex:2;padding:9px;border-radius:9px;font-size:13px;font-weight:700;color:#f0d98c;border:1px solid rgba(240,193,75,.45);background:rgba(240,193,75,.1);cursor:pointer;transition:all .15s;" onmouseover="this.style.background='rgba(240,193,75,.2)'" onmouseout="this.style.background='rgba(240,193,75,.1)'">✦ Vận Công Đột Phá</div>
     </div>
   </div>`;
   popup.onclick = (e)=>{ if(e.target===popup) popup.remove(); };
@@ -3260,6 +3264,7 @@ function _execBreakthrough(type, rate, tamMaOnFail){
     renderHUD();
     closeScreen();
     const _bigColor = type==="trucco"?"#70d870":"#f0c14b";
+    if(window.BreakthroughFX) window.BreakthroughFX.play("major", true, _bigColor);
     showNotif({
       icon: type==="trucco"?"🌿":"⚗️",
       title:`✦ Đại Cảnh Đột Phá! ✦`,
@@ -3271,6 +3276,7 @@ function _execBreakthrough(type, rate, tamMaOnFail){
       color:_bigColor, pulseColor:_bigColor, duration:4500
     });
   } else {
+    if(window.BreakthroughFX) window.BreakthroughFX.play("major", false);
     const expLoss = Math.floor(S.expmax * 0.40);
     S.exp = Math.max(0, S.exp - expLoss);
     S.tamMa = (S.tamMa || 0) + tamMaOnFail;
@@ -11157,172 +11163,6 @@ defP("tu_luyen_hoan_tat","Tu Luyện · Hoàn Thành",function(c){
 });
 
 
-
-defP("dot_pha_canh_gioi","Đột Phá · Cảnh Giới",function(c){
-  if(S.exp < S.expmax){ goto("luyen_khi"); return; }
-
-  const { needRoll, rate, danBonus, baseRate, type } = getBreakthroughInfo();
-
-  // ── CÁC ĐỘT PHÁ KHÔNG CẦN ROLL (Luyện Khí nội bộ, Nguyên Anh+) ──
-  if(!needRoll){
-    const overflowExp = S.exp - S.expmax;
-    S.stage++; calcStage(); _recordBreakthroughAge(); calcLinhKhi(); S.mana = S.manamax;
-    S.exp = Math.max(0, overflowExp);
-    const breakthroughBonus = applyBreakthroughTheChatBonus();
-    calcBuffs();
-    let unlockMsg = "";
-    if(S.stage >= 3 && !S.unlockMap){
-      S.unlockMap = true;
-      unlockMsg = `<div class="sys-msg success just-unlocked" style="margin-top:4px"><b>[Mở Khóa!]</b><br>✦ <b>Bản Đồ</b> đã được mở khóa — khám phá Đông Châu!</div>`;
-    }
-    renderHUD();
-    c.addText(`<p>Ngươi vận toàn lực linh khí, một tiếng rạn vỡ vang lên trong kinh mạch — rào cản cảnh giới sụp đổ hoàn toàn!</p>`);
-    c.addSys(`<b>[Đột Phá Thành Công!]</b><br>✦ Tu vi: <b>${S.stageName}</b><br>Mana đã phục hồi đầy!${breakthroughBonus}`,"success");
-    if(unlockMsg) document.getElementById("story-content").insertAdjacentHTML("beforeend", unlockMsg);
-    // HUD thông báo nổi — phân loại tiểu/đại cảnh
-    const _sc1 = S.stage<=4?"#80d8ff":S.stage<=8?"#70d870":S.stage<=12?"#f0c14b":S.stage<=16?"#c0a0ff":S.stage<=20?"#ff9060":"#ff6060";
-    const _isTieuCanh = (S.stage % 4 === 2); // Sơ Kỳ → Trung Kỳ
-    const _isDaiCanh  = (S.stage % 4 === 1 && S.stage > 1); // Đỉnh Phong → Sơ Kỳ cảnh giới mới
-    if(_isDaiCanh){
-      showNotif({
-        icon:"🌌",
-        title:"✦ Đại Cảnh Đột Phá! ✦",
-        lines:[
-          `<b style="color:${_sc1}">${S.stageName}</b>`,
-          "Cảnh giới mới khai mở hoàn toàn!",
-          `<span style="color:#8a7040">Thọ nguyên · Linh Hồn · Thực lực thăng hoa!</span>`
-        ],
-        color:_sc1, pulseColor:_sc1, duration:4500
-      });
-    } else if(_isTieuCanh){
-      showNotif({
-        icon:"⚡",
-        title:"Tiểu Cảnh Đột Phá!",
-        lines:[`<b style="color:${_sc1}">${S.stageName}</b>`, "Linh Khí phục hồi đầy!"],
-        color:_sc1, duration:3000
-      });
-    } else {
-      showNotif({
-        icon:"✦",
-        title:"Đột Phá Thành Công!",
-        lines:[`<b style="color:${_sc1}">${S.stageName}</b>`, "Linh Khí phục hồi đầy!"],
-        color:_sc1, duration:3000
-      });
-    }
-    c.addChoice(1,"Tiếp tục tu luyện","Tu luyện",()=>goto("luyen_khi"));
-    c.addChoice(2,"Nghỉ ngơi","←",()=>goto("ngoai_mon_kham_pha"));
-    return;
-  }
-
-  // ── ĐỘT PHÁ CÓ XÁC SUẤT: TRÚC CƠ & KIM ĐAN ──
-  const typeName  = type === "trucco" ? "Trúc Cơ" : "Kim Đan";
-  const lc        = S.linhcan    || "Huyền Linh Căn";
-  const cap       = S.linhcanCap || "Hạ Phẩm";
-  const LC_COLOR  = {"Thiên Linh Căn":"#ffd700","Địa Linh Căn":"#c0a0ff","Huyền Linh Căn":"#80d8ff","Hoàng Linh Căn":"#c8a038","Ngũ Hành Linh Căn":"#90c870"};
-  const lcColor   = LC_COLOR[lc] || "#d6b15f";
-
-  // Hiện thị thông tin trước khi roll
-  const danBonusStr = danBonus > 0
-    ? `<br>✦ Đan dược hỗ trợ: <b style="color:#70d870">+${danBonus}%</b>`
-    : `<br><span style="color:#8a6040">Chưa dùng đan hỗ trợ đột phá</span>`;
-
-  c.addText(`<p>Ngươi ngồi kiết già, vận toàn bộ linh khí tích lũy bao ngày dồn vào một điểm — khoảnh khắc này quyết định bước ngoặt của con đường tu tiên...</p>`);
-  c.addSys(
-    `<b>[Đột Phá ${typeName} Kỳ]</b><br>` +
-    `Linh Căn: <b style="color:${lcColor}">${lc} · ${cap}</b><br>` +
-    `Tỷ lệ cơ bản: <b>${baseRate}%</b>${danBonusStr}<br>` +
-    `<b style="color:#f0c14b">Tỷ lệ thành công: ${rate}%</b>`
-  );
-
-  // Lưu thông tin để dùng khi bấm nút
-  S._pendingBreakType = type;
-  S._pendingBreakRate = rate;
-
-  c.addChoice(1, `✦ Vận công đột phá — Tỷ lệ ${rate}%`, "Đột Phá", ()=>goto("dot_pha_thuc_hien"));
-  c.addChoice(2, "← Lui về tu luyện thêm", "Quay lại", ()=>goto("luyen_khi"));
-});
-
-defP("dot_pha_thuc_hien","Đột Phá · Vận Công",function(c){
-  const type = S._pendingBreakType;
-  const rate = S._pendingBreakRate || 50;
-  if(!type || S.exp < S.expmax){ goto("luyen_khi"); return; }
-
-  const roll   = Math.random() * 100;
-  const thanhCong = roll < rate;
-  const typeName  = type === "trucco" ? "Trúc Cơ" : "Kim Đan";
-
-  if(thanhCong){
-    // ── THÀNH CÔNG ──
-    const overflowExp = S.exp - S.expmax;
-    S.stage++; calcStage(); _recordBreakthroughAge(); calcLinhKhi(); S.mana = S.manamax;
-    if(type === "trucco") S.trucCoPct = 0;
-    if(type === "kimdan") S.kimDanPct = 0;
-    delete S._pendingBreakType;
-    delete S._pendingBreakRate;
-    const breakthroughBonus = applyBreakthroughTheChatBonus();
-    calcBuffs();
-    let unlockMsg = "";
-    if(S.stage >= 3 && !S.unlockMap){
-      S.unlockMap = true;
-      unlockMsg = `<div class="sys-msg success just-unlocked" style="margin-top:4px"><b>[Mở Khóa!]</b><br>✦ <b>Bản Đồ</b> đã được mở khóa — khám phá Đông Châu!</div>`;
-    }
-    renderHUD();
-    c.addText(`<p>Một tiếng long minh vang dội — linh khí cuồn cuộn phá tan rào cản, ${typeName} cảnh giới khai mở! Một bước lên mây, vạn dặm khai thông!</p>`);
-    c.addSys(`<b>[Đột Phá ${typeName} Thành Công!]</b><br>✦ Tu vi: <b>${S.stageName}</b><br>✦ Mana phục hồi đầy · Tâm thần sảng khoái!${breakthroughBonus}`,"success");
-    if(unlockMsg) document.getElementById("story-content").insertAdjacentHTML("beforeend", unlockMsg);
-    // Trúc Cơ/Kim Đan = Đại Cảnh (Đỉnh Phong → Sơ Kỳ cảnh giới mới)
-    const _bigColor = type==="trucco"?"#70d870":"#f0c14b";
-    showNotif({
-      icon: type==="trucco"?"🌿":"⚗️",
-      title:`✦ Đại Cảnh Đột Phá! ✦`,
-      lines:[
-        `<b style="color:${_bigColor}">${typeName} · ${S.stageName}</b>`,
-        "Cảnh giới mới hoàn toàn khai mở!",
-        `<span style="color:#7a9050">Thọ nguyên · Linh Hồn · Thực lực thăng hoa!</span>`
-      ],
-      color:_bigColor,
-      pulseColor:_bigColor,
-      duration:4500
-    });
-    c.addChoice(1,"Tiếp tục tu luyện","Tu luyện",()=>goto("luyen_khi"));
-    c.addChoice(2,"Nghỉ ngơi","←",()=>goto("ngoai_mon_kham_pha"));
-  } else {
-    // ── THẤT BẠI ──
-    const tamMaGain = type === "trucco" ? 50 : 100;
-    const expLoss   = Math.floor(S.expmax * 0.20); // mất 20% exp tích lũy
-    S.exp = Math.max(0, S.exp - expLoss);
-    S.tamMa = (S.tamMa || 0) + tamMaGain;
-    if((S.tamMa||0) >= 1000) checkDie();
-    // KHÔNG mất trucCoPct/kimDanPct — bonus đan giữ lại cho lần thử sau
-    delete S._pendingBreakType;
-    delete S._pendingBreakRate;
-    calcBuffs(); renderHUD();
-    const rollDisp = roll.toFixed(1);
-    c.addText(`<p>Linh khí điên cuồng phản loạn trong kinh mạch — rào cản ${typeName} cứng như thiên thạch, không thể đột phá! Tâm ma nhân cơ hội xâm nhập, ý chí chao đảo...</p>`);
-    c.addSys(
-      `<b style="color:#e84545">[Đột Phá ${typeName} Thất Bại!]</b><br>` +
-      `Roll: ${rollDisp} / cần dưới ${rate} — sai lệch ${(rollDisp - rate).toFixed(1)}%<br>` +
-      `✦ Tu vi hao tổn: <b style="color:#e84545">−${fmt(expLoss)}</b><br>` +
-      `✦ Tâm Ma: <b style="color:#e84545">+${tamMaGain}</b> (hiện tại: ${S.tamMa})<br>` +
-      `<span style="color:#8a6040">Bonus đan dược giữ nguyên cho lần thử sau</span>`,
-      "warn"
-    );
-    showNotif({
-      icon:"💀",
-      title:`${typeName} Đột Phá Thất Bại!`,
-      lines:[
-        `<b style="color:#e84545">Tu vi −${fmt(expLoss)}</b>`,
-        `<b style="color:#e84545">Tâm Ma +${tamMaGain}</b>`,
-        `<span style="color:#7a4030">Tiếp tục tích lũy và thử lại...</span>`
-      ],
-      color:"#e84545",
-      pulseColor:"#c02020",
-      duration:4000
-    });
-    c.addChoice(1,"Tu luyện hồi phục tu vi","Tu luyện",()=>goto("luyen_khi"));
-    c.addChoice(2,"Nghỉ ngơi","←",()=>goto("ngoai_mon_kham_pha"));
-  }
-});
 
 defP("luyen_tamphap","Tu Luyện · Tâm Pháp",function(c){
   const [ek, emk] = getMindExpKey();
