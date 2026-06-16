@@ -16,7 +16,7 @@
 
 <script>
 // ★ ĐỔI SỐ NÀY MỖI KHI DEPLOY BẢN MỚI (phải khớp với sw.js) ★
-const APP_VERSION = '1.0.3';
+const APP_VERSION = '1.0.5';
 
 // ── Đăng ký Service Worker + kiểm tra update ──
 if ('serviceWorker' in navigator) {
@@ -3083,21 +3083,21 @@ function toggleFS(){
  * Thất bại: giữ nguyên stage, mất 20% exp tích lũy, +tâm ma.
  */
 const BREAK_BASE_RATE = {
-  // ── TRÚC CƠ (đột phá từ stage 4) ──
+  // ── TRÚC CƠ (đột phá từ stage 4) ── kỳ vọng số lần thử: Thiên 2-3, Địa 5-6, Huyền 10-15, Hoàng >20, Ngũ Hành 1-2
   trucco: {
-    "Thiên Linh Căn":    {"Hạ Phẩm":70, "Trung Phẩm":70, "Thượng Phẩm":70, "Cực Phẩm":70},
-    "Địa Linh Căn":      {"Hạ Phẩm":50, "Trung Phẩm":50, "Thượng Phẩm":50, "Cực Phẩm":50},
-    "Huyền Linh Căn":    {"Hạ Phẩm":25, "Trung Phẩm":25, "Thượng Phẩm":25, "Cực Phẩm":25},
-    "Hoàng Linh Căn":    {"Hạ Phẩm":10, "Trung Phẩm":10, "Thượng Phẩm":10, "Cực Phẩm":10, "Viên Mãn":10},
-    "Ngũ Hành Linh Căn": {"Hạ Phẩm":90, "Trung Phẩm":90, "Thượng Phẩm":90, "Cực Phẩm":90, "Viên Mãn":90},
+    "Thiên Linh Căn":    {"Hạ Phẩm":40, "Trung Phẩm":40, "Thượng Phẩm":40, "Cực Phẩm":40},
+    "Địa Linh Căn":      {"Hạ Phẩm":18, "Trung Phẩm":18, "Thượng Phẩm":18, "Cực Phẩm":18},
+    "Huyền Linh Căn":    {"Hạ Phẩm":8,  "Trung Phẩm":8,  "Thượng Phẩm":8,  "Cực Phẩm":8},
+    "Hoàng Linh Căn":    {"Hạ Phẩm":4,  "Trung Phẩm":4,  "Thượng Phẩm":4,  "Cực Phẩm":4,  "Viên Mãn":4},
+    "Ngũ Hành Linh Căn": {"Hạ Phẩm":67, "Trung Phẩm":67, "Thượng Phẩm":67, "Cực Phẩm":67, "Viên Mãn":67},
   },
-  // ── KIM ĐAN (đột phá từ stage 8) ──
+  // ── KIM ĐAN (đột phá từ stage 8) ── kỳ vọng số lần thử: Thiên 3-5, Địa 8-11, Huyền ≥20, Hoàng ≥40, Ngũ Hành 2-3
   kimdan: {
-    "Thiên Linh Căn":    {"Hạ Phẩm":50, "Trung Phẩm":50, "Thượng Phẩm":50, "Cực Phẩm":50},
-    "Địa Linh Căn":      {"Hạ Phẩm":30, "Trung Phẩm":30, "Thượng Phẩm":30, "Cực Phẩm":30},
-    "Huyền Linh Căn":    {"Hạ Phẩm":10, "Trung Phẩm":10, "Thượng Phẩm":10, "Cực Phẩm":10},
-    "Hoàng Linh Căn":    {"Hạ Phẩm":5,  "Trung Phẩm":5,  "Thượng Phẩm":5,  "Cực Phẩm":5,  "Viên Mãn":5},
-    "Ngũ Hành Linh Căn": {"Hạ Phẩm":75, "Trung Phẩm":75, "Thượng Phẩm":75, "Cực Phẩm":75, "Viên Mãn":75},
+    "Thiên Linh Căn":    {"Hạ Phẩm":25, "Trung Phẩm":25, "Thượng Phẩm":25, "Cực Phẩm":25},
+    "Địa Linh Căn":      {"Hạ Phẩm":11, "Trung Phẩm":11, "Thượng Phẩm":11, "Cực Phẩm":11},
+    "Huyền Linh Căn":    {"Hạ Phẩm":5,  "Trung Phẩm":5,  "Thượng Phẩm":5,  "Cực Phẩm":5},
+    "Hoàng Linh Căn":    {"Hạ Phẩm":3,  "Trung Phẩm":3,  "Thượng Phẩm":3,  "Cực Phẩm":3,  "Viên Mãn":3},
+    "Ngũ Hành Linh Căn": {"Hạ Phẩm":40, "Trung Phẩm":40, "Thượng Phẩm":40, "Cực Phẩm":40, "Viên Mãn":40},
   },
 };
 
@@ -5686,7 +5686,7 @@ function buildDanDuocShopContent(){
 
   let html = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
     <div style="font-size:9px;color:#5a4020;letter-spacing:.4px;">HÀNG HÔM NAY · Reset sau: <b style="color:#c8a84a">${cdStr}</b></div>
-    <div onclick="G.ddResetShop()" style="font-size:10px;padding:3px 9px;background:rgba(201,168,76,.08);border:1px solid rgba(201,168,76,.3);border-radius:6px;color:#c8a84a;cursor:pointer;white-space:nowrap;">🔄 Reset <span style="color:#7a6030">(3??)</span></div>
+    <div onclick="G.ddResetShop()" style="font-size:10px;padding:3px 9px;background:rgba(201,168,76,.08);border:1px solid rgba(201,168,76,.3);border-radius:6px;color:#c8a84a;cursor:pointer;white-space:nowrap;">🔄 Reset <span style="color:#7a6030">(3🏅)</span></div>
   </div>
   <div style="font-size:9.5px;color:#5a8050;margin-bottom:10px;padding:6px 8px;background:rgba(80,200,80,.05);border:1px solid rgba(80,200,80,.15);border-radius:7px;">
     💡 Sau khi mua, vào <b style="color:#c8a84a">Nhẫn Trữ Vật</b> để sử dụng đan dược.
