@@ -19,7 +19,7 @@
 
 <script>
 // ★ ĐỔI SỐ NÀY MỖI KHI DEPLOY BẢN MỚI (phải khớp với sw.js) ★
-const APP_VERSION = '1.0.3';
+const APP_VERSION = '1.0.4';
 
 // ── Đăng ký Service Worker + kiểm tra update ──
 if ('serviceWorker' in navigator) {
@@ -3201,7 +3201,7 @@ function doBreakthrough(){
     const _sc1 = S.stage<=4?"#80d8ff":S.stage<=8?"#70d870":S.stage<=12?"#f0c14b":S.stage<=16?"#c0a0ff":S.stage<=20?"#ff9060":"#ff6060";
     const _isTieuCanh2 = (S.stage % 4 !== 1);
     const _isDaiCanh2  = (S.stage % 4 === 1 && S.stage > 1);
-    if(window.BreakthroughFX) window.BreakthroughFX.play(_isDaiCanh2?"major":"minor", true, _sc1);
+    if(window.BreakthroughFX) window.BreakthroughFX.play(_isDaiCanh2?"major":"minor", true, S.linhcanAttrs);
     if(_isDaiCanh2){
       showNotif({icon:"🌌",title:"✦ Đại Cảnh Đột Phá! ✦",lines:[`<b style="color:${_sc1}">${S.stageName}</b>`,"Cảnh giới mới khai mở!",`<span style="color:#8a7040">HP · Linh Khí hồi đầy!</span>`],color:_sc1,pulseColor:_sc1,duration:4500});
     } else {
@@ -3216,6 +3216,9 @@ function doBreakthrough(){
   const cap = S.linhcanCap || "Hạ Phẩm";
   const LC_COL = {"Thiên Linh Căn":"#ffd700","Địa Linh Căn":"#c0a0ff","Huyền Linh Căn":"#80d8ff","Hoàng Linh Căn":"#c8a038","Ngũ Hành Linh Căn":"#90c870"};
   const lcColor = LC_COL[lc] || "#d6b15f";
+  // Mảng thuộc tính linh căn dạng literal JS (dùng nháy đơn vì sẽ nhúng vào
+  // thuộc tính onclick đang dùng nháy đôi) để truyền cho BreakthroughFX.
+  const _attrsJS = "[" + (S.linhcanAttrs||[]).map(a=>"'"+a+"'").join(",") + "]";
   const danBonusStr = danBonus > 0 ? `<br>✦ Đan dược hỗ trợ: <b style="color:#70d870">+${danBonus}%</b>` : `<br><span style="color:#8a6040">Chưa dùng đan hỗ trợ đột phá</span>`;
 
   // Hiện popup xác nhận đột phá với tỷ lệ
@@ -3238,7 +3241,7 @@ function doBreakthrough(){
     </div>
     <div style="display:flex;gap:8px;">
       <div onclick="document.getElementById('breakthrough-popup').remove()" style="flex:1;padding:9px;border-radius:9px;font-size:12px;font-weight:700;color:#9a8060;border:1px solid rgba(201,168,76,.2);background:rgba(201,168,76,.04);cursor:pointer;transition:all .15s;" onmouseover="this.style.background='rgba(201,168,76,.1)'" onmouseout="this.style.background='rgba(201,168,76,.04)'">← Quay Lại</div>
-      <div onclick="(function(btn){btn.style.pointerEvents='none';btn.style.opacity='.6';const _p=document.getElementById('breakthrough-popup');const _go=()=>{G._execBreakthrough('${type}',${rate},${tamMaOnFail});if(_p)_p.remove();};if(window.BreakthroughFX){window.BreakthroughFX.charge(1300,'${lcColor}').then(_go);}else{_go();}})(this)" style="flex:2;padding:9px;border-radius:9px;font-size:13px;font-weight:700;color:#f0d98c;border:1px solid rgba(240,193,75,.45);background:rgba(240,193,75,.1);cursor:pointer;transition:all .15s;" onmouseover="this.style.background='rgba(240,193,75,.2)'" onmouseout="this.style.background='rgba(240,193,75,.1)'">✦ Vận Công Đột Phá</div>
+      <div onclick="(function(btn){btn.style.pointerEvents='none';btn.style.opacity='.6';const _p=document.getElementById('breakthrough-popup');const _go=()=>{G._execBreakthrough('${type}',${rate},${tamMaOnFail});if(_p)_p.remove();};if(window.BreakthroughFX){window.BreakthroughFX.charge(1300,${_attrsJS}).then(_go);}else{_go();}})(this)" style="flex:2;padding:9px;border-radius:9px;font-size:13px;font-weight:700;color:#f0d98c;border:1px solid rgba(240,193,75,.45);background:rgba(240,193,75,.1);cursor:pointer;transition:all .15s;" onmouseover="this.style.background='rgba(240,193,75,.2)'" onmouseout="this.style.background='rgba(240,193,75,.1)'">✦ Vận Công Đột Phá</div>
     </div>
   </div>`;
   popup.onclick = (e)=>{ if(e.target===popup) popup.remove(); };
@@ -3264,7 +3267,7 @@ function _execBreakthrough(type, rate, tamMaOnFail){
     renderHUD();
     closeScreen();
     const _bigColor = type==="trucco"?"#70d870":"#f0c14b";
-    if(window.BreakthroughFX) window.BreakthroughFX.play("major", true, _bigColor);
+    if(window.BreakthroughFX) window.BreakthroughFX.play("major", true, S.linhcanAttrs);
     showNotif({
       icon: type==="trucco"?"🌿":"⚗️",
       title:`✦ Đại Cảnh Đột Phá! ✦`,
@@ -3276,7 +3279,7 @@ function _execBreakthrough(type, rate, tamMaOnFail){
       color:_bigColor, pulseColor:_bigColor, duration:4500
     });
   } else {
-    if(window.BreakthroughFX) window.BreakthroughFX.play("major", false);
+    if(window.BreakthroughFX) window.BreakthroughFX.play("major", false, S.linhcanAttrs);
     const expLoss = Math.floor(S.expmax * 0.40);
     S.exp = Math.max(0, S.exp - expLoss);
     S.tamMa = (S.tamMa || 0) + tamMaOnFail;
