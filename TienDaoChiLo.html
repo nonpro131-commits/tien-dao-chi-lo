@@ -19,7 +19,7 @@
 
 <script>
 // ★ ĐỔI SỐ NÀY MỖI KHI DEPLOY BẢN MỚI (phải khớp với sw.js) ★
-const APP_VERSION = '1.0.1';
+const APP_VERSION = '1.0.4';
 
 // ── Đăng ký Service Worker + kiểm tra update ──
 if ('serviceWorker' in navigator) {
@@ -6408,7 +6408,39 @@ function _buildCharStatsHTML(){
   `;
 }
 
-/* ===== TRANG BỊ PHÁP KHÍ ===== */
+// Dòng tóm tắt gọn cho màn Nhân Vật: vài chỉ số chính + nút mở popup xem đầy đủ
+function _buildCharStatsSummaryHTML(){
+  calcBuffMana();
+  return `
+    <div onclick="G.openCharStatsPopup()" style="
+      display:flex;align-items:center;gap:10px;
+      background:rgba(201,168,76,.05);border:1px solid rgba(201,168,76,.16);
+      border-radius:8px;padding:6px 9px;cursor:pointer;
+    ">
+      <div style="display:flex;align-items:center;gap:2px;font-size:10px;color:#ff9060;font-weight:700;">⚔ ${fmt(S.str)}</div>
+      <div style="display:flex;align-items:center;gap:2px;font-size:10px;color:#80d8ff;font-weight:700;">🛡 ${fmt(S.def)}</div>
+      <div style="display:flex;align-items:center;gap:2px;font-size:10px;color:#90e870;font-weight:700;">💨 ${fmt(S.agi)}</div>
+      <div style="display:flex;align-items:center;gap:2px;font-size:10px;color:#e87070;font-weight:700;">❤ ${fmt(S.hpmax)}</div>
+      <div style="flex:1;"></div>
+      <div style="font-size:9px;color:#c8a84a;white-space:nowrap;">Chi Tiết ›</div>
+    </div>`;
+}
+
+// Popup hiển thị bảng chỉ số đầy đủ (tái dùng _buildCharStatsHTML)
+function openCharStatsPopup(){
+  const overlay = document.createElement("div");
+  overlay.id = "char-stats-popup-overlay";
+  overlay.style.cssText = "position:fixed;inset:0;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;z-index:9999;padding:20px;";
+  overlay.onclick = (e)=>{ if(e.target===overlay) overlay.remove(); };
+  overlay.innerHTML = `
+    <div style="background:#0c0802;border:1px solid rgba(201,168,76,.4);border-radius:12px;max-width:300px;width:100%;padding:16px;box-shadow:0 0 24px rgba(0,0,0,.6);">
+      ${_buildCharStatsHTML()}
+      <div class="shop-btn" style="margin-top:12px;text-align:center;font-size:11px;padding:7px;" onclick="document.getElementById('char-stats-popup-overlay').remove();">Đóng</div>
+    </div>`;
+  document.body.appendChild(overlay);
+}
+
+
 // Mapping slotId → slotKey (used in equippedItems)
 const WEAPON_SLOTS = ["van_kiem","thai_dao","nhat_quyen","van_phap_khi"];
 function _getSlotKey(slotId){
@@ -6486,9 +6518,9 @@ function _refreshEquipmentSlots(){
     const grid = document.getElementById("equip-slots-grid");
     if(grid) grid.innerHTML = _buildEquipSlotsHTML();
   }
-  // Refresh chỉ số nhân vật
+  // Refresh chỉ số nhân vật (dòng tóm tắt gọn)
   const statsPanel = document.getElementById("char-stats-panel");
-  if(statsPanel) statsPanel.innerHTML = _buildCharStatsHTML();
+  if(statsPanel) statsPanel.innerHTML = _buildCharStatsSummaryHTML();
   // Refresh lưới nhẫn trữ vật (pháp khí equip/unequip làm thay đổi danh sách trong túi)
   const invGrid = document.getElementById("char-inv-grid");
   if(invGrid) invGrid.innerHTML = _buildInvGridHTML();
@@ -8075,28 +8107,28 @@ function openScreen(id){
       b.innerHTML=`
         <div style="display:flex;flex-direction:column;height:100%;min-height:0;overflow:hidden;">
 
-          <!-- ===== KHỐI TRÊN: NHÂN VẬT + TRANG BỊ + CHỈ SỐ (cố định) ===== -->
-          <div style="flex-shrink:0;border-bottom:1px solid rgba(201,168,76,.14);padding:8px 10px 10px;overflow-y:auto;max-height:62%;">
+          <!-- ===== KHỐI TRÊN: NHÂN VẬT + TRANG BỊ + CHỈ SỐ TÓM TẮT (cố định, gọn) ===== -->
+          <div style="flex-shrink:0;border-bottom:1px solid rgba(201,168,76,.14);padding:6px 10px 8px;">
 
             <!-- Tên nhân vật -->
-            <div style="width:100%;text-align:center;margin-bottom:4px;">
-              <div style="font-size:12px;font-weight:700;color:#f0ddb0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${S.name||'Tu Sĩ'}</div>
-              ${S.sect?`<div style="font-size:9px;color:#7a6030;margin-top:1px;">${S.sect} · ${S.stageName||'Phàm Nhân'}</div>`:`<div style="font-size:9px;color:#7a6030;margin-top:1px;">${S.stageName||'Phàm Nhân'}</div>`}
+            <div style="width:100%;text-align:center;margin-bottom:3px;">
+              <div style="font-size:11.5px;font-weight:700;color:#f0ddb0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${S.name||'Tu Sĩ'}</div>
+              ${S.sect?`<div style="font-size:8.5px;color:#7a6030;margin-top:1px;">${S.sect} · ${S.stageName||'Phàm Nhân'}</div>`:`<div style="font-size:8.5px;color:#7a6030;margin-top:1px;">${S.stageName||'Phàm Nhân'}</div>`}
             </div>
 
             <!-- Avatar quanh bởi 6 ô trang bị: trái = Áo/Quần/Vũ Khí, phải = Trâm/Giày/(trống) -->
-            <div style="display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:8px;">
-              <div id="equip-slots-left" style="width:56px;flex-shrink:0;display:flex;flex-direction:column;gap:4px;">
+            <div style="display:flex;align-items:center;justify-content:center;gap:6px;margin-bottom:6px;">
+              <div id="equip-slots-left" style="width:44px;flex-shrink:0;display:flex;flex-direction:column;gap:3px;">
                 ${eqCols.left}
               </div>
 
-              <div style="position:relative;display:flex;align-items:center;justify-content:center;flex-shrink:0;width:100px;">
-                ${isActive?`<div style="position:absolute;width:100px;height:100px;border-radius:50%;background:radial-gradient(circle,rgba(80,220,200,.18) 0%,transparent 70%);animation:cultivate-glow 2.5s ease-in-out infinite;pointer-events:none;"></div>`:''}
+              <div style="position:relative;display:flex;align-items:center;justify-content:center;flex-shrink:0;width:74px;">
+                ${isActive?`<div style="position:absolute;width:74px;height:74px;border-radius:50%;background:radial-gradient(circle,rgba(80,220,200,.18) 0%,transparent 70%);animation:cultivate-glow 2.5s ease-in-out infinite;pointer-events:none;"></div>`:''}
                 <img
                   src="${S.avatar||_TL}"
                   alt="Tu Luyện"
                   style="
-                    width:95px;height:auto;
+                    width:70px;height:auto;
                     mix-blend-mode:screen;
                     filter:${isActive
                       ?'brightness(0.92) sepia(0.5) hue-rotate(140deg) saturate(2) drop-shadow(0 0 8px rgba(80,220,200,.7))'
@@ -8105,17 +8137,16 @@ function openScreen(id){
                     display:block;
                   "
                 />
-                ${isActive?`<div style="position:absolute;bottom:-8px;font-size:7.5px;color:rgba(80,220,200,.9);letter-spacing:.8px;font-weight:700;text-shadow:0 0 6px rgba(80,220,200,.5);white-space:nowrap;">⟳ NHẬP ĐỊNH</div>`:''}
               </div>
 
-              <div id="equip-slots-right" style="width:56px;flex-shrink:0;display:flex;flex-direction:column;gap:4px;">
+              <div id="equip-slots-right" style="width:44px;flex-shrink:0;display:flex;flex-direction:column;gap:3px;">
                 ${eqCols.right}
               </div>
             </div>
 
-            <!-- Chỉ Số -->
+            <!-- Chỉ Số: dòng tóm tắt, bấm để mở popup xem chi tiết -->
             <div style="width:100%;" id="char-stats-panel">
-              ${_buildCharStatsHTML()}
+              ${_buildCharStatsSummaryHTML()}
             </div>
 
           </div>
@@ -12418,6 +12449,7 @@ return {
   _confirmAvatar: _confirmAvatar,
   checkDie, _showDiePopup, _dieRevivePrompt, _dieDoRevive, _dieAccept,
   openInvSimpleDetail,
+  openCharStatsPopup,
   S: S,
   defP: defP,
   init: init
