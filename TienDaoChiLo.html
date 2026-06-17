@@ -19,7 +19,7 @@
 
 <script>
 // ★ ĐỔI SỐ NÀY MỖI KHI DEPLOY BẢN MỚI (phải khớp với sw.js) ★
-const APP_VERSION = '1.0.4';
+const APP_VERSION = '1.0.1';
 
 // ── Đăng ký Service Worker + kiểm tra update ──
 if ('serviceWorker' in navigator) {
@@ -5482,8 +5482,8 @@ function sellPhapKhi(uid){
   updateShopCH();
   showShopMsg("✅ Đã bán "+eq.name+" · +"+fmt(earn)+" 🏅", "success");
   // Refresh inventory display
-  const charInvBody = document.getElementById("char-inv-body");
-  if(charInvBody){ charInvBody.innerHTML = buildInventoryHTML(); return; }
+  const invGrid = document.getElementById("char-inv-grid");
+  if(invGrid){ invGrid.innerHTML = _buildInvGridHTML(); return; }
   const ca = document.getElementById("shop-content-area");
   if(ca && _shopTab==="ban") ca.innerHTML = buildBanContent();
 }
@@ -6447,11 +6447,7 @@ function equipPhapKhi(uid){
   const overlay = document.getElementById("pk-detail-overlay");
   if(overlay) overlay.remove();
 
-  // Refresh nhân vật nếu đang mở
-  const charInvBody = document.getElementById("char-inv-body");
-  if(charInvBody) charInvBody.innerHTML = buildInventoryHTML() || '<div style="color:#5a4020;text-align:center;padding:20px 0;font-size:11px">Nhẫn trữ vật đang trống.</div>';
-
-  // Refresh 6 ô + stats
+  // Refresh 6 ô + stats + lưới nhẫn trữ vật
   _refreshEquipmentSlots();
 
   // Thông báo
@@ -6480,67 +6476,92 @@ function equipPhapKhi(uid){
 }
 
 function _refreshEquipmentSlots(){
-  const grid = document.getElementById("equip-slots-grid");
-  if(grid) grid.innerHTML = _buildEquipSlotsHTML();
+  const left = document.getElementById("equip-slots-left");
+  const right = document.getElementById("equip-slots-right");
+  if(left || right){
+    const cols = _buildEquipColumnsHTML();
+    if(left) left.innerHTML = cols.left;
+    if(right) right.innerHTML = cols.right;
+  } else {
+    const grid = document.getElementById("equip-slots-grid");
+    if(grid) grid.innerHTML = _buildEquipSlotsHTML();
+  }
   // Refresh chỉ số nhân vật
   const statsPanel = document.getElementById("char-stats-panel");
   if(statsPanel) statsPanel.innerHTML = _buildCharStatsHTML();
+  // Refresh lưới nhẫn trữ vật (pháp khí equip/unequip làm thay đổi danh sách trong túi)
+  const invGrid = document.getElementById("char-inv-grid");
+  if(invGrid) invGrid.innerHTML = _buildInvGridHTML();
 }
 
-function _buildEquipSlotsHTML(){
+function _renderOneEquipSlot(def){
   if(!S.equippedItems) S.equippedItems = {};
-  // Thứ tự: Trâm → Áo → Quần → Giày → Vũ Khí → (ô trống)
-  const slotDefs = [
-    { key:"non",    label:"Trâm",   idx:0 },
-    { key:"ao",     label:"Áo",     idx:1 },
-    { key:"quan",   label:"Quần",   idx:2 },
-    { key:"giay",   label:"Giày",   idx:3 },
-    { key:"weapon", label:"Vũ Khí", idx:4 },
-    { key:"_empty", label:"—",      idx:5 },
-  ];
-  return slotDefs.map(def => {
-    const eq = def.key !== "_empty" ? S.equippedItems[def.key] : null;
-    const slot = eq ? PHAP_KHI_SLOTS.find(s=>s.id===eq.slotId) : null;
-    const sect = eq ? PHAP_KHI_SECTS.find(s=>s.id===eq.sectId) : null;
-    if(eq && slot){
-      const borderColor = sect ? sect.border : "rgba(201,168,76,.5)";
-      const glowColor   = sect ? sect.border : "rgba(201,168,76,.25)";
-      // icon shrunk to fit: max 26px, label tiny
-      const iconHtml = slot.icon.startsWith('<img')
-        ? slot.icon.replace(/width:\s*\d+px/, 'width:26px')
-        : `<span style="font-size:18px;line-height:1;">${slot.icon}</span>`;
-      return `<div style="
-        aspect-ratio:1/1;overflow:hidden;
-        background:rgba(12,8,2,.9);
-        border:1px solid ${borderColor};
-        border-radius:7px;
-        display:flex;flex-direction:column;align-items:center;justify-content:center;
-        gap:1px;cursor:pointer;transition:all .18s;
-        box-shadow:0 0 5px ${glowColor};padding:2px;
-      "
-      onclick="G.openEquippedDetail('${def.key}')"
-      onmouseover="this.style.borderColor='rgba(240,193,75,.9)';this.style.boxShadow='0 0 8px rgba(240,193,75,.35)'"
-      onmouseout="this.style.borderColor='${borderColor}';this.style.boxShadow='0 0 5px ${glowColor}'">
-        <div style="width:26px;height:26px;display:flex;align-items:center;justify-content:center;overflow:hidden;flex-shrink:0;">${iconHtml}</div>
-        <div style="font-size:5.5px;color:#c8a84a;font-weight:700;margin-top:1px;white-space:nowrap;overflow:hidden;max-width:100%;text-overflow:ellipsis;">${slot.name}</div>
-        <div style="font-size:6px;color:#b8902a;letter-spacing:0;">${_renderPkStars(eq.stars||0, 6)}</div>
-      </div>`;
-    } else {
-      return `<div style="
-        aspect-ratio:1/1;
-        background:rgba(12,8,2,.85);
-        border:1px dashed rgba(201,168,76,.22);
-        border-radius:7px;
-        display:flex;flex-direction:column;align-items:center;justify-content:center;
-        gap:1px;cursor:default;transition:all .18s;
-      "
-      onmouseover="this.style.borderColor='rgba(201,168,76,.4)';this.style.background='rgba(30,20,5,.9)'"
-      onmouseout="this.style.borderColor='rgba(201,168,76,.22)';this.style.background='rgba(12,8,2,.85)'">
-        <div style="font-size:12px;opacity:.18;">⚗</div>
-        <div style="font-size:6px;color:#2a1808;">${def.label}</div>
-      </div>`;
-    }
-  }).join('');
+  const eq = def.key !== "_empty" ? S.equippedItems[def.key] : null;
+  const slot = eq ? PHAP_KHI_SLOTS.find(s=>s.id===eq.slotId) : null;
+  const sect = eq ? PHAP_KHI_SECTS.find(s=>s.id===eq.sectId) : null;
+  if(eq && slot){
+    const borderColor = sect ? sect.border : "rgba(201,168,76,.5)";
+    const glowColor   = sect ? sect.border : "rgba(201,168,76,.25)";
+    // icon shrunk to fit: max 26px, label tiny
+    const iconHtml = slot.icon.startsWith('<img')
+      ? slot.icon.replace(/width:\s*\d+px/, 'width:26px')
+      : `<span style="font-size:18px;line-height:1;">${slot.icon}</span>`;
+    return `<div style="
+      aspect-ratio:1/1;overflow:hidden;
+      background:rgba(12,8,2,.9);
+      border:1px solid ${borderColor};
+      border-radius:7px;
+      display:flex;flex-direction:column;align-items:center;justify-content:center;
+      gap:1px;cursor:pointer;transition:all .18s;
+      box-shadow:0 0 5px ${glowColor};padding:2px;
+    "
+    onclick="G.openEquippedDetail('${def.key}')"
+    onmouseover="this.style.borderColor='rgba(240,193,75,.9)';this.style.boxShadow='0 0 8px rgba(240,193,75,.35)'"
+    onmouseout="this.style.borderColor='${borderColor}';this.style.boxShadow='0 0 5px ${glowColor}'">
+      <div style="width:26px;height:26px;display:flex;align-items:center;justify-content:center;overflow:hidden;flex-shrink:0;">${iconHtml}</div>
+      <div style="font-size:5.5px;color:#c8a84a;font-weight:700;margin-top:1px;white-space:nowrap;overflow:hidden;max-width:100%;text-overflow:ellipsis;">${slot.name}</div>
+      <div style="font-size:6px;color:#b8902a;letter-spacing:0;">${_renderPkStars(eq.stars||0, 6)}</div>
+    </div>`;
+  } else {
+    return `<div style="
+      aspect-ratio:1/1;
+      background:rgba(12,8,2,.85);
+      border:1px dashed rgba(201,168,76,.22);
+      border-radius:7px;
+      display:flex;flex-direction:column;align-items:center;justify-content:center;
+      gap:1px;cursor:default;transition:all .18s;
+    "
+    onmouseover="this.style.borderColor='rgba(201,168,76,.4)';this.style.background='rgba(30,20,5,.9)'"
+    onmouseout="this.style.borderColor='rgba(201,168,76,.22)';this.style.background='rgba(12,8,2,.85)'">
+      <div style="font-size:12px;opacity:.18;">⚗</div>
+      <div style="font-size:6px;color:#2a1808;">${def.label}</div>
+    </div>`;
+  }
+}
+
+// slotDefs dùng chung: trái = Áo, Quần, Vũ Khí — phải = Trâm, Giày, (trống)
+const EQUIP_SLOT_DEFS_LEFT  = [
+  { key:"ao",     label:"Áo" },
+  { key:"quan",   label:"Quần" },
+  { key:"weapon", label:"Vũ Khí" },
+];
+const EQUIP_SLOT_DEFS_RIGHT = [
+  { key:"non",    label:"Trâm" },
+  { key:"giay",   label:"Giày" },
+  { key:"_empty", label:"—" },
+];
+
+// Trả về { left, right }: HTML 3 ô mỗi cột, dùng để xếp quanh avatar
+function _buildEquipColumnsHTML(){
+  return {
+    left:  EQUIP_SLOT_DEFS_LEFT.map(_renderOneEquipSlot).join(''),
+    right: EQUIP_SLOT_DEFS_RIGHT.map(_renderOneEquipSlot).join(''),
+  };
+}
+
+// Giữ tương thích cho mọi nơi cũ còn gọi _buildEquipSlotsHTML() dạng lưới 2x3 phẳng
+function _buildEquipSlotsHTML(){
+  return [...EQUIP_SLOT_DEFS_LEFT, ...EQUIP_SLOT_DEFS_RIGHT].map(_renderOneEquipSlot).join('');
 }
 
 function openEquippedDetail(slotKey){
@@ -6632,12 +6653,8 @@ function unequipPhapKhi(slotKey){
   const overlay = document.getElementById("equipped-detail-overlay");
   if(overlay) overlay.remove();
 
-  // Refresh ô trang bị + stats
+  // Refresh ô trang bị + stats + lưới nhẫn trữ vật
   _refreshEquipmentSlots();
-
-  // Refresh nhẫn trữ vật nếu mở
-  const charInvBody = document.getElementById("char-inv-body");
-  if(charInvBody) charInvBody.innerHTML = buildInventoryHTML() || '<div style="color:#5a4020;text-align:center;padding:20px 0;font-size:11px">Nhẫn trữ vật đang trống.</div>';
 
   if(typeof showShopMsg==="function") showShopMsg("✓ Đã tháo trang bị → Nhẫn Trữ Vật","success");
 }
@@ -6959,15 +6976,177 @@ function buildInventoryHTML(){
   return html;
 }
 
+/* ===== LƯỚI 30 Ô NHẪN TRỮ VẬT (icon-only, badge số lượng) ===== */
+function _buildInvGridHTML(){
+  const dd = S.danDuoc || {};
+  const dl = S.duocLieu || {};
+  const ct = S.congThucInv || [];
+  const pk = S.phapKhiInv || [];
+  const tpBooks = S.tamPhapBooks || [];
+
+  const cells = [];
+
+  // Pháp khí trang bị (chưa equip) — icon riêng, mở popup chi tiết có sẵn
+  for(const eq of pk){
+    const slot = PHAP_KHI_SLOTS.find(s=>s.id===eq.slotId);
+    const sect = PHAP_KHI_SECTS.find(s=>s.id===eq.sectId);
+    if(!slot||!sect) continue;
+    cells.push({
+      icon: slot.icon,
+      color: sect.color,
+      border: sect.border,
+      qty: null,
+      onclick: `G.openPhapKhiDetail('${eq.uid}')`,
+    });
+  }
+
+  // Đan dược
+  for(const id of Object.keys(dd)){
+    const qty = dd[id]||0;
+    if(qty<=0) continue;
+    const dan = ALL_DAN_DUOC.find(d=>d.id===id);
+    if(!dan) continue;
+    cells.push({
+      icon: dan.icon,
+      color: "#f0c14b",
+      border: "rgba(201,168,76,.4)",
+      qty,
+      onclick: `G.openInvSimpleDetail('dan','${id}')`,
+    });
+  }
+
+  // Dược liệu
+  for(const id of Object.keys(dl)){
+    const qty = dl[id]||0;
+    if(qty<=0) continue;
+    const herb = ALL_DUOC_LIEU.find(h=>h.id===id);
+    if(!herb) continue;
+    const gi = DL_GRADE_INFO[herb.grade]||{color:"#d6b15f"};
+    cells.push({
+      icon: herb.icon,
+      color: gi.color,
+      border: "rgba(201,168,76,.3)",
+      qty,
+      onclick: `G.openInvSimpleDetail('herb','${id}')`,
+    });
+  }
+
+  // Công thức đan dược
+  for(const entry of ct){
+    const dan = ALL_DAN_DUOC.find(d=>d.id===entry.danId);
+    if(!dan) continue;
+    cells.push({
+      icon: "📋",
+      color: "#d6b15f",
+      border: "rgba(201,168,76,.3)",
+      qty: null,
+      onclick: `G.ctViewFormula('${entry.uid}')`,
+    });
+  }
+
+  // Sách tâm pháp
+  for(const book of tpBooks){
+    cells.push({
+      icon: "📖",
+      color: "#f0c14b",
+      border: "rgba(201,168,76,.3)",
+      qty: null,
+      onclick: `G.openTamPhapBookPopup('${book.uid}')`,
+    });
+  }
+
+  const TOTAL_SLOTS = 30;
+  let html = "";
+  for(let i=0;i<TOTAL_SLOTS;i++){
+    const c = cells[i];
+    if(c){
+      const iconHtml = String(c.icon).startsWith('<img')
+        ? c.icon.replace(/width:\s*\d+px/, 'width:26px')
+        : `<span style="font-size:20px;line-height:1;">${c.icon}</span>`;
+      html += `<div style="
+          position:relative;aspect-ratio:1/1;overflow:hidden;
+          background:rgba(12,8,2,.9);
+          border:1px solid ${c.border};
+          border-radius:7px;
+          display:flex;align-items:center;justify-content:center;
+          cursor:pointer;transition:all .18s;
+        "
+        onclick="${c.onclick}"
+        onmouseover="this.style.borderColor='rgba(240,193,75,.9)';this.style.boxShadow='0 0 8px rgba(240,193,75,.35)'"
+        onmouseout="this.style.borderColor='${c.border}';this.style.boxShadow='none'">
+        <div style="width:28px;height:28px;display:flex;align-items:center;justify-content:center;overflow:hidden;">${iconHtml}</div>
+        ${c.qty!=null?`<div style="position:absolute;bottom:1px;right:2px;font-size:8px;font-weight:700;color:#f0ddb0;background:rgba(0,0,0,.55);border-radius:3px;padding:0 2px;line-height:1.3;">${c.qty}</div>`:''}
+      </div>`;
+    } else {
+      html += `<div style="
+          aspect-ratio:1/1;
+          background:rgba(12,8,2,.7);
+          border:1px dashed rgba(201,168,76,.16);
+          border-radius:7px;
+        "></div>`;
+    }
+  }
+  return html;
+}
+
+// Popup chi tiết đơn giản cho Đan Dược / Dược Liệu khi bấm vào ô lưới
+function openInvSimpleDetail(kind, id){
+  let data, color, qty, canUse=false, extraHtml="";
+  if(kind==="dan"){
+    data = ALL_DAN_DUOC.find(d=>d.id===id);
+    if(!data) return;
+    color = "#f0c14b";
+    qty = (S.danDuoc||{})[id]||0;
+    canUse = qty>0 && !!data.fx;
+    extraHtml = `<div style="font-size:10px;color:#70a870;margin-top:6px;">✦ ${data.effect||''}</div>`;
+  } else {
+    data = ALL_DUOC_LIEU.find(h=>h.id===id);
+    if(!data) return;
+    const gi = DL_GRADE_INFO[data.grade]||{color:"#d6b15f",label:""};
+    color = gi.color;
+    qty = (S.duocLieu||{})[id]||0;
+    extraHtml = `<div style="font-size:9.5px;color:#7a6030;margin-top:4px;">${gi.label||''}</div>`;
+  }
+
+  const overlay = document.createElement("div");
+  overlay.id = "inv-simple-detail-overlay";
+  overlay.style.cssText = "position:fixed;inset:0;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;z-index:9999;padding:20px;";
+  overlay.onclick = (e)=>{ if(e.target===overlay) overlay.remove(); };
+  overlay.innerHTML = `
+    <div style="background:#0c0802;border:1px solid rgba(201,168,76,.4);border-radius:12px;max-width:300px;width:100%;padding:18px;box-shadow:0 0 24px rgba(0,0,0,.6);">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+        <div style="font-size:30px;line-height:1;">${data.icon}</div>
+        <div style="flex:1;min-width:0;">
+          <div style="font-size:13px;font-weight:700;color:${color};">${data.name}</div>
+          <div style="font-size:10px;color:#7a6030;">Số lượng: ×${qty}</div>
+        </div>
+      </div>
+      <div style="font-size:10.5px;color:#a0905f;line-height:1.5;">${data.desc||''}</div>
+      ${extraHtml}
+      <div style="display:flex;gap:8px;margin-top:14px;">
+        ${canUse?`<div class="shop-btn" style="flex:1;text-align:center;font-size:11px;padding:7px;background:rgba(80,200,80,.1);border-color:rgba(80,200,80,.35);color:#80e880;" onclick="G.useDanDuocFromInv('${id}');document.getElementById('inv-simple-detail-overlay').remove();">Sử Dụng</div>`:''}
+        <div class="shop-btn" style="flex:1;text-align:center;font-size:11px;padding:7px;" onclick="document.getElementById('inv-simple-detail-overlay').remove();">Đóng</div>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+}
+
+
 function useDanDuocFromInv(id){
   const result = useDanDuoc(id);
-  // Check if inside character screen (right panel)
-  const charInvBody = document.getElementById("char-inv-body");
-  if(charInvBody){
-    const newInv = buildInventoryHTML();
-    charInvBody.innerHTML = `<div id="char-inv-msg" style="font-size:10px;padding:5px 8px;margin-bottom:6px;border-radius:6px;background:rgba(80,200,80,.08);border:1px solid rgba(80,200,80,.2);transition:opacity .5s;color:${result.ok?"#70e880":"#ffaa60"}">${result.msg}</div>` + (newInv || '<div style="color:#5a4020;text-align:center;padding:20px 0;font-size:11px">Nhẫn trữ vật đang trống.</div>');
-    const newMsg = document.getElementById("char-inv-msg");
-    if(newMsg){ setTimeout(()=>{ if(newMsg) newMsg.style.opacity="0"; }, 3000); }
+  // Check if inside character screen
+  const invGrid = document.getElementById("char-inv-grid");
+  if(invGrid){
+    invGrid.innerHTML = _buildInvGridHTML();
+    const msgEl2 = document.getElementById("char-inv-msg");
+    if(msgEl2){
+      msgEl2.textContent = result.msg;
+      msgEl2.style.color = result.ok?"#70e880":"#ffaa60";
+      msgEl2.style.display = "block";
+      msgEl2.style.opacity = "1";
+      clearTimeout(msgEl2._t);
+      msgEl2._t = setTimeout(()=>{ if(msgEl2) msgEl2.style.opacity="0"; }, 3000);
+    }
     return;
   }
   // Standalone inventory screen
@@ -7889,36 +8068,29 @@ function openScreen(id){
       b.style.flexDirection="column";
       b.style.height="100%";
 
-      const invHTML = buildInventoryHTML();
       const isActive = S.normalCult;
+      const eqCols = _buildEquipColumnsHTML();
+      const invGridHTML = _buildInvGridHTML();
 
       b.innerHTML=`
-        <div style="display:flex;height:100%;min-height:0;overflow:hidden;">
+        <div style="display:flex;flex-direction:column;height:100%;min-height:0;overflow:hidden;">
 
-          <!-- ===== PHÍA TRÁI: NHÂN VẬT ===== -->
-          <div style="
-            width:48%;min-width:0;flex-shrink:0;
-            border-right:1px solid rgba(201,168,76,.14);
-            display:flex;flex-direction:column;
-            overflow:hidden;
-          ">
-            <!-- Header nhân vật -->
-            <div style="padding:8px 10px 6px;border-bottom:1px solid rgba(201,168,76,.1);flex-shrink:0;display:flex;justify-content:space-between;align-items:center;">
-              <div style="font-size:10px;font-weight:700;color:#7a5a20;letter-spacing:.7px;text-transform:uppercase;">⚔ Thân Hình</div>
-              <div style="font-size:9px;color:#7a6030;">${S.stageName||'Phàm Nhân'}</div>
+          <!-- ===== KHỐI TRÊN: NHÂN VẬT + TRANG BỊ + CHỈ SỐ (cố định) ===== -->
+          <div style="flex-shrink:0;border-bottom:1px solid rgba(201,168,76,.14);padding:8px 10px 10px;overflow-y:auto;max-height:62%;">
+
+            <!-- Tên nhân vật -->
+            <div style="width:100%;text-align:center;margin-bottom:4px;">
+              <div style="font-size:12px;font-weight:700;color:#f0ddb0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${S.name||'Tu Sĩ'}</div>
+              ${S.sect?`<div style="font-size:9px;color:#7a6030;margin-top:1px;">${S.sect} · ${S.stageName||'Phàm Nhân'}</div>`:`<div style="font-size:9px;color:#7a6030;margin-top:1px;">${S.stageName||'Phàm Nhân'}</div>`}
             </div>
 
-            <!-- Scroll area trái -->
-            <div style="flex:1;overflow-y:auto;overflow-x:hidden;padding:8px 8px 12px;display:flex;flex-direction:column;align-items:center;gap:0;">
-
-              <!-- Tên nhân vật -->
-              <div style="width:100%;text-align:center;margin-bottom:6px;">
-                <div style="font-size:12px;font-weight:700;color:#f0ddb0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${S.name||'Tu Sĩ'}</div>
-                ${S.sect?`<div style="font-size:9px;color:#7a6030;margin-top:1px;">${S.sect}</div>`:''}
+            <!-- Avatar quanh bởi 6 ô trang bị: trái = Áo/Quần/Vũ Khí, phải = Trâm/Giày/(trống) -->
+            <div style="display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:8px;">
+              <div id="equip-slots-left" style="width:56px;flex-shrink:0;display:flex;flex-direction:column;gap:4px;">
+                ${eqCols.left}
               </div>
 
-              <!-- Hình người ngồi thiền -->
-              <div style="position:relative;display:flex;align-items:center;justify-content:center;margin-bottom:0;">
+              <div style="position:relative;display:flex;align-items:center;justify-content:center;flex-shrink:0;width:100px;">
                 ${isActive?`<div style="position:absolute;width:100px;height:100px;border-radius:50%;background:radial-gradient(circle,rgba(80,220,200,.18) 0%,transparent 70%);animation:cultivate-glow 2.5s ease-in-out infinite;pointer-events:none;"></div>`:''}
                 <img
                   src="${S.avatar||_TL}"
@@ -7933,39 +8105,31 @@ function openScreen(id){
                     display:block;
                   "
                 />
-                ${isActive?`<div style="position:absolute;bottom:-8px;font-size:7.5px;color:rgba(80,220,200,.9);letter-spacing:.8px;font-weight:700;text-shadow:0 0 6px rgba(80,220,200,.5);">⟳ NHẬP ĐỊNH</div>`:''}
+                ${isActive?`<div style="position:absolute;bottom:-8px;font-size:7.5px;color:rgba(80,220,200,.9);letter-spacing:.8px;font-weight:700;text-shadow:0 0 6px rgba(80,220,200,.5);white-space:nowrap;">⟳ NHẬP ĐỊNH</div>`:''}
               </div>
 
-              <!-- 6 Ô Trang Bị Pháp Khí -->
-              <div style="width:100%;margin-top:12px;margin-bottom:10px;">
-                <div style="font-size:8.5px;font-weight:700;color:#7a5a20;letter-spacing:.5px;text-transform:uppercase;margin-bottom:5px;text-align:center;">⚗ Pháp Khí</div>
-                <div id="equip-slots-grid" style="display:grid;grid-template-columns:repeat(2,1fr);gap:4px;">
-                  ${_buildEquipSlotsHTML()}
-                </div>
+              <div id="equip-slots-right" style="width:56px;flex-shrink:0;display:flex;flex-direction:column;gap:4px;">
+                ${eqCols.right}
               </div>
-
-              <!-- Chỉ Số -->
-              <div style="width:100%;" id="char-stats-panel">
-                ${_buildCharStatsHTML()}
-              </div>
-
             </div>
+
+            <!-- Chỉ Số -->
+            <div style="width:100%;" id="char-stats-panel">
+              ${_buildCharStatsHTML()}
+            </div>
+
           </div>
 
-          <!-- ===== PHÍA PHẢI: NHẪN TRỮ VẬT ===== -->
-          <div style="
-            flex:1;min-width:0;
-            display:flex;flex-direction:column;
-            overflow:hidden;
-          ">
-            <!-- Header nhẫn trữ vật -->
-            <div style="padding:8px 10px 6px;border-bottom:1px solid rgba(201,168,76,.1);flex-shrink:0;">
+          <!-- ===== KHỐI DƯỚI: NHẪN TRỮ VẬT (lưới 30 ô, cuộn dọc) ===== -->
+          <div style="flex:1;min-height:0;display:flex;flex-direction:column;overflow:hidden;">
+            <div style="padding:7px 10px 5px;border-bottom:1px solid rgba(201,168,76,.1);flex-shrink:0;">
               <div style="font-size:10px;font-weight:700;color:#7a5a20;letter-spacing:.7px;text-transform:uppercase;">💍 Nhẫn Trữ Vật</div>
             </div>
-            <!-- Scroll area phải -->
-            <div style="flex:1;overflow-y:auto;overflow-x:hidden;padding:10px 10px 14px;" id="char-inv-body">
+            <div style="flex:1;overflow-y:auto;overflow-x:hidden;padding:8px;" id="char-inv-body">
               <div id="char-inv-msg" style="display:none;font-size:10px;padding:5px 8px;margin-bottom:6px;border-radius:6px;background:rgba(80,200,80,.08);border:1px solid rgba(80,200,80,.2);transition:opacity .5s;"></div>
-              ${invHTML || '<div style="color:#5a4020;text-align:center;padding:20px 0;font-size:11px">Nhẫn trữ vật đang trống.</div>'}
+              <div id="char-inv-grid" style="display:grid;grid-template-columns:repeat(5,1fr);gap:5px;">
+                ${invGridHTML}
+              </div>
             </div>
           </div>
 
@@ -11954,9 +12118,7 @@ function _learnTamPhapBook(uid){
   // Đóng popup học tâm pháp
   const tpPop = document.getElementById("tamphabbook-popup");
   if(tpPop) tpPop.remove();
-  // Refresh màn hình Nhẫn Trữ Vật nếu đang mở
-  const charInvBody = document.getElementById("char-inv-body");
-  if(charInvBody) charInvBody.innerHTML = buildInventoryHTML() || '<div style="color:#5a4020;text-align:center;padding:20px 0;font-size:11px">Nhẫn trữ vật đang trống.</div>';
+  // Refresh màn hình Nhẫn Trữ Vật / Nhân Vật nếu đang mở
   const screenBody = document.getElementById("screen-body");
   if(screenBody && document.getElementById("screen-overlay")?.classList.contains("active")){
     const titleEl = document.getElementById("screen-title");
@@ -11966,9 +12128,9 @@ function _learnTamPhapBook(uid){
     } else if(titleText.includes("Công Pháp")) {
       openScreen("skills");
     } else if(titleText.includes("Nhân Vật")) {
-      // Chỉ rebuild phần nhẫn trữ vật bên phải
-      const charInvBody2 = document.getElementById("char-inv-body");
-      if(charInvBody2) charInvBody2.innerHTML = buildInventoryHTML() || '<div style="color:#5a4020;text-align:center;padding:20px 0;font-size:11px">Nhẫn trữ vật đang trống.</div>';
+      // Chỉ rebuild lưới nhẫn trữ vật trong màn Nhân Vật
+      const invGrid = document.getElementById("char-inv-grid");
+      if(invGrid) invGrid.innerHTML = _buildInvGridHTML();
     }
   }
   showNotif({
@@ -12212,13 +12374,19 @@ return {
   },
   useDanDuocFromInv: function(id){
     const result = useDanDuoc(id);
-    // Check if inside character screen right panel
-    const charInvBody = document.getElementById("char-inv-body");
-    if(charInvBody){
-      const newInv = buildInventoryHTML();
-      charInvBody.innerHTML = '<div id="char-inv-msg" style="font-size:10px;padding:5px 8px;margin-bottom:6px;border-radius:6px;background:rgba(80,200,80,.08);border:1px solid rgba(80,200,80,.2);transition:opacity .5s;color:' + (result.ok?"#70e880":"#ffaa60") + '">' + result.msg + '</div>' + (newInv || '<div style="color:#5a4020;text-align:center;padding:20px 0;font-size:11px">Nhẫn trữ vật đang trống.</div>');
-      var nm = document.getElementById("char-inv-msg");
-      if(nm) setTimeout(function(){ if(nm) nm.style.opacity="0"; }, 3000);
+    // Check if inside character screen
+    const invGrid = document.getElementById("char-inv-grid");
+    if(invGrid){
+      invGrid.innerHTML = _buildInvGridHTML();
+      var cm = document.getElementById("char-inv-msg");
+      if(cm){
+        cm.textContent = result.msg;
+        cm.style.color = result.ok?"#70e880":"#ffaa60";
+        cm.style.display = "block";
+        cm.style.opacity = "1";
+        clearTimeout(cm._t);
+        cm._t = setTimeout(function(){ if(cm) cm.style.opacity="0"; }, 3000);
+      }
       return;
     }
     var msgEl = document.getElementById("inv-msg");
@@ -12249,6 +12417,7 @@ return {
   _uploadAvatar: _uploadAvatar,
   _confirmAvatar: _confirmAvatar,
   checkDie, _showDiePopup, _dieRevivePrompt, _dieDoRevive, _dieAccept,
+  openInvSimpleDetail,
   S: S,
   defP: defP,
   init: init
