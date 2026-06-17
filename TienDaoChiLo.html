@@ -19,7 +19,7 @@
 
 <script>
 // ★ ĐỔI SỐ NÀY MỖI KHI DEPLOY BẢN MỚI (phải khớp với sw.js) ★
-const APP_VERSION = '1.0.2';
+const APP_VERSION = '1.0.3';
 
 // ── Đăng ký Service Worker + kiểm tra update ──
 if ('serviceWorker' in navigator) {
@@ -1291,6 +1291,70 @@ body.story-closed #main{
   background: rgba(80, 200, 80, 0.22);
   border-color: #80e880;
 }
+
+/* ===== ĐẠO HỮU ===== */
+.dh-card{
+  display:flex;align-items:center;gap:10px;
+  padding:10px 12px;margin-bottom:8px;
+  background:rgba(201,168,76,.04);border:1px solid rgba(201,168,76,.15);
+  border-radius:11px;transition:background .15s;
+  position:relative;
+}
+.dh-card:hover{background:rgba(201,168,76,.09);}
+.dh-ava{
+  width:46px;height:46px;border-radius:8px;flex-shrink:0;
+  background:linear-gradient(135deg,#120d04,#2a1a06);
+  border:1px solid rgba(201,168,76,.3);
+  overflow:hidden;display:flex;align-items:center;justify-content:center;font-size:22px;
+}
+.dh-ava img{width:100%;height:100%;object-fit:cover;object-position:top;}
+.dh-info{flex:1;min-width:0;}
+.dh-name{font-size:13px;font-weight:700;color:#f0ddb0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.dh-age{font-size:10px;color:#7a6030;margin-top:2px;}
+.dh-stage{font-size:10px;color:#c8a84a;margin-top:2px;}
+.dh-actions{display:flex;flex-direction:column;gap:4px;flex-shrink:0;align-items:flex-end;}
+.dh-del-btn{
+  width:28px;height:28px;display:flex;align-items:center;justify-content:center;
+  background:rgba(200,50,50,.08);border:1px solid rgba(200,50,50,.25);
+  border-radius:7px;color:#c07070;font-size:14px;cursor:pointer;transition:all .15s;
+}
+.dh-del-btn:hover{background:rgba(200,50,50,.22);border-color:rgba(200,50,50,.6);color:#e08888;}
+.dh-msg-btn{
+  font-size:9px;font-weight:600;padding:3px 7px;
+  background:rgba(201,168,76,.08);border:1px solid rgba(201,168,76,.28);
+  border-radius:6px;color:#c8a84a;cursor:pointer;transition:all .15s;white-space:nowrap;
+}
+.dh-msg-btn:hover{background:rgba(201,168,76,.18);border-color:rgba(201,168,76,.6);}
+.dh-add-btn{
+  width:28px;height:28px;display:flex;align-items:center;justify-content:center;
+  background:rgba(80,200,80,.08);border:1px solid rgba(80,200,80,.3);
+  border-radius:7px;color:#70d870;font-size:16px;cursor:pointer;transition:all .15s;font-weight:700;
+}
+.dh-add-btn:hover{background:rgba(80,200,80,.22);border-color:rgba(80,200,80,.7);color:#90f890;}
+.dh-empty{
+  text-align:center;padding:36px 0 16px;
+}
+.dh-empty-icon{font-size:36px;opacity:.3;margin-bottom:10px;}
+.dh-empty-text{font-size:12px;color:#4a3818;letter-spacing:.5px;}
+.dh-search-wrap{margin-bottom:14px;}
+.dh-search-input{
+  width:100%;padding:10px 13px;
+  background:rgba(201,168,76,.04);border:1px solid rgba(201,168,76,.22);
+  border-radius:9px;font-size:13px;color:#f0ddb0;
+  font-family:inherit;outline:none;box-sizing:border-box;
+  transition:border-color .2s;letter-spacing:.5px;
+}
+.dh-search-input:focus{border-color:rgba(201,168,76,.6);}
+.dh-search-input::placeholder{color:#3a2a10;}
+.dh-search-btn{
+  margin-top:8px;width:100%;padding:9px;
+  background:rgba(201,168,76,.08);border:1px solid rgba(201,168,76,.28);
+  border-radius:9px;font-size:13px;font-weight:600;color:#f0d98c;
+  cursor:pointer;letter-spacing:1px;transition:background .15s;text-align:center;
+}
+.dh-search-btn:hover{background:rgba(201,168,76,.18);}
+.dh-search-result{margin-top:12px;}
+.dh-search-msg{font-size:11px;color:#7a6030;text-align:center;padding:16px 0;}
 </style>
 </head>
 <body>
@@ -1695,6 +1759,8 @@ window._fsCollection = collection;
 window._fsQuery      = query;
 window._fsLimit      = limit;
 window._fsDb         = db;
+window._fsGetDoc     = getDoc;
+window._fsDoc        = doc;
 </script>
 
 <!-- ===== CLOUD AUTH SCREEN (Đăng Nhập từ Title) ===== -->
@@ -1901,6 +1967,30 @@ window._fsDb         = db;
   </div>
 </div>
 
+<!-- Đạo Hữu button (top-right, above event-slider area, fixed) -->
+<div id="daohuu-btn" style="
+  display:none;
+  position:fixed;top:10px;right:186px;
+  z-index:500;pointer-events:all;
+">
+  <div onclick="G.openScreen('daohuu')" style="
+    display:flex;align-items:center;gap:5px;
+    padding:5px 10px;
+    background:rgba(8,8,16,.88);
+    border:1px solid rgba(255,255,255,.08);
+    backdrop-filter:blur(6px);
+    border-radius:11px;
+    box-shadow:0 2px 14px rgba(0,0,0,.5);
+    cursor:pointer;transition:border-color .15s,background .15s;
+    pointer-events:all;
+  "
+  onmouseover="this.style.borderColor='rgba(201,168,76,.45)';this.style.background='rgba(20,14,4,.95)'"
+  onmouseout="this.style.borderColor='rgba(255,255,255,.08)';this.style.background='rgba(8,8,16,.88)'">
+    <span style="font-size:14px;">🤝</span>
+    <span style="font-size:8px;color:#8a6a28;letter-spacing:.3px;">Đạo Hữu</span>
+  </div>
+</div>
+
 <!-- Currency button + panel -->
 <div id="currency-bar">
 
@@ -2009,7 +2099,7 @@ window._fsDb         = db;
 <div id="bottom-nav">
   <div class="nav-btn" id="nav-character" onclick="G.openScreen('character')"><div class="nav-icon">🧍</div><div class="nav-label">Nhân Vật</div></div>
 
-  <div class="nav-btn" id="nav-quest" onclick="G._showCotTruyenPopup()"><div class="nav-icon">📖</div><div class="nav-label">Quyển Sách</div></div>
+  <div class="nav-btn" id="nav-quest" onclick="G._showCotTruyenPopup()"><div class="nav-icon">📖</div><div class="nav-label">Cốt Truyện</div></div>
   <div class="nav-btn" id="nav-cultivate" onclick="G.openScreen('cultivate')"><div class="nav-icon">🌀</div><div class="nav-label">Tu Luyện</div></div>
   <div class="nav-btn" id="nav-skills" onclick="G.openScreen('skills')"><div class="nav-icon">📖</div><div class="nav-label">Công Pháp</div></div>
   <div class="nav-btn" id="nav-map" onclick="G.openScreen('map')"><div class="nav-icon">🗺️</div><div class="nav-label">Bản Đồ</div></div>
@@ -2124,6 +2214,7 @@ const S = {
   _starterGearGranted: false,
   _tamPhapBookGranted: false,
   tamPhapBooks: [],
+  daoHuu: [],  // Danh sách Đạo Hữu: [{userKey, username, avatar, age, stageName, addedAt}]
 };
 
 /* ===== UNLOCK SYSTEM ===== */
@@ -2160,6 +2251,8 @@ function checkUnlocks(){
     if(ab) ab.classList.add("visible");
     const es = document.getElementById("event-slider");
     if(es && !es.classList.contains("visible")){ es.classList.add("visible"); initEventSlider(); }
+    const dhBtn = document.getElementById("daohuu-btn");
+    if(dhBtn) dhBtn.style.display = "block";
   }
   // Bản Đồ luôn mở khóa
   S.unlockMap = true;
@@ -9307,6 +9400,15 @@ function openScreen(id, tab){
         <div style="font-size:13px;font-weight:700;color:#d6b15f;margin-bottom:6px;">Sự Kiện Đặc Biệt</div>
         <div style="font-size:11px;color:#5a4020;line-height:1.7">Hiện chưa có sự kiện nào đang diễn ra.<br>Hãy quay lại sau!</div>
       </div>`; },
+    daohuu:()=>{
+      t.textContent="🤝 Đạo Hữu";
+      b.style.padding="0";
+      b.style.overflow="hidden";
+      b.style.display="flex";
+      b.style.flexDirection="column";
+      b.style.height="100%";
+      b.innerHTML = buildDaoHuuHTML();
+    },
     bxh:()=>{
       t.textContent="🏅 Bảng Xếp Hạng";
       b.style.padding="0";
@@ -9617,6 +9719,232 @@ function claimAchievement(achId){
   const tEl = document.getElementById("screen-title");
   if(b && tEl && tEl.textContent.includes("Thành Tựu")){
     b.innerHTML = buildAchievementHTML();
+  }
+}
+
+/* ===== ĐẠO HỮU ===== */
+// Lưu danh sách bạn bè trong S.daoHuu = [{userKey, username, avatar, age, stageName, addedAt}]
+
+function buildDaoHuuHTML() {
+  const tabs = [
+    { id:"daohuu_list",   icon:"🤝", label:"Đạo Hữu" },
+    { id:"daohuu_search", icon:"🔍", label:"Tìm Đạo Hữu" },
+  ];
+  const activeTab = window._daoHuuTab || "daohuu_list";
+  const sidebarHTML = tabs.map(tab =>
+    `<div class="shop-tab ${activeTab===tab.id?"active":""}"
+      onclick="G._daoHuuSwitch('${tab.id}')">
+      <span class="stab-icon">${tab.icon}</span>${tab.label}
+    </div>`
+  ).join("");
+
+  return `
+    <div class="shop-layout" style="height:100%;">
+      <div class="shop-sidebar">${sidebarHTML}</div>
+      <div class="shop-content" id="daohuu-content-area">
+        ${buildDaoHuuTabContent(activeTab)}
+      </div>
+    </div>`;
+}
+
+function buildDaoHuuTabContent(tab) {
+  if (tab === "daohuu_list") return buildDaoHuuListHTML();
+  if (tab === "daohuu_search") return buildDaoHuuSearchHTML();
+  return "";
+}
+
+function buildDaoHuuListHTML() {
+  const friends = S.daoHuu || [];
+  if (friends.length === 0) {
+    return `<div class="dh-empty">
+      <div class="dh-empty-icon">🤝</div>
+      <div class="dh-empty-text">Chưa có Đạo Hữu nào<br><span style="font-size:10px;color:#3a2010">Dùng "Tìm Đạo Hữu" để kết bạn</span></div>
+    </div>`;
+  }
+  return friends.map((f, i) => `
+    <div class="dh-card">
+      <div class="dh-ava">
+        ${f.avatar
+          ? `<img src="${f.avatar}" alt="">`
+          : `<span>🧙</span>`}
+      </div>
+      <div class="dh-info">
+        <div class="dh-name">${f.username || "Ẩn danh"}</div>
+        <div class="dh-age">Tuổi: ${f.age != null ? f.age : "???"}</div>
+        <div class="dh-stage">Cảnh Giới: ${f.stageName || "???"}</div>
+      </div>
+      <div class="dh-actions">
+        <div class="dh-del-btn" title="Xóa Đạo Hữu" onclick="G._daoHuuRemove(${i})">🗑</div>
+        <div class="dh-msg-btn" onclick="G._daoHuuMsg('${f.userKey}')">Nhắn Tin</div>
+      </div>
+    </div>`).join("");
+}
+
+function buildDaoHuuSearchHTML() {
+  return `
+    <div class="dh-search-wrap">
+      <div style="font-size:11px;color:#7a6030;margin-bottom:10px;line-height:1.6;">
+        Nhập tên người chơi để tìm kiếm Đạo Hữu.
+      </div>
+      <input class="dh-search-input" id="dh-search-input" type="text"
+        maxlength="20" placeholder="Nhập tên người chơi..."
+        autocomplete="off"
+        onkeydown="if(event.key==='Enter')G._daoHuuSearch()">
+      <div class="dh-search-btn" onclick="G._daoHuuSearch()">🔍 Tìm Kiếm</div>
+    </div>
+    <div class="dh-search-result" id="dh-search-result">
+      <div class="dh-search-msg">Nhập tên và bấm Tìm Kiếm</div>
+    </div>`;
+}
+
+function _daoHuuSwitch(tab) {
+  window._daoHuuTab = tab;
+  const area = document.getElementById("daohuu-content-area");
+  if (area) area.innerHTML = buildDaoHuuTabContent(tab);
+  // Update sidebar active
+  document.querySelectorAll("#daohuu-content-area").forEach(()=>{});
+  const b2 = document.getElementById("screen-body");
+  if (b2) {
+    b2.innerHTML = buildDaoHuuHTML();
+  }
+}
+
+function _daoHuuRemove(index) {
+  const friends = S.daoHuu || [];
+  const f = friends[index];
+  if (!f) return;
+  if (!confirm(`Xóa ${f.username} khỏi danh sách Đạo Hữu?`)) return;
+  friends.splice(index, 1);
+  S.daoHuu = friends;
+  saveGame();
+  // Refresh
+  const area = document.getElementById("daohuu-content-area");
+  if (area) area.innerHTML = buildDaoHuuTabContent("daohuu_list");
+}
+
+function _daoHuuMsg(userKey) {
+  // Placeholder — tính năng Nhắn Tin làm sau
+  showNotif({
+    icon:"💬",
+    title:"Tính Năng Đang Phát Triển",
+    lines:["Nhắn Tin sẽ ra mắt sớm!"],
+    color:"#5ab0ff",
+    duration:2500
+  });
+}
+
+async function _daoHuuSearch() {
+  const input = document.getElementById("dh-search-input");
+  if (!input) return;
+  const name = (input.value || "").trim();
+  if (!name) {
+    _daoHuuSearchResult(`<div class="dh-search-msg" style="color:#ff7060;">Vui lòng nhập tên người chơi.</div>`);
+    return;
+  }
+  _daoHuuSearchResult(`<div class="dh-search-msg">⏳ Đang tìm kiếm...</div>`);
+
+  try {
+    // Tìm theo userKey (lowercase, không dấu đặc biệt)
+    function _userKeyLocal(username) {
+      return username.toLowerCase().replace(/[^a-z0-9_\u00c0-\u024f\u1e00-\u1eff]/gi, "_");
+    }
+    const searchKey = _userKeyLocal(name);
+    const snap = await window._fsGetDoc(window._fsDoc(window._fsDb, "players", searchKey));
+
+    if (!snap.exists()) {
+      _daoHuuSearchResult(`<div class="dh-search-msg">Không tìm thấy người chơi "<b style="color:#c8a84a">${name}</b>".</div>`);
+      return;
+    }
+
+    const data = snap.data();
+    // Không hiện chính mình
+    if (window._cloudUser && data.userKey === window._cloudUser.userKey) {
+      _daoHuuSearchResult(`<div class="dh-search-msg" style="color:#c8a84a;">Đó chính là ngươi! 😄</div>`);
+      return;
+    }
+
+    // Kiểm tra đã là bạn chưa
+    const friends = S.daoHuu || [];
+    const alreadyFriend = friends.some(f => f.userKey === searchKey);
+
+    const save = data.save ? JSON.parse(data.save) : {};
+    const foundUser = {
+      userKey: searchKey,
+      username: data.username || name,
+      avatar: save.avatar || null,
+      age: save.age != null ? save.age : null,
+      stageName: save.stageName || "???",
+    };
+
+    _daoHuuSearchResult(`
+      <div style="font-size:9.5px;font-weight:700;color:#7a5a20;letter-spacing:.7px;text-transform:uppercase;margin-bottom:8px;">KẾT QUẢ TÌM KIẾM</div>
+      <div class="dh-card">
+        <div class="dh-ava">
+          ${foundUser.avatar
+            ? `<img src="${foundUser.avatar}" alt="">`
+            : `<span>🧙</span>`}
+        </div>
+        <div class="dh-info">
+          <div class="dh-name">${foundUser.username}</div>
+          <div class="dh-age">Tuổi: ${foundUser.age != null ? foundUser.age : "???"}</div>
+          <div class="dh-stage">Cảnh Giới: ${foundUser.stageName}</div>
+        </div>
+        <div class="dh-actions">
+          ${alreadyFriend
+            ? `<div style="font-size:9px;color:#70d870;padding:4px 7px;background:rgba(80,200,80,.1);border:1px solid rgba(80,200,80,.3);border-radius:6px;">✓ Đã kết bạn</div>`
+            : `<div class="dh-add-btn" title="Gửi lời mời kết bạn" onclick="G._daoHuuSendRequest(${JSON.stringify(JSON.stringify(foundUser))})">＋</div>`}
+        </div>
+      </div>`);
+  } catch (e) {
+    console.error("[DaoHuu] Search error:", e);
+    _daoHuuSearchResult(`<div class="dh-search-msg" style="color:#ff7060;">Lỗi kết nối. Vui lòng thử lại.</div>`);
+  }
+}
+
+function _daoHuuSearchResult(html) {
+  const el = document.getElementById("dh-search-result");
+  if (el) el.innerHTML = html;
+}
+
+function _daoHuuSendRequest(userJsonStr) {
+  // Placeholder — gửi lời mời kết bạn làm sau
+  // Tạm thời: thêm thẳng vào danh sách cho demo
+  try {
+    const foundUser = JSON.parse(userJsonStr);
+    S.daoHuu = S.daoHuu || [];
+    const alreadyFriend = S.daoHuu.some(f => f.userKey === foundUser.userKey);
+    if (alreadyFriend) {
+      showNotif({icon:"🤝",title:"Đã là Đạo Hữu",lines:["Người này đã trong danh sách của ngươi!"],color:"#c8a84a",duration:2000});
+      return;
+    }
+    // TODO: gửi lời mời thực sự qua Firebase — hiện tại thêm thẳng
+    S.daoHuu.push({ ...foundUser, addedAt: Date.now() });
+    saveGame();
+    showNotif({
+      icon:"🤝",
+      title:"Đã Gửi Lời Mời!",
+      lines:[`<b style="color:#f0d98c">${foundUser.username}</b>`, `<span style="color:#7a9060">Lời mời kết bạn đã được gửi đi.</span>`],
+      color:"#70d870",
+      duration:3000
+    });
+    // Refresh kết quả — ẩn nút +, hiện "đã gửi"
+    _daoHuuSearchResult(`
+      <div style="font-size:9.5px;font-weight:700;color:#7a5a20;letter-spacing:.7px;text-transform:uppercase;margin-bottom:8px;">KẾT QUẢ TÌM KIẾM</div>
+      <div class="dh-card">
+        <div class="dh-ava">
+          ${foundUser.avatar ? `<img src="${foundUser.avatar}" alt="">` : `<span>🧙</span>`}
+        </div>
+        <div class="dh-info">
+          <div class="dh-name">${foundUser.username}</div>
+          <div class="dh-age">Tuổi: ${foundUser.age != null ? foundUser.age : "???"}</div>
+          <div class="dh-stage">Cảnh Giới: ${foundUser.stageName}</div>
+        </div>
+        <div class="dh-actions">
+          <div style="font-size:9px;color:#70d870;padding:4px 7px;background:rgba(80,200,80,.1);border:1px solid rgba(80,200,80,.3);border-radius:6px;">✓ Đã kết bạn</div>
+        </div>
+      </div>`);
+  } catch(e) {
+    console.error("[DaoHuu] AddFriend error:", e);
   }
 }
 
@@ -12680,6 +13008,7 @@ return {
   openCloudPanel: function(){
     document.getElementById("cloud-auth-screen").style.display="flex";
   },
+  _daoHuuSwitch, _daoHuuRemove, _daoHuuMsg, _daoHuuSearch, _daoHuuSendRequest,
   startNewGame, confirmName, continueGame, openSettings, quitGame, _selectAvatar,
   _showAvatarScreen, _showWelcomePopup,
   _showThienDaoPopup, _showDeaPopup,
