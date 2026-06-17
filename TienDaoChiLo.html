@@ -19,7 +19,7 @@
 
 <script>
 // ★ ĐỔI SỐ NÀY MỖI KHI DEPLOY BẢN MỚI (phải khớp với sw.js) ★
-const APP_VERSION = '1.0.1';
+const APP_VERSION = '1.0.2';
 
 // ── Đăng ký Service Worker + kiểm tra update ──
 if ('serviceWorker' in navigator) {
@@ -1298,7 +1298,11 @@ body.story-closed #main{
 <!-- ===== FIREBASE ===== -->
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-import { getFirestore, doc, setDoc, getDoc, getDocs, collection, query, orderBy, limit, deleteDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { getFirestore, doc, setDoc, getDoc, getDocs, collection, query, orderBy, limit, deleteDoc, runTransaction } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import {
+  getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword,
+  onAuthStateChanged, signOut, deleteUser, EmailAuthProvider, reauthenticateWithCredential
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyArt7yX7IO4GImWJDVv3aTk47EUkFTKF3k",
@@ -1309,43 +1313,119 @@ const firebaseConfig = {
   appId: "1:533118817350:web:9ca62f13f27f389a2da647"
 };
 
-const app = initializeApp(firebaseConfig);
-const db = getFirestore(app);
+const app  = initializeApp(firebaseConfig);
+const db   = getFirestore(app);
+const auth = getAuth(app);
 
-// Expose hàm xóa tài khoản ra ngoài module scope
-window._cloudDeleteAccount = async function(userKey) {
-  try {
-    await deleteDoc(doc(db, "players", userKey));
-    for(const tab of ["tuvi","luyen_dan","luyen_khi","luyen_phu","tran_phap"]){
-      await deleteDoc(doc(db, "bxh_"+tab, userKey)).catch(()=>{});
-    }
-    return true;
-  } catch(e) {
-    console.warn("[Cloud] Delete error:", e);
-    return false;
-  }
-};
+function _userKey(username) {
+  return username.toLowerCase().replace(/[^a-z0-9_\u00c0-\u024f\u1e00-\u1eff]/gi, "_");
+}
 
-window._cloudUser = null; // { username, userKey, hash }
-
-// ── Khôi phục session sau reload ──────────────────────────
-(function restoreSession() {
-  try {
-    const saved = localStorage.getItem("_tdcl_session");
-    if (saved) window._cloudUser = JSON.parse(saved);
-  } catch(e) {}
-})();
-
-// ── Hash mật khẩu ─────────────────────────────────────────
-async function hashPassword(pw) {
+// ── Hash mật khẩu kiểu CŨ — chỉ dùng để kiểm tra tài khoản đăng ký TRƯỚC khi có Firebase Auth ──
+async function _legacyHashPassword(pw) {
   const buf = await crypto.subtle.digest("SHA-256",
     new TextEncoder().encode(pw + "tdcl_salt_2026"));
   return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,"0")).join("");
 }
 
-function _userKey(username) {
-  return username.toLowerCase().replace(/[^a-z0-9_\u00c0-\u024f\u1e00-\u1eff]/gi, "_");
+// ── Mã hoá username → "email" giả nội bộ để dùng được Firebase Authentication ──
+// Firebase Auth (Email/Password) cần định dạng email; người chơi vẫn chỉ thấy "Tên tài khoản" như cũ.
+// Băm SHA-256 để: (1) luôn ra ký tự ASCII hợp lệ dù tên có dấu tiếng Việt, (2) không lo 2 tên gần giống
+// nhau (vd "Lý" và "Ly") bị tính trùng — vì băm theo userKey gốc (vẫn giữ dấu) trước khi mã hoá.
+async function _toPseudoEmail(userKey) {
+  const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode("tdcl_auth_v1:" + userKey));
+  const bytes = new Uint8Array(buf);
+  let bin = "";
+  for (const b of bytes) bin += String.fromCharCode(b);
+  const b64 = btoa(bin).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,"").toLowerCase();
+  return "u" + b64 + "@tdcl.app";
 }
+
+function _friendlyAuthError(code) {
+  switch(code) {
+    case "auth/email-already-in-use": return "Tên này đã có người dùng, chọn tên khác.";
+    case "auth/weak-password":        return "Mật khẩu cần ít nhất 6 ký tự.";
+    case "auth/wrong-password":
+    case "auth/invalid-credential":
+    case "auth/invalid-login-credentials": return "Sai mật khẩu.";
+    case "auth/user-not-found":       return "Tài khoản không tồn tại.";
+    case "auth/too-many-requests":    return "Thử lại quá nhiều lần, vui lòng đợi một chút.";
+    case "auth/network-request-failed": return "Lỗi kết nối mạng.";
+    default: return null;
+  }
+}
+
+window._cloudUser = null; // { username, userKey }
+
+// ── Khôi phục đăng nhập sau khi tải lại trang ──────────────
+// Firebase Auth tự lưu session (an toàn hơn localStorage cũ — không còn lưu hash mật khẩu ở máy).
+// Chỉ lưu kèm "username" (không nhạy cảm) để biết cần tải tài liệu Firestore nào.
+onAuthStateChanged(auth, async (user) => {
+  try {
+    if (user) {
+      const savedUsername = localStorage.getItem("_tdcl_last_username");
+      if (savedUsername) {
+        const key = _userKey(savedUsername);
+        const snap = await getDoc(doc(db, "players", key));
+        if (snap.exists() && snap.data().uid === user.uid) {
+          window._cloudUser = { username: snap.data().username, userKey: key };
+        }
+      }
+    } else {
+      window._cloudUser = null;
+    }
+  } catch(e) {
+    console.warn("[Cloud] Lỗi khôi phục session:", e);
+  }
+  if (typeof window._updateTitleLoginBtn === "function") window._updateTitleLoginBtn();
+});
+
+// ── Chuẩn hoá tên đạo hiệu để so trùng (không phân biệt hoa/thường, khoảng trắng dư) ──
+function _charNameKey(name) {
+  return name.trim().toLowerCase().replace(/\s+/g, " ").replace(/\//g, "_").slice(0, 100);
+}
+
+// ── ID ngẫu nhiên định danh riêng cho thiết bị/trình duyệt này ──
+// Dùng để nhận ra "chính mình" nếu lỡ tải lại trang giữa lúc đặt tên (không bị báo trùng oan)
+function _getDeviceId() {
+  try {
+    let id = localStorage.getItem("_tdcl_device_id");
+    if (!id) {
+      id = "dev_" + Math.random().toString(36).slice(2) + Date.now().toString(36);
+      localStorage.setItem("_tdcl_device_id", id);
+    }
+    return id;
+  } catch (e) {
+    return "dev_anon";
+  }
+}
+
+// ── Giữ tên đạo hiệu (chống đặt tên trùng) ───────────────────
+// Dùng collection riêng "claimed_names", doc id = tên đã chuẩn hoá.
+// Dùng Transaction để đảm bảo 2 người bấm xác nhận cùng lúc không thể cùng giữ 1 tên.
+window._claimCharName = async function(name) {
+  const key = _charNameKey(name);
+  if (!key) return { ok: false, reason: "empty" };
+  const deviceId = _getDeviceId();
+  const ref = doc(db, "claimed_names", key);
+
+  let outcome = "claimed";
+  await runTransaction(db, async (tx) => {
+    const snap = await tx.get(ref);
+    if (snap.exists()) {
+      const data = snap.data();
+      if (data.deviceId === deviceId) {
+        outcome = "self"; // chính thiết bị này đã giữ tên này trước đó → cho qua
+        return;
+      }
+      outcome = "taken";
+      return;
+    }
+    tx.set(ref, { name: name.trim(), deviceId, claimedAt: Date.now() });
+  });
+
+  return { ok: outcome !== "taken", reason: outcome };
+};
 
 // ── Đăng nhập từ Title Screen ─────────────────────────────
 // Chỉ đăng nhập, KHÔNG tạo tài khoản mới ở đây
@@ -1357,37 +1437,25 @@ window._cloudLogin = async function() {
 
   msgEl.textContent = "";
   if (!username || !password) { msgEl.textContent = "Vui lòng nhập đủ thông tin."; msgEl.style.color="#ffaa60"; return; }
-  if (password.length < 4) { msgEl.textContent = "Mật khẩu ít nhất 4 ký tự."; msgEl.style.color="#ffaa60"; return; }
 
   btnEl.textContent = "Đang kết nối...";
   btnEl.style.opacity = "0.6"; btnEl.style.pointerEvents = "none";
 
-  try {
-    const hash = await hashPassword(password);
-    const key = _userKey(username);
-    const snap = await getDoc(doc(db, "players", key));
+  const key = _userKey(username);
+  const playerRef = doc(db, "players", key);
 
-    if (!snap.exists()) {
-      msgEl.textContent = "❌ Tài khoản không tồn tại.";
-      msgEl.style.color = "#ff6060";
-      btnEl.textContent = "Xác Nhận"; btnEl.style.opacity="1"; btnEl.style.pointerEvents="all";
-      return;
-    }
-    const data = snap.data();
-    if (data.passwordHash !== hash) {
-      msgEl.textContent = "❌ Sai mật khẩu.";
-      msgEl.style.color = "#ff6060";
-      btnEl.textContent = "Xác Nhận"; btnEl.style.opacity="1"; btnEl.style.pointerEvents="all";
-      return;
-    }
+  const fail = (text) => {
+    msgEl.textContent = "❌ " + text;
+    msgEl.style.color = "#ff6060";
+    btnEl.textContent = "Xác Nhận"; btnEl.style.opacity="1"; btnEl.style.pointerEvents="all";
+  };
 
-    // Đăng nhập thành công — đăng xuất tài khoản cũ nếu có
-    window._cloudUser = { username: data.username, userKey: key, hash };
-    localStorage.setItem("_tdcl_session", JSON.stringify(window._cloudUser));
+  const finishOk = async (data) => {
+    window._cloudUser = { username: data.username, userKey: key };
+    localStorage.setItem("_tdcl_last_username", data.username);
     msgEl.textContent = "✅ Đăng nhập thành công!";
     msgEl.style.color = "#70e880";
 
-    // Lưu save cloud vào localStorage
     if (data.saveData) {
       try {
         const parsed = typeof data.saveData === "string" ? JSON.parse(data.saveData) : data.saveData;
@@ -1407,11 +1475,42 @@ window._cloudLogin = async function() {
         }
       }
     }, 900);
+  };
 
+  try {
+    const pseudoEmail = await _toPseudoEmail(key);
+    try {
+      // Thử đăng nhập bằng Firebase Authentication
+      await signInWithEmailAndPassword(auth, pseudoEmail, password);
+      const snap = await getDoc(playerRef);
+      if (!snap.exists()) { fail("Lỗi dữ liệu tài khoản, vui lòng liên hệ hỗ trợ."); return; }
+      await finishOk(snap.data());
+    } catch(authErr) {
+      if (authErr.code === "auth/user-not-found") {
+        // Có thể đây là tài khoản CŨ (đăng ký trước khi có Firebase Auth) — kiểm tra theo cách cũ
+        const snap = await getDoc(playerRef);
+        if (!snap.exists()) { fail("Tài khoản không tồn tại."); return; }
+        const data = snap.data();
+        if (data.uid) { fail("Lỗi tài khoản, vui lòng thử lại."); return; }
+        const oldHash = await _legacyHashPassword(password);
+        if (data.passwordHash !== oldHash) { fail("Sai mật khẩu."); return; }
+
+        // Mật khẩu cũ đúng → nâng cấp tài khoản này lên Firebase Auth ngay
+        try {
+          const cred = await createUserWithEmailAndPassword(auth, pseudoEmail, password);
+          await setDoc(playerRef, { uid: cred.user.uid }, { merge: true });
+        } catch(upgradeErr) {
+          // Mật khẩu cũ ngắn hơn 6 ký tự (yêu cầu của Firebase Auth) → chưa nâng cấp được lúc này,
+          // vẫn cho đăng nhập bình thường theo cách cũ, sẽ thử nâng cấp lại lần sau.
+          console.warn("[Cloud] Không nâng cấp được tài khoản:", upgradeErr.message);
+        }
+        await finishOk(data);
+      } else {
+        fail(_friendlyAuthError(authErr.code) || ("Lỗi kết nối: " + authErr.message));
+      }
+    }
   } catch(e) {
-    msgEl.textContent = "❌ Lỗi kết nối: " + e.message;
-    msgEl.style.color = "#ff6060";
-    btnEl.textContent = "Xác Nhận"; btnEl.style.opacity="1"; btnEl.style.pointerEvents="all";
+    fail("Lỗi kết nối: " + e.message);
   }
 };
 
@@ -1425,15 +1524,15 @@ window._cloudRegister = async function() {
   msgEl.textContent = "";
   if (!username || !password) { msgEl.textContent = "Vui lòng nhập đủ thông tin."; msgEl.style.color="#ffaa60"; return; }
   if (username.length < 2 || username.length > 20) { msgEl.textContent = "Tên từ 2–20 ký tự."; msgEl.style.color="#ffaa60"; return; }
-  if (password.length < 4) { msgEl.textContent = "Mật khẩu ít nhất 4 ký tự."; msgEl.style.color="#ffaa60"; return; }
+  if (password.length < 6) { msgEl.textContent = "Mật khẩu ít nhất 6 ký tự."; msgEl.style.color="#ffaa60"; return; }
 
   btnEl.textContent = "Đang tạo..."; btnEl.style.opacity="0.6"; btnEl.style.pointerEvents="none";
 
-  try {
-    const hash = await hashPassword(password);
-    const key = _userKey(username);
-    const snap = await getDoc(doc(db, "players", key));
+  const key = _userKey(username);
+  const playerRef = doc(db, "players", key);
 
+  try {
+    const snap = await getDoc(playerRef);
     if (snap.exists()) {
       msgEl.textContent = "❌ Tên này đã có người dùng, chọn tên khác.";
       msgEl.style.color="#ff6060";
@@ -1441,19 +1540,22 @@ window._cloudRegister = async function() {
       return;
     }
 
+    const pseudoEmail = await _toPseudoEmail(key);
+    const cred = await createUserWithEmailAndPassword(auth, pseudoEmail, password);
+
     // Lấy save hiện tại
     const currentSave = localStorage.getItem("tdcl") || null;
 
-    await setDoc(doc(db, "players", key), {
+    await setDoc(playerRef, {
       username,
-      passwordHash: hash,
+      uid: cred.user.uid,
       createdAt: Date.now(),
       saveData: currentSave,
       lastSaved: Date.now()
     });
 
-    window._cloudUser = { username, userKey: key, hash };
-    localStorage.setItem("_tdcl_session", JSON.stringify(window._cloudUser));
+    window._cloudUser = { username, userKey: key };
+    localStorage.setItem("_tdcl_last_username", username);
     msgEl.textContent = "✅ Tạo tài khoản thành công! Save đã lên cloud.";
     msgEl.style.color = "#70e880";
     btnEl.textContent = "Đăng Ký & Lưu Lên Cloud"; btnEl.style.opacity="1"; btnEl.style.pointerEvents="all";
@@ -1462,7 +1564,7 @@ window._cloudRegister = async function() {
     setTimeout(() => { if(typeof G!=="undefined"){ window._settingsFromGame=true; G.openSettings(); } }, 1500);
 
   } catch(e) {
-    msgEl.textContent = "❌ Lỗi: " + e.message;
+    msgEl.textContent = "❌ " + (_friendlyAuthError(e.code) || ("Lỗi: " + e.message));
     msgEl.style.color="#ff6060";
     btnEl.textContent="Đăng Ký & Lưu Lên Cloud"; btnEl.style.opacity="1"; btnEl.style.pointerEvents="all";
   }
@@ -1474,7 +1576,6 @@ window._cloudSave = async function(saveObj) {
   try {
     await setDoc(doc(db, "players", window._cloudUser.userKey), {
       username: window._cloudUser.username,
-      passwordHash: window._cloudUser.hash,
       saveData: JSON.stringify(saveObj),
       lastSaved: Date.now(),
       stage: saveObj.stage || 0,
@@ -1503,9 +1604,45 @@ window._cloudLogout = async function() {
   }
   // Chờ cloud save hoàn tất rồi mới reload
   await new Promise(r => setTimeout(r, 600));
+  try { await signOut(auth); } catch(e) {}
   window._cloudUser = null;
-  localStorage.removeItem("_tdcl_session");
+  localStorage.removeItem("_tdcl_last_username");
+  localStorage.removeItem("_tdcl_session"); // dọn key cũ nếu còn sót
   location.reload();
+};
+
+// ── Xóa tài khoản (vĩnh viễn) ──────────────────────────────
+window._cloudDeleteAccount = async function(userKey) {
+  try {
+    const user = auth.currentUser;
+    if (user) {
+      try {
+        await deleteUser(user);
+      } catch(e) {
+        if (e.code === "auth/requires-recent-login") {
+          // Firebase yêu cầu xác thực lại cho hành động nhạy cảm này nếu đã đăng nhập lâu
+          const pw = prompt("Vì lý do an toàn, vui lòng nhập lại mật khẩu để xác nhận xoá tài khoản:");
+          if (pw) {
+            try {
+              const cred = EmailAuthProvider.credential(user.email, pw);
+              await reauthenticateWithCredential(user, cred);
+              await deleteUser(user);
+            } catch(e2) { console.warn("[Cloud] Xác thực lại thất bại:", e2.message); }
+          }
+        } else {
+          console.warn("[Cloud] Không xoá được tài khoản Auth:", e.message);
+        }
+      }
+    }
+    await deleteDoc(doc(db, "players", userKey));
+    for(const tab of ["tuvi","luyen_dan","luyen_khi","luyen_phu","tran_phap"]){
+      await deleteDoc(doc(db, "bxh_"+tab, userKey)).catch(()=>{});
+    }
+    return true;
+  } catch(e) {
+    console.warn("[Cloud] Delete error:", e);
+    return false;
+  }
 };
 
 
@@ -1609,7 +1746,8 @@ window._fsDb         = db;
     <div class="name-title">Đặt Tên Đạo Hiệu</div>
     <div class="name-desc">Hãy chọn một cái tên xứng đáng với con đường tu tiên của ngươi.<br>Tên sẽ theo ngươi suốt hành trình vạn dặm.</div>
     <input class="name-input" id="player-name-input" type="text" maxlength="16" placeholder="Tên của ngươi..." autocomplete="off">
-    <div class="name-confirm" onclick="G.confirmName()">✓ Xác Nhận · Bước Vào Tiên Đạo</div>
+    <div id="name-msg" style="font-size:11px;min-height:16px;margin-top:8px;color:#ff6060;text-align:center;"></div>
+    <div class="name-confirm" id="name-confirm-btn" onclick="G.confirmName()">✓ Xác Nhận · Bước Vào Tiên Đạo</div>
   </div>
 </div>
 
@@ -1870,7 +2008,7 @@ window._fsDb         = db;
 <!-- Bottom nav -->
 <div id="bottom-nav">
   <div class="nav-btn" id="nav-character" onclick="G.openScreen('character')"><div class="nav-icon">🧍</div><div class="nav-label">Nhân Vật</div></div>
-  <div class="nav-btn" id="nav-char-inv" onclick="G.openScreen('character_inv')"><div class="nav-icon">💍</div><div class="nav-label">Nhẫn Trữ Vật</div></div>
+
   <div class="nav-btn" id="nav-quest" onclick="G._showCotTruyenPopup()"><div class="nav-icon">📖</div><div class="nav-label">Quyển Sách</div></div>
   <div class="nav-btn" id="nav-cultivate" onclick="G.openScreen('cultivate')"><div class="nav-icon">🌀</div><div class="nav-label">Tu Luyện</div></div>
   <div class="nav-btn" id="nav-skills" onclick="G.openScreen('skills')"><div class="nav-icon">📖</div><div class="nav-label">Công Pháp</div></div>
@@ -2016,7 +2154,6 @@ function checkUnlocks(){
     document.getElementById("hud-btn").classList.add("visible");
     document.getElementById("nav-quest").classList.add("unlocked");
     document.getElementById("nav-character").classList.add("unlocked");
-    document.getElementById("nav-char-inv").classList.add("unlocked");
     const qb = document.getElementById("quick-btns");
     if(qb) qb.classList.add("visible");
     const ab = document.getElementById("achievement-btn");
@@ -3562,17 +3699,17 @@ const ALL_DAN_DUOC = [
   {id:"dd003",grade:1,name:"Hồi Xuân Đan",   icon:"💊",desc:"Nuôi dưỡng sinh cơ, tăng tuổi thọ tối đa vĩnh viễn. Hạ: +30, Trung: +45, Thượng: +90, Hoàn Mỹ: +150 năm.",
    effect:"Tuổi thọ tối đa +30~150 năm",         fx:"hoi_xuan"},
   // Đổi tên: Cố Cốt Đan → Cường Cốt Đan
-  {id:"dd004",grade:1,name:"Cường Cốt Đan",  icon:"💊",desc:"Kiên cố xương cốt, tăng DEF vĩnh viễn. Hạ: +50, Trung: +75, Thượng: +150, Hoàn Mỹ: +250. Giới hạn 5 viên.",
-   effect:"DEF +50~250 (tối đa 5 viên)",          fx:"cuong_cot"},
+  {id:"dd004",grade:1,name:"Cường Cốt Đan",  icon:"💊",desc:"Kiên cố xương cốt, tăng DEF vĩnh viễn. Hạ: +350, Trung: +525, Thượng: +1050, Hoàn Mỹ: +1750. Giới hạn 5 viên.",
+   effect:"DEF +350~1750 (tối đa 5 viên)",          fx:"cuong_cot"},
   // Đổi tên: Vị Huyết Đan → Sinh Cơ Đan
   {id:"dd005",grade:1,name:"Sinh Cơ Đan",    icon:"💊",desc:"Kích hoạt sinh cơ tiềm ẩn, hồi phục 10% HP hiện tại.",
    effect:"Hồi 10% HP",                       fx:"sinh_co"},
   // Đổi tên: Nhiệt Căn Đan → Tốc Duy Đan
-  {id:"dd006",grade:1,name:"Tốc Duy Đan",    icon:"💊",desc:"Duy trì tốc độ, tăng AGI vĩnh viễn. Hạ: +25, Trung: +37, Thượng: +75, Hoàn Mỹ: +125. Giới hạn 5 viên.",
-   effect:"AGI +25~125 (tối đa 5 viên)",          fx:"toc_duy"},
+  {id:"dd006",grade:1,name:"Tốc Duy Đan",    icon:"💊",desc:"Duy trì tốc độ, tăng AGI vĩnh viễn. Hạ: +125, Trung: +187, Thượng: +375, Hoàn Mỹ: +625. Giới hạn 5 viên.",
+   effect:"AGI +125~625 (tối đa 5 viên)",          fx:"toc_duy"},
   // effect: hồi +10 manamax, giới hạn 10 viên
-  {id:"dd007",grade:1,name:"Khai Mạch Đan",  icon:"💊",desc:"Mở thông huyệt đạo, tăng Mana tối đa vĩnh viễn. Hạ: +10, Trung: +15, Thượng: +30, Hoàn Mỹ: +50. Giới hạn 10 viên.",
-   effect:"Mana tối đa +10~50 (tối đa 10 viên)", fx:"khai_mach"},
+  {id:"dd007",grade:1,name:"Khai Mạch Đan",  icon:"💊",desc:"Mở thông huyệt đạo, tăng Mana tối đa vĩnh viễn. Hạ: +1000, Trung: +1500, Thượng: +3000, Hoàn Mỹ: +5000. Giới hạn 10 viên.",
+   effect:"Mana tối đa +1000~5000 (tối đa 10 viên)", fx:"khai_mach"},
   // Đổi tên: Lục Thảo Hoàn → Tụ Linh Đan
   {id:"dd008",grade:1,name:"Tụ Linh Đan",    icon:"💊",desc:"Cô đọng linh khí tản mát, trực tiếp tăng 100 tu vi. Không giới hạn sử dụng.",
    effect:"Tu vi +100",                        fx:"tu_linh_1"},
@@ -3581,8 +3718,8 @@ const ALL_DAN_DUOC = [
   {id:"dd009",grade:2,name:"Trúc Cơ Đan",    icon:"💊",desc:"Trợ giúp xây dựng nền tảng tu luyện, tăng 5% tỷ lệ đột phá Trúc Cơ Kỳ. Có thể chồng.",
    effect:"Tỷ lệ đột phá Trúc Cơ Kỳ +5%",   fx:"truc_co_dan"},
   // Tẩy Tủy Đan: giữ nguyên tên
-  {id:"dd010",grade:2,name:"Tẩy Tủy Đan",    icon:"💊",desc:"Tẩy rửa xương tủy. Hạ: DEF+100/AGI+50/STR+25/HP+15 · Trung: ×1.5 · Thượng: ×3 · Hoàn Mỹ: ×5. Giới hạn 10 viên.",
-   effect:"DEF+100~500 · AGI+50~250 · STR+25~125 · HP+15~75 (tối đa 10 viên)", fx:"tay_tuy"},
+  {id:"dd010",grade:2,name:"Tẩy Tủy Đan",    icon:"💊",desc:"Tẩy rửa xương tủy. Hạ: DEF+500/AGI+200/STR+800/HP+2000 · Trung: ×1.5 · Thượng: ×3 · Hoàn Mỹ: ×5. Giới hạn 10 viên.",
+   effect:"DEF+500~2500 · AGI+200~1000 · STR+800~4000 · HP+2000~10000 (tối đa 10 viên)", fx:"tay_tuy"},
   // Đổi tên: Minh Mục Đan → Hồi Linh Đan
   {id:"dd011",grade:2,name:"Hồi Linh Đan",   icon:"💊",desc:"Tập trung linh khí tản mát, tăng 1000 tu vi trực tiếp. Không giới hạn sử dụng.",
    effect:"Tu vi +1000",                       fx:"hoi_linh"},
@@ -3626,8 +3763,8 @@ const ALL_DAN_DUOC = [
   {id:"dd023",grade:3,name:"Giải Hiệu Đan",   icon:"💊",desc:"Giải toàn bộ hiệu ứng bất lợi đang tác dụng (Thiêu đốt, Tê liệt...). Không hồi HP/Mana.",
    effect:"Xóa toàn bộ debuff",                fx:"giai_hieu"},
   // Đổi tên: Kết Đan Dẫn → Kim Cang Đan
-  {id:"dd024",grade:3,name:"Kim Cang Đan",    icon:"💊",desc:"Thân thể cứng như kim cang, tăng DEF vĩnh viễn. Hạ: +100, Trung: +150, Thượng: +300, Hoàn Mỹ: +500. Giới hạn 5 viên.",
-   effect:"DEF +100~500 (tối đa 5 viên)",          fx:"kim_cang"},
+  {id:"dd024",grade:3,name:"Kim Cang Đan",    icon:"💊",desc:"Thân thể cứng như kim cang, tăng DEF vĩnh viễn. Hạ: +1500, Trung: +2250, Thượng: +4500, Hoàn Mỹ: +7500. Giới hạn 5 viên.",
+   effect:"DEF +1500~7500 (tối đa 5 viên)",          fx:"kim_cang"},
   // ===== TỨ PHẨM =====
   // Đổi tên: Thiên Linh Đan → Nguyên Anh Đan
   {id:"dd025",grade:4,name:"Nguyên Anh Đan",  icon:"💊",desc:"Trợ lực độ kiếp Nguyên Anh Kỳ, khi đột phá giảm 1 đạo lôi kiếp.",
@@ -3645,8 +3782,8 @@ const ALL_DAN_DUOC = [
   {id:"dd029",grade:4,name:"Tịnh Hóa Đan",    icon:"💊",desc:"Hạ: Tâm Ma −100 · Soul +3% · Trung: −150 · +4.5% · Thượng: −300 · +9% · Hoàn Mỹ: −500 · +15%. Giới hạn 5 viên (Soul).",
    effect:"Tâm Ma −100~500 · Soul +3~15% (tối đa 5 viên cho Soul)", fx:"tinh_hoa"},
   // Đổi tên: Ngọc Dung Đan → Thân Linh Đan
-  {id:"dd030",grade:4,name:"Thân Linh Đan",   icon:"💊",desc:"Linh hồn tiếp xúc thể xác. STR/AGI/DEF +10 mỗi 100 Soul nhân theo phẩm chất (Hoàn Mỹ ×5). Chỉ 1 lần duy nhất.",
-   effect:"STR/AGI/DEF +10×Soul/100 × phẩm chất (1 lần)", fx:"than_linh"},
+  {id:"dd030",grade:4,name:"Thân Linh Đan",   icon:"💊",desc:"Linh hồn tiếp xúc thể xác. STR/AGI/DEF +300 mỗi 100 Soul nhân theo phẩm chất (Hoàn Mỹ ×5). Chỉ 1 lần duy nhất.",
+   effect:"STR/AGI/DEF +300×Soul/100 × phẩm chất (1 lần)", fx:"than_linh"},
   // Đổi tên: Tụ Hồn Hoàn → Tụ Hồn Đan
   {id:"dd031",grade:4,name:"Tụ Hồn Đan",      icon:"💊",desc:"Nuôi dưỡng linh hồn. Hạ: Soul +3%/10s × 2p · Trung: +4.5% × 3p · Thượng: +9% × 6p · Hoàn Mỹ: +15% × 10p. Giới hạn 10 viên.",
    effect:"Soul +3~15%/10s (2~10 phút, tối đa 10 viên)",     fx:"tu_hon"},
@@ -4068,7 +4205,7 @@ function useDanDuoc(id){
     }
     case "cuong_cot": {
       if(used >= 5){ msg = "✦ Cường Cốt Đan: Đã đạt giới hạn 5 viên!"; consumed=false; break; }
-      const ccGain = Math.round(50 * qMult);
+      const ccGain = Math.round(350 * qMult);
       S.baseDef = (S.baseDef||0) + ccGain;
       const ccQlbl = qKey ? ` [${DAN_QUALITY_LABEL[qKey]}]` : "";
       msg = `✦ Cường Cốt Đan${ccQlbl}: DEF +${ccGain} (đã dùng ${used+1}/5 viên)`;
@@ -4083,7 +4220,7 @@ function useDanDuoc(id){
     }
     case "toc_duy": {
       if(used >= 5){ msg = "✦ Tốc Duy Đan: Đã đạt giới hạn 5 viên!"; consumed=false; break; }
-      const tdGain = Math.round(25 * qMult);
+      const tdGain = Math.round(125 * qMult);
       S.baseAgi = (S.baseAgi||0) + tdGain;
       const tdQlbl = qKey ? ` [${DAN_QUALITY_LABEL[qKey]}]` : "";
       msg = `✦ Tốc Duy Đan${tdQlbl}: AGI +${tdGain} (đã dùng ${used+1}/5 viên)`;
@@ -4091,7 +4228,7 @@ function useDanDuoc(id){
     }
     case "khai_mach": {
       if(used >= 10){ msg = "✦ Khai Mạch Đan: Đã đạt giới hạn 10 viên!"; consumed=false; break; }
-      const kmGain = Math.round(10 * qMult);
+      const kmGain = Math.round(1000 * qMult);
       S.bonusManaMax = (S.bonusManaMax||0) + kmGain;
       const kmQlbl = qKey ? ` [${DAN_QUALITY_LABEL[qKey]}]` : "";
       msg = `✦ Khai Mạch Đan${kmQlbl}: Mana tối đa +${kmGain} (đã dùng ${used+1}/10 viên)`;
@@ -4112,10 +4249,10 @@ function useDanDuoc(id){
     }
     case "tay_tuy": {
       if(used >= 10){ msg = "✦ Tẩy Tủy Đan: Đã đạt giới hạn 10 viên!"; consumed=false; break; }
-      const ttDef = Math.round(100 * qMult);
-      const ttAgi = Math.round(50  * qMult);
-      const ttStr = Math.round(25  * qMult);
-      const ttHp  = Math.round(15  * qMult);
+      const ttDef = Math.round(500  * qMult);
+      const ttAgi = Math.round(200  * qMult);
+      const ttStr = Math.round(800  * qMult);
+      const ttHp  = Math.round(2000 * qMult);
       S.baseDef = (S.baseDef||0) + ttDef;
       S.baseAgi = (S.baseAgi||0) + ttAgi;
       S.baseStr = (S.baseStr||0) + ttStr;
@@ -4250,7 +4387,7 @@ function useDanDuoc(id){
     }
     case "kim_cang": {
       if(used >= 5){ msg = "✦ Kim Cang Đan: Đã đạt giới hạn 5 viên!"; consumed=false; break; }
-      const kcGain = Math.round(100 * qMult);
+      const kcGain = Math.round(1500 * qMult);
       S.baseDef = (S.baseDef||0) + kcGain;
       const kcQlbl = qKey ? ` [${DAN_QUALITY_LABEL[qKey]}]` : "";
       msg = `✦ Kim Cang Đan${kcQlbl}: DEF +${kcGain} (đã dùng ${used+1}/5 viên)`;
@@ -4314,14 +4451,14 @@ function useDanDuoc(id){
       const soulAmt = S.soul||0;
       if(soulAmt < 100){ msg = "✦ Thân Linh Đan: Soul chưa đủ 100, không có tác dụng."; consumed=false; break; }
       const stacks = Math.floor(soulAmt / 100);
-      const tlBase = stacks * 10;
+      const tlBase = stacks * 300;
       const bonus2 = Math.round(tlBase * qMult);
       S.baseStr = (S.baseStr||0) + bonus2;
       S.baseDef = (S.baseDef||0) + bonus2;
       S.baseAgi = (S.baseAgi||0) + bonus2;
       S.danUsedOnce[id] = true;
       const tlQlbl = qKey ? ` [${DAN_QUALITY_LABEL[qKey]}]` : "";
-      msg = `✦ Thân Linh Đan${tlQlbl}: STR/AGI/DEF +${fmt(bonus2)} (${stacks} × ${Math.round(10*qMult)}, Soul = ${fmt(soulAmt)})`;
+      msg = `✦ Thân Linh Đan${tlQlbl}: STR/AGI/DEF +${fmt(bonus2)} (${stacks} × ${Math.round(300*qMult)}, Soul = ${fmt(soulAmt)})`;
       break;
     }
     case "tu_hon": {
@@ -8224,10 +8361,12 @@ function _lkSwitchSect(sectId) {
 }
 
 /* ===== SCREENS ===== */
-function openScreen(id){
+function openScreen(id, tab){
   // Check locked
   if(id==="character" && !S.unlockHUD) return;
   if(id==="character_inv" && !S.unlockHUD) return;
+  // Redirect character_inv → character with inv tab
+  if(id==="character_inv"){ id="character"; tab="inv"; }
   if(id==="cultivate" && !S.unlockHP) return;
   if(id==="inventory" && !S.unlockInventory) return;
   if(id==="skills" && !S.unlockInventory) return;
@@ -8245,88 +8384,69 @@ function openScreen(id){
       t.textContent="";
       const hdr = document.querySelector(".screen-hdr");
       if(hdr) hdr.style.padding = "4px 8px";
-      b.style.padding="10px";
-      b.style.overflow="auto";
-      b.style.display="flex";
-      b.style.flexDirection="column";
-      b.style.height="100%";
-
-      const isActive = S.normalCult;
-      const eqCols = _buildEquipColumnsHTML();
-
-      b.innerHTML=`
-        <div style="display:flex;flex-direction:column;align-items:center;min-height:0;">
-
-          <!-- Tên nhân vật -->
-          <div style="text-align:center;margin-bottom:10px;">
-            <div style="font-size:14px;font-weight:700;color:#f0ddb0;">${S.name||'Tu Sĩ'}</div>
-            <div style="font-size:9.5px;color:#7a6030;margin-top:2px;">${S.sect?`${S.sect} · `:''}${S.stageName||'Phàm Nhân'}</div>
-          </div>
-
-          <!-- Avatar lớn quanh bởi 6 ô trang bị: trái = Áo/Quần/Vũ Khí, phải = Trâm/Giày/(trống) -->
-          <div style="display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:14px;">
-            <div id="equip-slots-left" style="width:48px;flex-shrink:0;display:flex;flex-direction:column;gap:6px;">
-              ${eqCols.left}
-            </div>
-
-            <div style="position:relative;display:flex;align-items:center;justify-content:center;flex-shrink:0;width:150px;">
-              ${isActive?`<div style="position:absolute;width:150px;height:150px;border-radius:50%;background:radial-gradient(circle,rgba(80,220,200,.18) 0%,transparent 70%);animation:cultivate-glow 2.5s ease-in-out infinite;pointer-events:none;"></div>`:''}
-              <img
-                src="${S.avatar||_TL}"
-                alt="Tu Luyện"
-                style="
-                  width:140px;height:auto;
-                  mix-blend-mode:screen;
-                  filter:${isActive
-                    ?'brightness(0.92) sepia(0.5) hue-rotate(140deg) saturate(2) drop-shadow(0 0 8px rgba(80,220,200,.7))'
-                    :'brightness(0.7) sepia(0.3) hue-rotate(140deg) saturate(1.2) drop-shadow(0 0 4px rgba(80,220,200,.25))'};
-                  transition:filter .4s ease;
-                  display:block;
-                "
-              />
-            </div>
-
-            <div id="equip-slots-right" style="width:48px;flex-shrink:0;display:flex;flex-direction:column;gap:6px;">
-              ${eqCols.right}
-            </div>
-          </div>
-
-          <!-- Bảng chỉ số đầy đủ -->
-          <div id="char-stats-panel" style="width:100%;max-width:320px;">${_buildCharStatsHTML()}</div>
-
-        </div>
-        <style>
-          @keyframes cultivate-glow {
-            0%,100%{opacity:.6;transform:scale(1);}
-            50%{opacity:1;transform:scale(1.12);}
-          }
-        </style>
-      `;
-    },
-    character_inv:()=>{
-      t.textContent="💍 Nhẫn Trữ Vật";
-      b.style.padding="10px";
+      b.style.padding="0";
       b.style.overflow="hidden";
       b.style.display="flex";
       b.style.flexDirection="column";
       b.style.height="100%";
 
-      window._charInvFilter = window._charInvFilter || "all";
-      const tabsHTML = _buildInvTabsHTML(window._charInvFilter);
-      const invGridHTML = _buildInvGridHTML(window._charInvFilter);
+      // Xác định tab đang active
+      const activeTab = tab || window._charActiveTab || "char";
+      window._charActiveTab = activeTab;
 
-      b.innerHTML=`
-        <div style="flex:1;min-height:0;display:flex;flex-direction:column;overflow:hidden;">
-          <div id="char-inv-tabs" style="flex-shrink:0;margin-bottom:8px;">${tabsHTML}</div>
-          <div id="char-inv-msg" style="display:none;font-size:10px;padding:5px 8px;margin-bottom:6px;border-radius:6px;background:rgba(80,200,80,.08);border:1px solid rgba(80,200,80,.2);transition:opacity .5s;flex-shrink:0;"></div>
-          <div style="flex:1;overflow-y:auto;overflow-x:hidden;" id="char-inv-body">
-            <div id="char-inv-grid" style="display:grid;grid-template-columns:repeat(5,1fr);gap:6px;">
-              ${invGridHTML}
+      function renderCharTab(){
+        const isActive = S.normalCult;
+        const eqCols = _buildEquipColumnsHTML();
+        return `
+          <div style="display:flex;flex-direction:column;align-items:center;min-height:0;padding:10px;">
+            <div style="text-align:center;margin-bottom:10px;">
+              <div style="font-size:14px;font-weight:700;color:#f0ddb0;">${S.name||'Tu Sĩ'}</div>
+              <div style="font-size:9.5px;color:#7a6030;margin-top:2px;">${S.sect?S.sect+' · ':''}${S.stageName||'Phàm Nhân'}</div>
             </div>
+            <div style="display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:14px;">
+              <div id="equip-slots-left" style="width:48px;flex-shrink:0;display:flex;flex-direction:column;gap:6px;">${eqCols.left}</div>
+              <div style="position:relative;display:flex;align-items:center;justify-content:center;flex-shrink:0;width:150px;">
+                ${isActive?`<div style="position:absolute;width:150px;height:150px;border-radius:50%;background:radial-gradient(circle,rgba(80,220,200,.18) 0%,transparent 70%);animation:cultivate-glow 2.5s ease-in-out infinite;pointer-events:none;"></div>`:''}
+                <img src="${S.avatar||_TL}" alt="Tu Luyện" style="width:140px;height:auto;mix-blend-mode:screen;filter:${isActive?'brightness(0.92) sepia(0.5) hue-rotate(140deg) saturate(2) drop-shadow(0 0 8px rgba(80,220,200,.7))':'brightness(0.7) sepia(0.3) hue-rotate(140deg) saturate(1.2) drop-shadow(0 0 4px rgba(80,220,200,.25))'};transition:filter .4s ease;display:block;"/>
+              </div>
+              <div id="equip-slots-right" style="width:48px;flex-shrink:0;display:flex;flex-direction:column;gap:6px;">${eqCols.right}</div>
+            </div>
+            <div id="char-stats-panel" style="width:100%;max-width:320px;">${_buildCharStatsHTML()}</div>
           </div>
+          <style>@keyframes cultivate-glow{0%,100%{opacity:.6;transform:scale(1);}50%{opacity:1;transform:scale(1.12);}}</style>`;
+      }
+
+      function renderInvTab(){
+        window._charInvFilter = window._charInvFilter || "all";
+        return `
+          <div style="flex:1;min-height:0;display:flex;flex-direction:column;overflow:hidden;padding:10px 10px 0;">
+            <div id="char-inv-tabs" style="flex-shrink:0;margin-bottom:8px;">${_buildInvTabsHTML(window._charInvFilter)}</div>
+            <div id="char-inv-msg" style="display:none;font-size:10px;padding:5px 8px;margin-bottom:6px;border-radius:6px;background:rgba(80,200,80,.08);border:1px solid rgba(80,200,80,.2);transition:opacity .5s;flex-shrink:0;"></div>
+            <div style="flex:1;overflow-y:auto;overflow-x:hidden;" id="char-inv-body">
+              <div id="char-inv-grid" style="display:grid;grid-template-columns:repeat(5,1fr);gap:6px;">${_buildInvGridHTML(window._charInvFilter)}</div>
+            </div>
+          </div>`;
+      }
+
+      b.innerHTML = `
+        <!-- Tab switcher -->
+        <div style="display:flex;flex-shrink:0;border-bottom:1px solid rgba(201,168,76,.18);background:rgba(6,4,1,.6);">
+          <div id="tab-btn-char" onclick="G._switchCharTab('char')" style="flex:1;padding:9px 4px;text-align:center;font-size:11px;font-weight:700;cursor:pointer;letter-spacing:.5px;transition:all .2s;
+            ${activeTab==='char'?'color:#f0d070;border-bottom:2px solid #c8a84a;':'color:#5a4020;border-bottom:2px solid transparent;'}">
+            🧍 Nhân Vật
+          </div>
+          <div id="tab-btn-inv" onclick="G._switchCharTab('inv')" style="flex:1;padding:9px 4px;text-align:center;font-size:11px;font-weight:700;cursor:pointer;letter-spacing:.5px;transition:all .2s;
+            ${activeTab==='inv'?'color:#f0d070;border-bottom:2px solid #c8a84a;':'color:#5a4020;border-bottom:2px solid transparent;'}">
+            💍 Nhẫn Trữ Vật
+          </div>
+        </div>
+        <!-- Tab content -->
+        <div id="char-tab-content" style="flex:1;overflow-y:auto;overflow-x:hidden;display:flex;flex-direction:column;">
+          ${activeTab==='char' ? renderCharTab() : renderInvTab()}
         </div>
       `;
     },
+    character_inv:()=>{ openScreen('character','inv'); },
     cultivate:()=>{
       t.textContent="🌀 Tu Luyện";
 
@@ -9238,7 +9358,7 @@ function openScreen(id){
             <div style="font-size:10px;color:#5a4020;margin-bottom:10px;line-height:1.6;">Lưu save lên cloud để chơi trên nhiều thiết bị.</div>
             <input id="reg-username" type="text" maxlength="20" placeholder="Tên tài khoản..." autocomplete="off"
               style="width:100%;padding:9px 12px;background:rgba(201,168,76,.04);border:1px solid rgba(201,168,76,.2);border-radius:8px;font-size:13px;color:#f0ddb0;font-family:inherit;outline:none;margin-bottom:8px;box-sizing:border-box;">
-            <input id="reg-password" type="password" maxlength="32" placeholder="Mật khẩu (tối thiểu 4 ký tự)..." autocomplete="off"
+            <input id="reg-password" type="password" maxlength="32" placeholder="Mật khẩu (tối thiểu 6 ký tự)..." autocomplete="off"
               style="width:100%;padding:9px 12px;background:rgba(201,168,76,.04);border:1px solid rgba(201,168,76,.2);border-radius:8px;font-size:13px;color:#f0ddb0;font-family:inherit;outline:none;margin-bottom:10px;box-sizing:border-box;">
             <div id="reg-msg" style="font-size:10px;min-height:14px;margin-bottom:8px;color:#ffaa60;text-align:center;"></div>
             <div id="reg-btn" onclick="window._cloudRegister()"
@@ -9832,13 +9952,49 @@ function startNewGame(){
   setTimeout(()=>input.focus(),300);
 }
 
-function confirmName(){
-  const val = document.getElementById("player-name-input").value.trim();
-  if(!val){ 
-    document.getElementById("player-name-input").style.borderColor="rgba(200,60,60,.6)"; 
-    setTimeout(()=>document.getElementById("player-name-input").style.borderColor="",1000);
-    return; 
+async function confirmName(){
+  const inputEl = document.getElementById("player-name-input");
+  const msgEl   = document.getElementById("name-msg");
+  const btnEl   = document.getElementById("name-confirm-btn");
+  const val = inputEl.value.trim();
+
+  if(msgEl) msgEl.textContent = "";
+
+  if(!val){
+    inputEl.style.borderColor="rgba(200,60,60,.6)";
+    setTimeout(()=>inputEl.style.borderColor="",1000);
+    if(msgEl) msgEl.textContent = "⚠ Vui lòng nhập tên.";
+    return;
   }
+  if(val.length < 2){
+    inputEl.style.borderColor="rgba(200,60,60,.6)";
+    setTimeout(()=>inputEl.style.borderColor="",1000);
+    if(msgEl) msgEl.textContent = "⚠ Tên cần ít nhất 2 ký tự.";
+    return;
+  }
+
+  const originalBtnText = btnEl.textContent;
+  btnEl.textContent = "Đang kiểm tra tên...";
+  btnEl.style.opacity = "0.6"; btnEl.style.pointerEvents = "none";
+
+  try {
+    if (typeof window._claimCharName === "function") {
+      const result = await window._claimCharName(val);
+      if (!result.ok) {
+        inputEl.style.borderColor="rgba(200,60,60,.6)";
+        setTimeout(()=>inputEl.style.borderColor="",1500);
+        if(msgEl) msgEl.textContent = "❌ Tên này đã có người chọn, hãy thử tên khác.";
+        btnEl.textContent = originalBtnText; btnEl.style.opacity="1"; btnEl.style.pointerEvents="all";
+        return;
+      }
+    }
+  } catch(e) {
+    // Không kết nối được Firebase (vd: đang offline) → không khoá người chơi,
+    // vẫn cho vào game bình thường, chỉ là chưa kiểm tra trùng tên được lúc này.
+    console.warn("[NameCheck] Không kiểm tra được tên trùng:", e.message);
+  }
+
+  btnEl.textContent = originalBtnText; btnEl.style.opacity="1"; btnEl.style.pointerEvents="all";
   S.name = val;
   document.getElementById("name-screen").classList.remove("active");
   // Show welcome popup before avatar selection
@@ -12201,11 +12357,9 @@ function _showAnisHudTutorial(){
 
 function _showAnisNhanVatTutorial(){
   if(document.getElementById("anis-nhanvat-popup")) return;
-  // Glow nút Nhân Vật + Nhẫn Trữ Vật
+  // Glow nút Nhân Vật
   var navChar = document.getElementById("nav-character");
   if(navChar) navChar.classList.add("tutorial-glow");
-  var navCharInv = document.getElementById("nav-char-inv");
-  if(navCharInv) navCharInv.classList.add("tutorial-glow");
   var pop = document.createElement("div");
   pop.id = "anis-nhanvat-popup";
   pop.style.cssText = "position:fixed;inset:0;z-index:3000;display:flex;align-items:flex-start;justify-content:center;padding:16px;padding-top:80px;background:rgba(0,0,0,0.5);pointer-events:all;";
@@ -12231,15 +12385,11 @@ function _showAnisNhanVatTutorial(){
     pop.remove(); 
     var navChar2 = document.getElementById("nav-character");
     if(navChar2) navChar2.classList.remove("tutorial-glow");
-    var navCharInv2 = document.getElementById("nav-char-inv");
-    if(navCharInv2) navCharInv2.classList.remove("tutorial-glow");
   };
   pop.onclick = function(e){ if(e.target===pop){ 
     pop.remove(); 
     var navChar2 = document.getElementById("nav-character");
     if(navChar2) navChar2.classList.remove("tutorial-glow");
-    var navCharInv2 = document.getElementById("nav-char-inv");
-    if(navCharInv2) navCharInv2.classList.remove("tutorial-glow");
   } };
   document.body.appendChild(pop);
 }
@@ -12513,6 +12663,7 @@ async function _dieAccept(){
 
   // Xóa local
   localStorage.removeItem("tdcl");
+  localStorage.removeItem("_tdcl_last_username");
   localStorage.removeItem("_tdcl_session");
   window._cloudUser = null;
   location.reload();
@@ -12523,6 +12674,7 @@ return {
   doCamNhanLinhKhi, doNghiNgoi, _showLuyenKhiTutorial, _showAnisAfterCotTruyen,
   _leaveSectVisit, __rungVanYeuEnter,
   toggleHUD, toggleFS, toggleStory, doBreakthrough, _execBreakthrough, doMindBreakthrough, openScreen, closeScreen, goto,
+  _switchCharTab: function(tab){ window._charActiveTab=tab; openScreen('character',tab); },
   showRollScreen, doRoll, confirmRoll, calcLinhKhi,
   saveGame, loadGame, resetGame,
   openCloudPanel: function(){
