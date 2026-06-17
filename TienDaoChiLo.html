@@ -19,7 +19,7 @@
 
 <script>
 // ★ ĐỔI SỐ NÀY MỖI KHI DEPLOY BẢN MỚI (phải khớp với sw.js) ★
-const APP_VERSION = '1.0.3';
+const APP_VERSION = '1.0.1';
 
 // ── Đăng ký Service Worker + kiểm tra update ──
 if ('serviceWorker' in navigator) {
@@ -1967,30 +1967,6 @@ window._fsDoc        = doc;
   </div>
 </div>
 
-<!-- Đạo Hữu button (top-right, above event-slider area, fixed) -->
-<div id="daohuu-btn" style="
-  display:none;
-  position:fixed;top:10px;right:186px;
-  z-index:500;pointer-events:all;
-">
-  <div onclick="G.openScreen('daohuu')" style="
-    display:flex;align-items:center;gap:5px;
-    padding:5px 10px;
-    background:rgba(8,8,16,.88);
-    border:1px solid rgba(255,255,255,.08);
-    backdrop-filter:blur(6px);
-    border-radius:11px;
-    box-shadow:0 2px 14px rgba(0,0,0,.5);
-    cursor:pointer;transition:border-color .15s,background .15s;
-    pointer-events:all;
-  "
-  onmouseover="this.style.borderColor='rgba(201,168,76,.45)';this.style.background='rgba(20,14,4,.95)'"
-  onmouseout="this.style.borderColor='rgba(255,255,255,.08)';this.style.background='rgba(8,8,16,.88)'">
-    <span style="font-size:14px;">🤝</span>
-    <span style="font-size:8px;color:#8a6a28;letter-spacing:.3px;">Đạo Hữu</span>
-  </div>
-</div>
-
 <!-- Currency button + panel -->
 <div id="currency-bar">
 
@@ -2097,6 +2073,28 @@ window._fsDoc        = doc;
 
 <!-- Bottom nav -->
 <div id="bottom-nav">
+
+<!-- Đạo Hữu button — góc phải dưới, ngay trên bottom nav -->
+<div id="daohuu-btn" onclick="G.openScreen('daohuu')" style="
+  display:none;
+  position:fixed;bottom:62px;right:10px;
+  width:46px;height:46px;
+  z-index:500;pointer-events:all;
+  background:rgba(10,7,2,.92);
+  border:1px solid rgba(201,168,76,.3);
+  border-radius:10px;
+  box-shadow:0 2px 12px rgba(0,0,0,.5);
+  cursor:pointer;
+  overflow:hidden;
+  transition:border-color .15s,box-shadow .15s;
+" title="Đạo Hữu"
+onmouseover="this.style.borderColor='rgba(201,168,76,.7)';this.style.boxShadow='0 0 14px rgba(201,168,76,.2)'"
+onmouseout="this.style.borderColor='rgba(201,168,76,.3)';this.style.boxShadow='0 2px 12px rgba(0,0,0,.5)'">
+  <div id="daohuu-btn-inner" style="width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;">
+    <span style="font-size:18px;line-height:1;">🤝</span>
+    <span style="font-size:7.5px;color:#8a6a28;letter-spacing:.3px;">Đạo Hữu</span>
+  </div>
+</div>
   <div class="nav-btn" id="nav-character" onclick="G.openScreen('character')"><div class="nav-icon">🧍</div><div class="nav-label">Nhân Vật</div></div>
 
   <div class="nav-btn" id="nav-quest" onclick="G._showCotTruyenPopup()"><div class="nav-icon">📖</div><div class="nav-label">Cốt Truyện</div></div>
@@ -2252,7 +2250,7 @@ function checkUnlocks(){
     const es = document.getElementById("event-slider");
     if(es && !es.classList.contains("visible")){ es.classList.add("visible"); initEventSlider(); }
     const dhBtn = document.getElementById("daohuu-btn");
-    if(dhBtn) dhBtn.style.display = "block";
+    if(dhBtn) { dhBtn.style.display = "flex"; _updateDaoHuuBtnAvatar(); }
   }
   // Bản Đồ luôn mở khóa
   S.unlockMap = true;
@@ -9725,6 +9723,13 @@ function claimAchievement(achId){
 /* ===== ĐẠO HỮU ===== */
 // Lưu danh sách bạn bè trong S.daoHuu = [{userKey, username, avatar, age, stageName, addedAt}]
 
+function _updateDaoHuuBtnAvatar() {
+  const inner = document.getElementById("daohuu-btn-inner");
+  if (!inner) return;
+  // Luôn giữ emoji nắm tay 🤝, không đổi thành avatar người chơi
+  inner.innerHTML = `<span style="font-size:18px;line-height:1;">🤝</span><span style="font-size:7.5px;color:#8a6a28;letter-spacing:.3px;">Đạo Hữu</span>`;
+}
+
 function buildDaoHuuHTML() {
   const tabs = [
     { id:"daohuu_list",   icon:"🤝", label:"Đạo Hữu" },
@@ -9766,7 +9771,7 @@ function buildDaoHuuListHTML() {
       <div class="dh-ava">
         ${f.avatar
           ? `<img src="${f.avatar}" alt="">`
-          : `<span>🧙</span>`}
+          : `<span style="font-size:22px;">👤</span>`}
       </div>
       <div class="dh-info">
         <div class="dh-name">${f.username || "Ẩn danh"}</div>
@@ -9857,8 +9862,15 @@ async function _daoHuuSearch() {
     }
 
     const data = snap.data();
-    // Không hiện chính mình
-    if (window._cloudUser && data.userKey === window._cloudUser.userKey) {
+
+    // Parse saveData đúng field name
+    let saveObj = {};
+    try {
+      if (data.saveData) saveObj = JSON.parse(data.saveData);
+    } catch(e) {}
+
+    // Không hiện chính mình — so sánh theo searchKey
+    if (window._cloudUser && searchKey === window._cloudUser.userKey) {
       _daoHuuSearchResult(`<div class="dh-search-msg" style="color:#c8a84a;">Đó chính là ngươi! 😄</div>`);
       return;
     }
@@ -9867,22 +9879,21 @@ async function _daoHuuSearch() {
     const friends = S.daoHuu || [];
     const alreadyFriend = friends.some(f => f.userKey === searchKey);
 
-    const save = data.save ? JSON.parse(data.save) : {};
     const foundUser = {
       userKey: searchKey,
       username: data.username || name,
-      avatar: save.avatar || null,
-      age: save.age != null ? save.age : null,
-      stageName: save.stageName || "???",
+      avatar: saveObj.avatar || null,
+      age: saveObj.age != null ? saveObj.age : null,
+      stageName: data.stageName || saveObj.stageName || "???",
     };
 
     _daoHuuSearchResult(`
       <div style="font-size:9.5px;font-weight:700;color:#7a5a20;letter-spacing:.7px;text-transform:uppercase;margin-bottom:8px;">KẾT QUẢ TÌM KIẾM</div>
       <div class="dh-card">
-        <div class="dh-ava">
+        <div class="dh-ava" style="overflow:hidden;">
           ${foundUser.avatar
-            ? `<img src="${foundUser.avatar}" alt="">`
-            : `<span>🧙</span>`}
+            ? `<img src="${foundUser.avatar}" style="width:100%;height:100%;object-fit:cover;object-position:top;">`
+            : `<span style="font-size:22px;">👤</span>`}
         </div>
         <div class="dh-info">
           <div class="dh-name">${foundUser.username}</div>
@@ -9931,8 +9942,10 @@ function _daoHuuSendRequest(userJsonStr) {
     _daoHuuSearchResult(`
       <div style="font-size:9.5px;font-weight:700;color:#7a5a20;letter-spacing:.7px;text-transform:uppercase;margin-bottom:8px;">KẾT QUẢ TÌM KIẾM</div>
       <div class="dh-card">
-        <div class="dh-ava">
-          ${foundUser.avatar ? `<img src="${foundUser.avatar}" alt="">` : `<span>🧙</span>`}
+        <div class="dh-ava" style="overflow:hidden;">
+          ${foundUser.avatar
+            ? `<img src="${foundUser.avatar}" style="width:100%;height:100%;object-fit:cover;object-position:top;">`
+            : `<span style="font-size:22px;">👤</span>`}
         </div>
         <div class="dh-info">
           <div class="dh-name">${foundUser.username}</div>
@@ -10234,6 +10247,7 @@ function loadGame(){ try{
   if(S.ageNguyenAnh === undefined) S.ageNguyenAnh = -1;
   _danLoConfigs = S.danLoConfigs; // re-sync sau loadGame
   closeScreen(); calcBuffs(); renderHUD(); checkUnlocks();
+  _updateDaoHuuBtnAvatar();
   goto(S.currentPassage||"start");
   // Kiểm tra Die ngay sau khi load — chặn bypass bằng cách out game rồi vào lại
   // khi HP/Soul đã về 0 hoặc Tâm Ma/Tuổi thọ đã vượt giới hạn trước khi out.
@@ -10412,6 +10426,7 @@ function _confirmAvatar(){
   }
   // If custom upload, S.avatar already set; if skipped (idx=-1), leave S.avatar empty
   document.getElementById("avatar-screen").style.display="none";
+  _updateDaoHuuBtnAvatar();
   showIntro();
 }
 
@@ -11225,7 +11240,7 @@ defP("chon_tong_mon","Chọn Tông Môn · Bái Sư",function(c){
 // Sect choice handler
 function chooseSect(type){
   const sects = {
-    kiem: { name:"Thanh Vân Tông",  job:"Đệ Tử Thanh Vân Tông", mind:"Tâm Kiếm-Trung", next:"van_kiem_tong" },
+    kiem: { name:"Thanh Vân Tông",  job:"Đệ Tử Thanh Vân Tông", mind:"Tâm Kiếm-Trung", next:"ngoai_mon_kiem_phat_tui" },
     dao:  { name:"Nhất Đao Tông",  job:"Đệ Tử Nhất Đao Tông", mind:"Tâm Đao-Trung",  next:"nhat_dao_tong" },
     the:  { name:"Thể Cực Tông",   job:"Đệ Tử Thể Cực Tông",  mind:"Tâm Thể-Trung",  next:"the_cuc_tong" },
     phap: { name:"Vạn Pháp Tông",  job:"Đệ Tử Vạn Pháp Tông", mind:"Tâm Pháp-Trung", next:"van_phap_tong" },
@@ -11703,13 +11718,7 @@ function _showAnisAfterCotTruyen(nextPassage){
 function _sectIntroChoose1(){ _siChoose_TienLen(); }
 function _sectIntroInfo(k){ if(k==="huyen_linh_can") _siChoose_HLC(); else _siChoose_DTNM(); }
 
-defP("van_kiem_tong","Thanh Vân Tông · Ngoại Môn",function(c){
-  c.addText(`<p>Sương sớm còn chưa tan, ngươi đứng trước cổng Thanh Vân Tông. Những lá kiếm cờ phấp phới trong gió, tiếng kiếm tập luyện vang vọng từ trong ra.</p><p>Trong lòng dâng lên một cảm giác vừa kích động, vừa lo lắng.</p>`);
-  c.addNPC("🧙","Trưởng Lão Vân Kiếm","Ngươi đến bái nhập Thanh Vân Tông? Kiếm đạo coi trọng tốc độ và linh hoạt — tâm phải tĩnh như nước, kiếm phải nhanh như phong. Hãy đi theo ta.");
-  c.addSys("<b>[Hệ Thống]</b><br>Chúc mừng đã trở thành đệ tử ngoại môn Thanh Vân Tông!","success");
-  c.addChoice(1,"Cảm ơn trưởng lão!","Tiếp tục",()=>goto("ngoai_mon_kiem_phat_tui"));
-  c.addChoice(2,"Thanh Vân Tông thật rộng lớn...","Quan sát",()=>goto("ngoai_mon_kiem_phat_tui"));
-});
+
 
 defP("nhat_dao_tong","Nhất Đao Tông · Ngoại Môn",function(c){
   c.addText(`<p>Cổng Nhất Đao Tông khắc một chữ <b>斬</b> lớn, màu đỏ như máu. Không có hoa văn trang trí, không có cờ phướn — chỉ là sức nặng thuần túy của đao ý.</p>`);
@@ -13008,7 +13017,7 @@ return {
   openCloudPanel: function(){
     document.getElementById("cloud-auth-screen").style.display="flex";
   },
-  _daoHuuSwitch, _daoHuuRemove, _daoHuuMsg, _daoHuuSearch, _daoHuuSendRequest,
+  _daoHuuSwitch, _daoHuuRemove, _daoHuuMsg, _daoHuuSearch, _daoHuuSendRequest, _updateDaoHuuBtnAvatar,
   startNewGame, confirmName, continueGame, openSettings, quitGame, _selectAvatar,
   _showAvatarScreen, _showWelcomePopup,
   _showThienDaoPopup, _showDeaPopup,
