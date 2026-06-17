@@ -19,7 +19,7 @@
 
 <script>
 // ★ ĐỔI SỐ NÀY MỖI KHI DEPLOY BẢN MỚI (phải khớp với sw.js) ★
-const APP_VERSION = '1.0.3';
+const APP_VERSION = '1.0.1';
 
 // ── Đăng ký Service Worker + kiểm tra update ──
 if ('serviceWorker' in navigator) {
@@ -2891,6 +2891,7 @@ function renderHUD(){
       <div class="stat-cell"><div class="stat-lbl">AGI</div><div class="stat-val">${fmt(S.agi)}</div></div>
       <div class="stat-cell"><div class="stat-lbl">SOUL</div><div class="stat-val">${fmt(S.soul)}</div></div>
       <div class="stat-cell"><div class="stat-lbl">Tâm Ma</div><div class="stat-val">${S.tamMa}</div></div>
+      <div class="stat-cell"><div class="stat-lbl" style="color:${(S.tcd||0)>=80?'#e84545':(S.tcd||0)>=50?'#f0a030':'#b0a080'}">TCD</div><div class="stat-val" style="color:${(S.tcd||0)>=80?'#e84545':(S.tcd||0)>=50?'#f0a030':'inherit'}">${S.tcd||0}/100</div></div>
       <div class="stat-cell"><div class="stat-lbl">×EXP</div><div class="stat-val">${S.expRate.toFixed(1)}</div></div>
       <div class="stat-cell"><div class="stat-lbl">TLCM</div><div class="stat-val">${(S.critRate||5).toFixed(1)}%</div></div>
       <div class="stat-cell"><div class="stat-lbl">STCM</div><div class="stat-val">${(S.critDmg||50).toFixed(0)}%</div></div>
@@ -3600,6 +3601,8 @@ const ALL_DAN_DUOC = [
   // Phục Thương Đan: giữ tên
   {id:"dd016",grade:2,name:"Phục Thương Đan",icon:"💊",desc:"Hồi phục 3% HP mỗi 5 giây trong 1 phút. Không cộng dồn. Không hồi HP tối đa.",
    effect:"Hồi 3% HP/5s trong 60s",           fx:"phuc_thuong"},
+  {id:"dd016b",grade:2,name:"Tịnh Linh Đan", icon:"💊",desc:"Thanh lọc tạp chất tích tụ trong cơ thể do luyện đan lâu ngày, giảm 10 Tạp Chất Đan.",
+   effect:"Tạp Chất Đan −10", fx:"tinh_linh_dan", shopExclude:true},
   // ===== TAM PHẨM =====
   // Đổi tên: Chú Cơ Đan → Ngưng Anh Đan
   {id:"dd017",grade:3,name:"Ngưng Anh Đan",  icon:"💊",desc:"Trợ lực kết tụ Nguyên Anh, tăng 5% tỷ lệ đột phá Kim Đan Kỳ. Mỗi viên thêm +5% nhưng giảm 1% (viên 1: +5%, viên 2: +4%, viên 3: +3%...)",
@@ -3988,6 +3991,36 @@ function useDanDuoc(id){
   const inv = S.danDuoc||{};
   if(!inv[id]||inv[id]<=0) return {ok:false, msg:"Không có đan dược này trong túi."};
 
+  // ── Kiểm tra phẩm cấp đan dược theo cảnh giới ──
+  // Luyện Khí (stage 1-4): chỉ dùng Nhất Phẩm (grade 1)
+  // Trúc Cơ  (stage 5-8):  Nhất + Nhị Phẩm (grade 1-2)
+  // Kim Đan  (stage 9-12): Nhất + Nhị + Tam Phẩm (grade 1-3)
+  // Nguyên Anh (stage 13+): tất cả (grade 1-4)
+  const danGr = dan.grade || 1;
+  const st = S.stage || 0;
+  let maxAllowed = 1;
+  if(st >= 13) maxAllowed = 4;
+  else if(st >= 9) maxAllowed = 3;
+  else if(st >= 5) maxAllowed = 2;
+  else maxAllowed = 1;
+
+  if(danGr > maxAllowed){
+    // Vượt phẩm cấp: 99.9% chết, 0.1% thành công (roll 1/1000)
+    if(Math.random() < 0.999){
+      S.hp = 0; calcBuffs(); renderHUD();
+      return {ok:false, msg:`⚠ ${dan.name} vượt phẩm cấp! Thiên địa linh khí phản thực — <b style="color:#e84545">TRỌNG THƯƠNG TỬ VONG!</b> HP về 0.`};
+    }
+    // 0.1% may mắn: vẫn dùng được, tiếp tục bên dưới
+  }
+
+  // ── TCD (Tạp Chất Đan): mỗi lần dùng đan +3, đạt 100 → HP về 0 ──
+  S.tcd = (S.tcd || 0) + 3;
+  if(S.tcd >= 100){
+    S.tcd = 100;
+    S.hp = 0; calcBuffs(); renderHUD();
+    return {ok:false, msg:`⚠ Tạp Chất Đan đạt <b style="color:#e84545">100</b> — Đan độc tích tụ quá mức, nội phủ bùng nổ! HP về 0.`};
+  }
+
   // Xác định phẩm chất cần dùng (ưu tiên cao nhất trước: hoan_my → thuong → trung → ha)
   let qKey = null;
   let qMult = 1;
@@ -4138,6 +4171,14 @@ function useDanDuoc(id){
       const ptPct = parseFloat((0.03 * qMult).toFixed(4));
       S.ddBuffs.phuc_thuong = {endMs: Date.now() + 60*1000, tickMs: Date.now(), intervalMs: 5000, pct: ptPct};
       msg = `✦ Phục Thương Đan: Hồi ${(ptPct*100).toFixed(1)}% HP mỗi 5 giây trong 1 phút`;
+      break;
+    }
+
+    case "tinh_linh_dan": {
+      const reduce = 10;
+      const before = S.tcd || 0;
+      S.tcd = Math.max(0, before - reduce);
+      msg = `✦ Tịnh Linh Đan: Tạp Chất Đan −${Math.min(reduce, before)} (còn lại: ${S.tcd}/100)`;
       break;
     }
 
@@ -4821,7 +4862,7 @@ function buildDanDuocContent(){
   </div>${buffBar}`;
 
   for(let g=1; g<=9; g++){
-    const items = ALL_DAN_DUOC.filter(d=>d.grade===g);
+    const items = ALL_DAN_DUOC.filter(d=>d.grade===g && !d.shopExclude);
     if(items.length===0) continue;
     const color = DD_GRADE_COLOR[g];
     const bg    = DD_GRADE_BG[g] || "transparent";
@@ -5832,7 +5873,10 @@ function rollPhapKhiItems(){
     if(weapSlots.includes(slot.id)){
       if(sectInfo && slot.id !== sectInfo.weapSlot) continue;
     }
-    const sect = PHAP_KHI_SECTS[Math.floor(Math.random()*PHAP_KHI_SECTS.length)];
+    // Vũ khí luôn thuộc tông môn của người chơi, các slot khác random
+    const sect = (weapSlots.includes(slot.id) && sectInfo)
+      ? PHAP_KHI_SECTS.find(s=>s.id===sectInfo.sectId) || PHAP_KHI_SECTS[Math.floor(Math.random()*PHAP_KHI_SECTS.length)]
+      : PHAP_KHI_SECTS[Math.floor(Math.random()*PHAP_KHI_SECTS.length)];
     const price = slot.priceMin + Math.floor(Math.random() * (slot.priceMax - slot.priceMin + 1));
     items.push({
       id: sect.id + "_" + slot.id,
@@ -5854,19 +5898,19 @@ function pkResetShop(){
 }
 function rollPhapKhiSubStats(){
   const pool = [
-    { label:"STR",   key:"str",     type:"flat", min:50, max:100 },
-    { label:"STR%",  key:"strPct",  type:"pct",  min:3,  max:5   },
-    { label:"DEF",   key:"def",     type:"flat", min:50, max:100 },
-    { label:"DEF%",  key:"defPct",  type:"pct",  min:3,  max:5   },
-    { label:"AGI",   key:"agi",     type:"flat", min:50, max:100 },
-    { label:"AGI%",  key:"agiPct",  type:"pct",  min:3,  max:5   },
-    { label:"HPmax", key:"hpMax",   type:"flat", min:50, max:100 },
-    { label:"HPmax%",key:"hpPct",   type:"pct",  min:3,  max:5   },
-    { label:"Manamax",key:"mana",   type:"flat", min:50, max:100 },
-    { label:"Manamax%",key:"manaPct",type:"pct", min:3,  max:5   },
-    { label:"TLCM%", key:"critRate",type:"pct",  min:3,  max:5   },
-    { label:"STCM%", key:"critDmg", type:"pct",  min:3,  max:5   },
-    { label:"KHU%",  key:"khu",     type:"pct",  min:3,  max:5   },
+    { label:"STR",   key:"str",     type:"flat", min:200, max:350 },
+    { label:"STR%",  key:"strPct",  type:"pct",  min:10,  max:20  },
+    { label:"DEF",   key:"def",     type:"flat", min:200, max:350 },
+    { label:"DEF%",  key:"defPct",  type:"pct",  min:10,  max:20  },
+    { label:"AGI",   key:"agi",     type:"flat", min:200, max:350 },
+    { label:"AGI%",  key:"agiPct",  type:"pct",  min:10,  max:20  },
+    { label:"HPmax", key:"hpMax",   type:"flat", min:200, max:350 },
+    { label:"HPmax%",key:"hpPct",   type:"pct",  min:10,  max:20  },
+    { label:"Manamax",key:"mana",   type:"flat", min:200, max:350 },
+    { label:"Manamax%",key:"manaPct",type:"pct", min:10,  max:20  },
+    { label:"TLCM%", key:"critRate",type:"pct",  min:3,   max:5   },
+    { label:"STCM%", key:"critDmg", type:"pct",  min:3,   max:5   },
+    { label:"KHU%",  key:"khu",     type:"pct",  min:3,   max:5   },
   ];
   const rnd = (a,b) => Math.floor(Math.random()*(b-a+1))+a;
   const shuffled = [...pool].sort(()=>Math.random()-0.5);
@@ -5887,11 +5931,11 @@ function rollPhapKhiMainStat(slotId){
     const type = pick(["hp","mana"]);
     return { label: type==="hp"?"Hồi HP":"Hồi Mana", key:type+"Regen", value:rnd(3,10), unit:"%/5s" };
   } else if(slotId==="ao"){  // Áo (id ao)
-    return { label:"Phòng Thủ", key:"def", value:rnd(50,150), unit:"" };
+    return { label:"Phòng Thủ", key:"def", value:rnd(500,1000), unit:"" };
   } else if(slotId==="quan"){
-    return { label:"HP Tối Đa", key:"hpMax", value:rnd(500,700), unit:"" };
+    return { label:"HP Tối Đa", key:"hpMax", value:rnd(3000,5000), unit:"" };
   } else if(slotId==="giay"){
-    return { label:"Tốc Độ", key:"speed", value:rnd(30,50), unit:"" };
+    return { label:"Tốc Độ", key:"speed", value:rnd(150,200), unit:"" };
   } else if(weapSlots.includes(slotId)){
     const type = pick(["critRate","critDmg"]);
     return { label: type==="critRate"?"Tỷ Lệ Chí Mạng":"Sát Thương Chí Mạng", key:type, value:rnd(15,25), unit:"%" };
@@ -5929,11 +5973,11 @@ function buyPhapKhi(idx){
 
 /* ===== NÂNG SAO PHÁP KHÍ ===== */
 const PK_STAR_DATA = [
-  { from:0, to:1, cost:50,   successPct:90 },
-  { from:1, to:2, cost:300,  successPct:80 },
-  { from:2, to:3, cost:600,  successPct:70 },
-  { from:3, to:4, cost:1200, successPct:60 },
-  { from:4, to:5, cost:2400, successPct:50 },
+  { from:0, to:1, cost:50,   successPct:70 },
+  { from:1, to:2, cost:300,  successPct:50 },
+  { from:2, to:3, cost:600,  successPct:30 },
+  { from:3, to:4, cost:1200, successPct:15 },
+  { from:4, to:5, cost:2400, successPct:7  },
 ];
 
 function _renderPkStars(stars, size){
@@ -5946,7 +5990,7 @@ function _renderPkStars(stars, size){
 }
 
 function _pkIsRateStat(ms){
-  // TLCM / STCM: +2% cố định mỗi sao (chỉ vũ khí)
+  // TLCM / STCM: cộng thêm cố định mỗi sao (chỉ vũ khí)
   return ms && (ms.key==="critRate" || ms.key==="critDmg");
 }
 function _pkMainStatValue(eq){
@@ -5954,12 +5998,16 @@ function _pkMainStatValue(eq){
   const ms = eq.mainStat;
   if(!ms) return 0;
   const base = ms.baseValue || ms.value;
-  if(_pkIsRateStat(ms)){
-    // +2% mỗi sao (cộng thêm)
-    return Math.round(base + stars * 2);
+  if(ms.key==="critRate"){
+    // TLCM: +5% mỗi sao
+    return Math.round(base + stars * 5);
   }
-  // +25% mỗi sao (nhân)
-  return Math.round(base * Math.pow(1.25, stars));
+  if(ms.key==="critDmg"){
+    // STCM: +10% mỗi sao
+    return Math.round(base + stars * 10);
+  }
+  // Các slot khác: +50% mỗi sao (nhân)
+  return Math.round(base * Math.pow(1.5, stars));
 }
 
 function openUpgradeStarPopup(uid){
@@ -5981,9 +6029,9 @@ function openUpgradeStarPopup(uid){
   const curVal = _pkMainStatValue(eq);
   const nextVal = canUpgrade ? (()=>{
     const base = eq.mainStat ? (eq.mainStat.baseValue||eq.mainStat.value) : 0;
-    return _pkIsRateStat(eq.mainStat)
-      ? Math.round(base + (stars+1)*2)
-      : Math.round(base * Math.pow(1.25, stars+1));
+    if(eq.mainStat?.key==="critRate") return Math.round(base + (stars+1)*5);
+    if(eq.mainStat?.key==="critDmg") return Math.round(base + (stars+1)*10);
+    return Math.round(base * Math.pow(1.5, stars+1));
   })() : 0;
   const ms = eq.mainStat || {};
 
@@ -6403,7 +6451,8 @@ function _buildCharStatsHTML(){
       ${statRow('🎯','Tỷ Lệ CM',  S.critRate||5,      bonusCritR,v=>v+'%',   '#ffd060')}
       ${statRow('💥','ST Chí Mạng',S.critDmg||50,     bonusCritD,v=>v+'%',   '#ff8040')}
       ${statRow('🌀','Kháng Hư',  S.khu||0,           bonusKhu,  v=>v+'%',   '#60d8c0')}
-      ${statRow('✨','Tâm Hồn',   S.soul||0,          0,         null,       '#c0a0ff', true)}
+      ${statRow('✨','Tâm Hồn',   S.soul||0,          0,         null,       '#c0a0ff')}
+      ${(()=>{ const tcd=S.tcd||0; const c=tcd>=80?'#e84545':tcd>=50?'#f0a030':'#b0a080'; const warn=tcd>=80?'⚠ Nguy hiểm!':tcd>=50?'⚠ Cảnh báo':''; return '<div style="display:flex;align-items:center;padding:3.5px 6px;"><div style="font-size:11px;width:18px;flex-shrink:0;">☠</div><div style="flex:1;font-size:9.5px;color:#7a6030;">Tạp Chất Đan</div><div style="display:flex;align-items:baseline;gap:3px;"><div style="font-size:11px;font-weight:700;color:'+c+';">'+tcd+'/100</div>'+(tcd>=50?'<div style="font-size:8px;color:'+c+';font-weight:600;">'+warn+'</div>':'')+'</div></div>'; })()}
     </div>
     ${hasAnyBonus ? `<div style="margin-top:4px;padding:3px 7px;background:rgba(50,180,80,.07);border:1px solid rgba(50,180,80,.2);border-radius:6px;font-size:8px;color:#50c870;text-align:center;">⚗ Pháp Khí đang cộng bonus</div>` : ''}
     ${(()=>{
