@@ -19,7 +19,7 @@
 
 <script>
 // ★ ĐỔI SỐ NÀY MỖI KHI DEPLOY BẢN MỚI (phải khớp với sw.js) ★
-const APP_VERSION = '1.0.2';
+const APP_VERSION = '1.0.3';
 
 // ── Đăng ký Service Worker + kiểm tra update ──
 if ('serviceWorker' in navigator) {
@@ -831,14 +831,14 @@ body.story-closed #story-toggle-btn{
 #bottom-nav.visible{opacity:1;pointer-events:all;}
 .nav-btn{
   display:flex;flex-direction:column;align-items:center;gap:2px;
-  padding:3px 6px;border-radius:8px;cursor:pointer;min-width:50px;
+  padding:3px 4px;border-radius:8px;cursor:pointer;min-width:0;flex:1;
   transition:background .15s,opacity .3s;
   opacity:.3;pointer-events:none;
 }
 .nav-btn.unlocked{opacity:1;pointer-events:all;}
 .nav-btn:hover.unlocked{background:rgba(201,168,76,.07);}
 .nav-icon{font-size:17px;}
-.nav-label{font-size:9px;color:#7a6040;}
+.nav-label{font-size:8.5px;color:#7a6040;white-space:nowrap;}
 
 /* ===== CURRENCY TOP-RIGHT ===== */
 #currency-bar{
@@ -1870,6 +1870,7 @@ window._fsDb         = db;
 <!-- Bottom nav -->
 <div id="bottom-nav">
   <div class="nav-btn" id="nav-character" onclick="G.openScreen('character')"><div class="nav-icon">🧍</div><div class="nav-label">Nhân Vật</div></div>
+  <div class="nav-btn" id="nav-char-inv" onclick="G.openScreen('character_inv')"><div class="nav-icon">💍</div><div class="nav-label">Nhẫn Trữ Vật</div></div>
   <div class="nav-btn" id="nav-quest" onclick="G._showCotTruyenPopup()"><div class="nav-icon">📖</div><div class="nav-label">Quyển Sách</div></div>
   <div class="nav-btn" id="nav-cultivate" onclick="G.openScreen('cultivate')"><div class="nav-icon">🌀</div><div class="nav-label">Tu Luyện</div></div>
   <div class="nav-btn" id="nav-skills" onclick="G.openScreen('skills')"><div class="nav-icon">📖</div><div class="nav-label">Công Pháp</div></div>
@@ -2015,6 +2016,7 @@ function checkUnlocks(){
     document.getElementById("hud-btn").classList.add("visible");
     document.getElementById("nav-quest").classList.add("unlocked");
     document.getElementById("nav-character").classList.add("unlocked");
+    document.getElementById("nav-char-inv").classList.add("unlocked");
     const qb = document.getElementById("quick-btns");
     if(qb) qb.classList.add("visible");
     const ab = document.getElementById("achievement-btn");
@@ -3820,6 +3822,7 @@ function buyDuocLieu(slotIdx){
   const remaining = slot.qty - slot.bought;
   if(remaining <= 0){ showShopMsg("❌ Hết hàng rồi!","warn"); return; }
   if((S.diemCongHien||0) < herb.price){ showShopMsg("❌ Không đủ Điểm Cống Hiến! Cần "+fmt(herb.price)+" điểm.","warn"); return; }
+  if(!_invCanAddNewSlot("herb", herb.id)){ showShopMsg("❌ Túi đã đầy! ("+_invSlotsUsed()+"/"+INV_MAX_SLOTS+")","warn"); return; }
   S.diemCongHien -= herb.price;
   slot.bought++;
   S.duocLieu = S.duocLieu || {};
@@ -3858,6 +3861,8 @@ function buildDuocLieuContent(){
       const soldOut = remaining <= 0;
       const canAfford = (S.diemCongHien||0) >= herb.price;
       const owned = (S.duocLieu||{})[herb.id]||0;
+      const invFull = !_invCanAddNewSlot("herb", herb.id);
+      const btnLabel = soldOut?"Hết hàng":invFull?"Túi đầy":canAfford?"Mua":"Thiếu điểm";
       html += `<div class="shop-item${soldOut?" dl-soldout":""}">
         <div class="shop-item-icon">${herb.icon}</div>
         <div class="shop-item-info">
@@ -3867,7 +3872,7 @@ function buildDuocLieuContent(){
         <div class="shop-item-right">
           <div class="shop-item-count">Có: ×${owned} · Còn: ${remaining}</div>
           <div class="shop-price"><span class="pcur">🏅</span>${fmt(herb.price)}</div>
-          <div class="shop-btn ${soldOut||!canAfford?"disabled":""}" onclick="G.buyDuocLieu(${i})">${soldOut?"Hết hàng":canAfford?"Mua":"Thiếu điểm"}</div>
+          <div class="shop-btn ${soldOut||!canAfford||invFull?"disabled":""}" onclick="G.buyDuocLieu(${i})">${btnLabel}</div>
         </div>
       </div>`;
     }
@@ -4599,6 +4604,7 @@ function buyCongThuc(slotIdx){
   if(!slot){ showShopMsg("❌ Không tìm thấy công thức!","warn"); return; }
   if(slot.bought >= slot.qty){ showShopMsg("❌ Hết hàng rồi!","warn"); return; }
   if((S.diemCongHien||0) < slot.price){ showShopMsg(`❌ Không đủ Điểm Cống Hiến! Cần ${fmt(slot.price)} điểm.`,"warn"); return; }
+  if(_invSlotsUsed() >= INV_MAX_SLOTS){ showShopMsg(`❌ Túi đã đầy! (${_invSlotsUsed()}/${INV_MAX_SLOTS})`,"warn"); return; }
 
   S.diemCongHien -= slot.price;
   slot.bought++;
@@ -4708,6 +4714,7 @@ function buildCongThucContent(){
         const canAfford = (S.diemCongHien||0) >= sl.price;
         const formula   = ctGetFormula(dan.id);
         const pctColor = sl.pct===100?"#f0c14b":sl.pct===80?"#80d8ff":"#a0a0a0";
+        const invFull = _invSlotsUsed() >= INV_MAX_SLOTS;
 
         html += `<div class="shop-item${soldOut?" dl-soldout":""}">
           <div class="shop-item-icon">📋</div>
@@ -4720,7 +4727,7 @@ function buildCongThucContent(){
           <div class="shop-item-right">
             <div class="shop-item-count">Còn: ${sl.qty-sl.bought}</div>
             <div class="shop-price"><span class="pcur">🏅</span>${fmt(sl.price)}</div>
-            <div class="shop-btn ${soldOut||!canAfford?"disabled":""}" onclick="G.buyCongThuc(${i})">${soldOut?"Hết hàng":canAfford?"Mua":"Thiếu điểm"}</div>
+            <div class="shop-btn ${soldOut||!canAfford||invFull?"disabled":""}" onclick="G.buyCongThuc(${i})">${soldOut?"Hết hàng":invFull?"Túi đầy":canAfford?"Mua":"Thiếu điểm"}</div>
           </div>
         </div>`;
       }
@@ -5455,6 +5462,7 @@ function buyDanDuocShop(slotIdx){
   const remaining = slot.qty - slot.bought;
   if(remaining <= 0){ showShopMsg("❌ Hết hàng rồi!","warn"); return; }
   if((S.diemCongHien||0) < slot.price){ showShopMsg("❌ Không đủ Điểm Cống Hiến! Cần "+fmt(slot.price)+" điểm.","warn"); return; }
+  if(!_invCanAddNewSlot("dan", dan.id)){ showShopMsg("❌ Túi đã đầy! ("+_invSlotsUsed()+"/"+INV_MAX_SLOTS+")","warn"); return; }
   S.diemCongHien -= slot.price;
   slot.bought++;
   S.danDuoc = S.danDuoc || {};
@@ -5483,7 +5491,12 @@ function sellPhapKhi(uid){
   showShopMsg("✅ Đã bán "+eq.name+" · +"+fmt(earn)+" 🏅", "success");
   // Refresh inventory display
   const invGrid = document.getElementById("char-inv-grid");
-  if(invGrid){ invGrid.innerHTML = _buildInvGridHTML(); return; }
+  if(invGrid){
+    invGrid.innerHTML = _buildInvGridHTML(window._charInvFilter || "all");
+    const tabsEl = document.getElementById("char-inv-tabs");
+    if(tabsEl) tabsEl.innerHTML = _buildInvTabsHTML(window._charInvFilter || "all");
+    return;
+  }
   const ca = document.getElementById("shop-content-area");
   if(ca && _shopTab==="ban") ca.innerHTML = buildBanContent();
 }
@@ -5720,6 +5733,8 @@ function buildDanDuocShopContent(){
       const canAfford = (S.diemCongHien||0) >= sl.price;
       const owned = (S.danDuoc||{})[dan.id]||0;
       const remainStr = isG1 ? `999` : `${remaining}`;
+      const invFull = !_invCanAddNewSlot("dan", dan.id);
+      const btnLabel2 = soldOut?"Hết hàng":invFull?"Túi đầy":canAfford?"Mua":"Thiếu";
       html += `<div class="shop-item${soldOut?" dl-soldout":""}">
         <div class="shop-item-icon">${dan.icon}</div>
         <div class="shop-item-info">
@@ -5732,7 +5747,7 @@ function buildDanDuocShopContent(){
         <div class="shop-item-right">
           <div class="shop-item-count">Có: ×${owned} · Còn: ${remainStr}</div>
           <div class="shop-price"><span class="pcur">🏅</span>${fmt(sl.price)}</div>
-          <div class="shop-btn ${soldOut||!canAfford?"disabled":""}" onclick="G.buyDanDuocShop(${i})">${soldOut?"Hết hàng":canAfford?"Mua":"Thiếu"}</div>
+          <div class="shop-btn ${soldOut||!canAfford||invFull?"disabled":""}" onclick="G.buyDanDuocShop(${i})">${btnLabel2}</div>
         </div>
       </div>`;
     }
@@ -5892,6 +5907,7 @@ function buyPhapKhi(idx){
   const sect = PHAP_KHI_SECTS.find(s=>s.id===item.sectId);
   const slot  = PHAP_KHI_SLOTS.find(s=>s.id===item.slotId);
   if(!sect||!slot){ showShopMsg("❌ Lỗi dữ liệu vật phẩm!","warn"); return; }
+  if(_invSlotsUsed() >= INV_MAX_SLOTS){ showShopMsg("❌ Túi đã đầy! ("+_invSlotsUsed()+"/"+INV_MAX_SLOTS+")","warn"); return; }
   S.diemCongHien -= item.price;
   S.phapKhiInv = S.phapKhiInv || [];
   S.phapKhiInv.push({
@@ -6408,22 +6424,16 @@ function _buildCharStatsHTML(){
   `;
 }
 
-// Dòng tóm tắt gọn cho màn Nhân Vật: vài chỉ số chính + nút mở popup xem đầy đủ
+// Nút gọn cho màn Nhân Vật: chỉ mở popup xem chỉ số đầy đủ, không chiếm chỗ
 function _buildCharStatsSummaryHTML(){
   calcBuffMana();
   return `
     <div onclick="G.openCharStatsPopup()" style="
-      display:flex;align-items:center;gap:10px;
+      display:inline-flex;align-items:center;gap:4px;
       background:rgba(201,168,76,.05);border:1px solid rgba(201,168,76,.16);
-      border-radius:8px;padding:6px 9px;cursor:pointer;
-    ">
-      <div style="display:flex;align-items:center;gap:2px;font-size:10px;color:#ff9060;font-weight:700;">⚔ ${fmt(S.str)}</div>
-      <div style="display:flex;align-items:center;gap:2px;font-size:10px;color:#80d8ff;font-weight:700;">🛡 ${fmt(S.def)}</div>
-      <div style="display:flex;align-items:center;gap:2px;font-size:10px;color:#90e870;font-weight:700;">💨 ${fmt(S.agi)}</div>
-      <div style="display:flex;align-items:center;gap:2px;font-size:10px;color:#e87070;font-weight:700;">❤ ${fmt(S.hpmax)}</div>
-      <div style="flex:1;"></div>
-      <div style="font-size:9px;color:#c8a84a;white-space:nowrap;">Chi Tiết ›</div>
-    </div>`;
+      border-radius:6px;padding:3px 9px;cursor:pointer;
+      font-size:9.5px;color:#c8a84a;
+    ">📊 Chỉ Số ›</div>`;
 }
 
 // Popup hiển thị bảng chỉ số đầy đủ (tái dùng _buildCharStatsHTML)
@@ -6518,12 +6528,16 @@ function _refreshEquipmentSlots(){
     const grid = document.getElementById("equip-slots-grid");
     if(grid) grid.innerHTML = _buildEquipSlotsHTML();
   }
-  // Refresh chỉ số nhân vật (dòng tóm tắt gọn)
+  // Refresh chỉ số nhân vật (bảng đầy đủ trong màn Nhân Vật)
   const statsPanel = document.getElementById("char-stats-panel");
-  if(statsPanel) statsPanel.innerHTML = _buildCharStatsSummaryHTML();
-  // Refresh lưới nhẫn trữ vật (pháp khí equip/unequip làm thay đổi danh sách trong túi)
+  if(statsPanel) statsPanel.innerHTML = _buildCharStatsHTML();
+  // Refresh lưới nhẫn trữ vật (pháp khí equip/unequip làm thay đổi danh sách trong túi) — chỉ khi màn Nhẫn Trữ Vật đang mở
   const invGrid = document.getElementById("char-inv-grid");
-  if(invGrid) invGrid.innerHTML = _buildInvGridHTML();
+  if(invGrid){
+    invGrid.innerHTML = _buildInvGridHTML(window._charInvFilter || "all");
+    const tabsEl = document.getElementById("char-inv-tabs");
+    if(tabsEl) tabsEl.innerHTML = _buildInvTabsHTML(window._charInvFilter || "all");
+  }
 }
 
 function _renderOneEquipSlot(def){
@@ -6534,39 +6548,37 @@ function _renderOneEquipSlot(def){
   if(eq && slot){
     const borderColor = sect ? sect.border : "rgba(201,168,76,.5)";
     const glowColor   = sect ? sect.border : "rgba(201,168,76,.25)";
-    // icon shrunk to fit: max 26px, label tiny
+    // icon shrunk to fit smaller 38px slot box
     const iconHtml = slot.icon.startsWith('<img')
-      ? slot.icon.replace(/width:\s*\d+px/, 'width:26px')
-      : `<span style="font-size:18px;line-height:1;">${slot.icon}</span>`;
+      ? slot.icon.replace(/width:\s*\d+px/, 'width:20px')
+      : `<span style="font-size:14px;line-height:1;">${slot.icon}</span>`;
     return `<div style="
       aspect-ratio:1/1;overflow:hidden;
       background:rgba(12,8,2,.9);
       border:1px solid ${borderColor};
-      border-radius:7px;
+      border-radius:6px;
       display:flex;flex-direction:column;align-items:center;justify-content:center;
-      gap:1px;cursor:pointer;transition:all .18s;
-      box-shadow:0 0 5px ${glowColor};padding:2px;
+      gap:0;cursor:pointer;transition:all .18s;
+      box-shadow:0 0 5px ${glowColor};padding:1px;
     "
     onclick="G.openEquippedDetail('${def.key}')"
     onmouseover="this.style.borderColor='rgba(240,193,75,.9)';this.style.boxShadow='0 0 8px rgba(240,193,75,.35)'"
     onmouseout="this.style.borderColor='${borderColor}';this.style.boxShadow='0 0 5px ${glowColor}'">
-      <div style="width:26px;height:26px;display:flex;align-items:center;justify-content:center;overflow:hidden;flex-shrink:0;">${iconHtml}</div>
-      <div style="font-size:5.5px;color:#c8a84a;font-weight:700;margin-top:1px;white-space:nowrap;overflow:hidden;max-width:100%;text-overflow:ellipsis;">${slot.name}</div>
-      <div style="font-size:6px;color:#b8902a;letter-spacing:0;">${_renderPkStars(eq.stars||0, 6)}</div>
+      <div style="width:20px;height:20px;display:flex;align-items:center;justify-content:center;overflow:hidden;flex-shrink:0;">${iconHtml}</div>
+      <div style="font-size:5px;color:#b8902a;letter-spacing:0;">${_renderPkStars(eq.stars||0, 5)}</div>
     </div>`;
   } else {
     return `<div style="
       aspect-ratio:1/1;
       background:rgba(12,8,2,.85);
       border:1px dashed rgba(201,168,76,.22);
-      border-radius:7px;
-      display:flex;flex-direction:column;align-items:center;justify-content:center;
-      gap:1px;cursor:default;transition:all .18s;
+      border-radius:6px;
+      display:flex;align-items:center;justify-content:center;
+      cursor:default;transition:all .18s;
     "
     onmouseover="this.style.borderColor='rgba(201,168,76,.4)';this.style.background='rgba(30,20,5,.9)'"
     onmouseout="this.style.borderColor='rgba(201,168,76,.22)';this.style.background='rgba(12,8,2,.85)'">
-      <div style="font-size:12px;opacity:.18;">⚗</div>
-      <div style="font-size:6px;color:#2a1808;">${def.label}</div>
+      <div style="font-size:11px;opacity:.18;">⚗</div>
     </div>`;
   }
 }
@@ -6790,6 +6802,7 @@ function buildPhapKhiContent(){
       const slot  = PHAP_KHI_SLOTS.find(s=>s.id===item.slotId);
       if(!sect||!slot) continue;
       const canAfford = (S.diemCongHien||0) >= item.price;
+      const invFull = _invSlotsUsed() >= INV_MAX_SLOTS;
       // Count how many owned
       const owned = (S.phapKhiInv||[]).filter(x=>x.slotId===item.slotId&&x.sectId===item.sectId).length;
       h += `<div class="shop-item" style="background:${sect.bg};border-color:${sect.border};">
@@ -6801,7 +6814,7 @@ function buildPhapKhiContent(){
         <div class="shop-item-right">
           <div class="shop-item-count">Đang có: ×${owned}</div>
           <div class="shop-price"><span class="pcur">🏅</span>${item.price}</div>
-          <div class="shop-btn ${canAfford?"":"disabled"}" onclick="G.buyPhapKhi(${i})">${canAfford?"Mua":"Thiếu điểm"}</div>
+          <div class="shop-btn ${canAfford&&!invFull?"":"disabled"}" onclick="G.buyPhapKhi(${i})">${invFull?"Túi đầy":canAfford?"Mua":"Thiếu điểm"}</div>
         </div>
       </div>`;
     }
@@ -7008,8 +7021,65 @@ function buildInventoryHTML(){
   return html;
 }
 
-/* ===== LƯỚI 30 Ô NHẪN TRỮ VẬT (icon-only, badge số lượng) ===== */
-function _buildInvGridHTML(){
+/* ===== GIỚI HẠN 30 Ô NHẪN TRỮ VẬT (tổng toàn bộ loại item) ===== */
+const INV_MAX_SLOTS = 30;
+
+// Trả về tổng số "ô" đang dùng = số loại đan dược + số loại dược liệu + số pháp khí (chưa equip) + số công thức + số sách tâm pháp
+function _invSlotsUsed(){
+  const dd = S.danDuoc || {};
+  const dl = S.duocLieu || {};
+  const ct = S.congThucInv || [];
+  const pk = S.phapKhiInv || [];
+  const tpBooks = S.tamPhapBooks || [];
+  const ddCount = Object.keys(dd).filter(k=>(dd[k]||0)>0).length;
+  const dlCount = Object.keys(dl).filter(k=>(dl[k]||0)>0).length;
+  return ddCount + dlCount + pk.length + ct.length + tpBooks.length;
+}
+
+// Kiểm tra còn chỗ để thêm 1 ô MỚI (loại chưa có trong túi). Trả về true nếu được phép.
+// kind: "dan" hoặc "herb" — loại có thể cộng dồn vào ô cũ nếu đã sở hữu.
+// kind khác (pháp khí / công thức / sách) luôn coi là item mới, mỗi cái chiếm 1 ô riêng.
+function _invCanAddNewSlot(kind, id){
+  if(kind==="dan"){
+    const dd = S.danDuoc || {};
+    if((dd[id]||0) > 0) return true; // đã có loại này, mua thêm chỉ cộng số lượng, không tốn ô mới
+  } else if(kind==="herb"){
+    const dl = S.duocLieu || {};
+    if((dl[id]||0) > 0) return true; // đã có loại này, mua thêm chỉ cộng số lượng, không tốn ô mới
+  }
+  return _invSlotsUsed() < INV_MAX_SLOTS;
+}
+
+// Xây thanh tab lọc Nhẫn Trữ Vật: Tất Cả | Đan Dược | Dược Liệu | Trang Bị | Khác
+// Chỉ tab "Tất Cả" hiện đếm số ô đã dùng / tổng (X/30)
+function _buildInvTabsHTML(activeFilter){
+  const TABS = [
+    { id:"all",       label:"Tất Cả" },
+    { id:"dan_duoc",  label:"Đan Dược" },
+    { id:"duoc_lieu", label:"Dược Liệu" },
+    { id:"trang_bi",  label:"Trang Bị" },
+    { id:"khac",      label:"Khác" },
+  ];
+  const used = _invSlotsUsed();
+  let html = `<div style="display:flex;gap:4px;overflow-x:auto;padding-bottom:2px;">`;
+  for(const tab of TABS){
+    const isActive = activeFilter===tab.id;
+    const countSuffix = tab.id==="all" ? ` ${used}/${INV_MAX_SLOTS}` : "";
+    html += `<div onclick="G.setCharInvFilter('${tab.id}')" style="
+        flex-shrink:0;padding:5px 10px;border-radius:7px;cursor:pointer;
+        font-size:9.5px;font-weight:700;white-space:nowrap;transition:all .15s;
+        background:${isActive?'rgba(201,168,76,.18)':'rgba(201,168,76,.04)'};
+        border:1px solid ${isActive?'rgba(201,168,76,.55)':'rgba(201,168,76,.15)'};
+        color:${isActive?'#f0d98c':'#7a6030'};
+      ">${tab.label}${countSuffix}</div>`;
+  }
+  html += `</div>`;
+  return html;
+}
+
+
+function _buildInvGridHTML(filter){
+  filter = filter || "all";
   const dd = S.danDuoc || {};
   const dl = S.duocLieu || {};
   const ct = S.congThucInv || [];
@@ -7024,10 +7094,12 @@ function _buildInvGridHTML(){
     const sect = PHAP_KHI_SECTS.find(s=>s.id===eq.sectId);
     if(!slot||!sect) continue;
     cells.push({
+      cat: "trang_bi",
       icon: slot.icon,
       color: sect.color,
       border: sect.border,
       qty: null,
+      stars: eq.stars||0,
       onclick: `G.openPhapKhiDetail('${eq.uid}')`,
     });
   }
@@ -7039,6 +7111,7 @@ function _buildInvGridHTML(){
     const dan = ALL_DAN_DUOC.find(d=>d.id===id);
     if(!dan) continue;
     cells.push({
+      cat: "dan_duoc",
       icon: dan.icon,
       color: "#f0c14b",
       border: "rgba(201,168,76,.4)",
@@ -7055,6 +7128,7 @@ function _buildInvGridHTML(){
     if(!herb) continue;
     const gi = DL_GRADE_INFO[herb.grade]||{color:"#d6b15f"};
     cells.push({
+      cat: "duoc_lieu",
       icon: herb.icon,
       color: gi.color,
       border: "rgba(201,168,76,.3)",
@@ -7063,11 +7137,12 @@ function _buildInvGridHTML(){
     });
   }
 
-  // Công thức đan dược
+  // Công thức đan dược (thuộc nhóm "Khác")
   for(const entry of ct){
     const dan = ALL_DAN_DUOC.find(d=>d.id===entry.danId);
     if(!dan) continue;
     cells.push({
+      cat: "khac",
       icon: "📋",
       color: "#d6b15f",
       border: "rgba(201,168,76,.3)",
@@ -7076,9 +7151,10 @@ function _buildInvGridHTML(){
     });
   }
 
-  // Sách tâm pháp
+  // Sách tâm pháp (thuộc nhóm "Khác")
   for(const book of tpBooks){
     cells.push({
+      cat: "khac",
       icon: "📖",
       color: "#f0c14b",
       border: "rgba(201,168,76,.3)",
@@ -7087,10 +7163,15 @@ function _buildInvGridHTML(){
     });
   }
 
-  const TOTAL_SLOTS = 30;
+  // Lọc theo tab đang chọn
+  const filteredCells = filter==="all" ? cells : cells.filter(c=>c.cat===filter);
+
+  // Chỉ tab "Tất Cả" mới hiển thị đủ 30 ô (kể cả ô trống); các tab lọc khác chỉ hiện đúng số ô đang có
+  const slotsToRender = filter==="all" ? INV_MAX_SLOTS : filteredCells.length;
+
   let html = "";
-  for(let i=0;i<TOTAL_SLOTS;i++){
-    const c = cells[i];
+  for(let i=0;i<slotsToRender;i++){
+    const c = filteredCells[i];
     if(c){
       const iconHtml = String(c.icon).startsWith('<img')
         ? c.icon.replace(/width:\s*\d+px/, 'width:26px')
@@ -7108,6 +7189,7 @@ function _buildInvGridHTML(){
         onmouseout="this.style.borderColor='${c.border}';this.style.boxShadow='none'">
         <div style="width:28px;height:28px;display:flex;align-items:center;justify-content:center;overflow:hidden;">${iconHtml}</div>
         ${c.qty!=null?`<div style="position:absolute;bottom:1px;right:2px;font-size:8px;font-weight:700;color:#f0ddb0;background:rgba(0,0,0,.55);border-radius:3px;padding:0 2px;line-height:1.3;">${c.qty}</div>`:''}
+        ${c.stars!=null?`<div style="position:absolute;bottom:0;left:0;right:0;text-align:center;letter-spacing:-0.5px;background:rgba(0,0,0,.5);line-height:1.5;white-space:nowrap;overflow:hidden;">${_renderPkStars(c.stars, 5)}</div>`:''}
       </div>`;
     } else {
       html += `<div style="
@@ -7117,6 +7199,9 @@ function _buildInvGridHTML(){
           border-radius:7px;
         "></div>`;
     }
+  }
+  if(filteredCells.length===0){
+    return `<div style="grid-column:1/-1;color:#5a4020;text-align:center;padding:20px 0;font-size:11px;">Không có vật phẩm nào ở mục này.</div>`;
   }
   return html;
 }
@@ -7164,12 +7249,23 @@ function openInvSimpleDetail(kind, id){
 }
 
 
+// Chuyển tab lọc trong màn Nhẫn Trữ Vật
+function setCharInvFilter(filterId){
+  window._charInvFilter = filterId;
+  const tabsEl = document.getElementById("char-inv-tabs");
+  if(tabsEl) tabsEl.innerHTML = _buildInvTabsHTML(filterId);
+  const gridEl = document.getElementById("char-inv-grid");
+  if(gridEl) gridEl.innerHTML = _buildInvGridHTML(filterId);
+}
+
 function useDanDuocFromInv(id){
   const result = useDanDuoc(id);
   // Check if inside character screen
   const invGrid = document.getElementById("char-inv-grid");
   if(invGrid){
-    invGrid.innerHTML = _buildInvGridHTML();
+    invGrid.innerHTML = _buildInvGridHTML(window._charInvFilter || "all");
+    const tabsEl2 = document.getElementById("char-inv-tabs");
+    if(tabsEl2) tabsEl2.innerHTML = _buildInvTabsHTML(window._charInvFilter || "all");
     const msgEl2 = document.getElementById("char-inv-msg");
     if(msgEl2){
       msgEl2.textContent = result.msg;
@@ -8082,6 +8178,7 @@ function _lkSwitchSect(sectId) {
 function openScreen(id){
   // Check locked
   if(id==="character" && !S.unlockHUD) return;
+  if(id==="character_inv" && !S.unlockHUD) return;
   if(id==="cultivate" && !S.unlockHP) return;
   if(id==="inventory" && !S.unlockInventory) return;
   if(id==="skills" && !S.unlockInventory) return;
@@ -8091,78 +8188,62 @@ function openScreen(id){
   document.getElementById("screen-overlay").classList.add("active");
   const t = document.getElementById("screen-title");
   const b = document.getElementById("screen-body");
+  // Reset header (có thể đã bị màn Nhân Vật thu gọn) trước khi áp style riêng cho từng màn
+  const hdrReset = document.querySelector(".screen-hdr");
+  if(hdrReset) hdrReset.style.padding = "";
   const screens = {
     character:()=>{
-      t.textContent="🧍 Nhân Vật";
-      b.style.padding="0";
-      b.style.overflow="hidden";
+      t.textContent="";
+      const hdr = document.querySelector(".screen-hdr");
+      if(hdr) hdr.style.padding = "4px 8px";
+      b.style.padding="10px";
+      b.style.overflow="auto";
       b.style.display="flex";
       b.style.flexDirection="column";
       b.style.height="100%";
 
       const isActive = S.normalCult;
       const eqCols = _buildEquipColumnsHTML();
-      const invGridHTML = _buildInvGridHTML();
 
       b.innerHTML=`
-        <div style="display:flex;flex-direction:column;height:100%;min-height:0;overflow:hidden;">
+        <div style="display:flex;flex-direction:column;align-items:center;min-height:0;">
 
-          <!-- ===== KHỐI TRÊN: NHÂN VẬT + TRANG BỊ + CHỈ SỐ TÓM TẮT (cố định, gọn) ===== -->
-          <div style="flex-shrink:0;border-bottom:1px solid rgba(201,168,76,.14);padding:6px 10px 8px;">
-
-            <!-- Tên nhân vật -->
-            <div style="width:100%;text-align:center;margin-bottom:3px;">
-              <div style="font-size:11.5px;font-weight:700;color:#f0ddb0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${S.name||'Tu Sĩ'}</div>
-              ${S.sect?`<div style="font-size:8.5px;color:#7a6030;margin-top:1px;">${S.sect} · ${S.stageName||'Phàm Nhân'}</div>`:`<div style="font-size:8.5px;color:#7a6030;margin-top:1px;">${S.stageName||'Phàm Nhân'}</div>`}
-            </div>
-
-            <!-- Avatar quanh bởi 6 ô trang bị: trái = Áo/Quần/Vũ Khí, phải = Trâm/Giày/(trống) -->
-            <div style="display:flex;align-items:center;justify-content:center;gap:6px;margin-bottom:6px;">
-              <div id="equip-slots-left" style="width:44px;flex-shrink:0;display:flex;flex-direction:column;gap:3px;">
-                ${eqCols.left}
-              </div>
-
-              <div style="position:relative;display:flex;align-items:center;justify-content:center;flex-shrink:0;width:74px;">
-                ${isActive?`<div style="position:absolute;width:74px;height:74px;border-radius:50%;background:radial-gradient(circle,rgba(80,220,200,.18) 0%,transparent 70%);animation:cultivate-glow 2.5s ease-in-out infinite;pointer-events:none;"></div>`:''}
-                <img
-                  src="${S.avatar||_TL}"
-                  alt="Tu Luyện"
-                  style="
-                    width:70px;height:auto;
-                    mix-blend-mode:screen;
-                    filter:${isActive
-                      ?'brightness(0.92) sepia(0.5) hue-rotate(140deg) saturate(2) drop-shadow(0 0 8px rgba(80,220,200,.7))'
-                      :'brightness(0.7) sepia(0.3) hue-rotate(140deg) saturate(1.2) drop-shadow(0 0 4px rgba(80,220,200,.25))'};
-                    transition:filter .4s ease;
-                    display:block;
-                  "
-                />
-              </div>
-
-              <div id="equip-slots-right" style="width:44px;flex-shrink:0;display:flex;flex-direction:column;gap:3px;">
-                ${eqCols.right}
-              </div>
-            </div>
-
-            <!-- Chỉ Số: dòng tóm tắt, bấm để mở popup xem chi tiết -->
-            <div style="width:100%;" id="char-stats-panel">
-              ${_buildCharStatsSummaryHTML()}
-            </div>
-
+          <!-- Tên nhân vật -->
+          <div style="text-align:center;margin-bottom:10px;">
+            <div style="font-size:14px;font-weight:700;color:#f0ddb0;">${S.name||'Tu Sĩ'}</div>
+            <div style="font-size:9.5px;color:#7a6030;margin-top:2px;">${S.sect?`${S.sect} · `:''}${S.stageName||'Phàm Nhân'}</div>
           </div>
 
-          <!-- ===== KHỐI DƯỚI: NHẪN TRỮ VẬT (lưới 30 ô, cuộn dọc) ===== -->
-          <div style="flex:1;min-height:0;display:flex;flex-direction:column;overflow:hidden;">
-            <div style="padding:7px 10px 5px;border-bottom:1px solid rgba(201,168,76,.1);flex-shrink:0;">
-              <div style="font-size:10px;font-weight:700;color:#7a5a20;letter-spacing:.7px;text-transform:uppercase;">💍 Nhẫn Trữ Vật</div>
+          <!-- Avatar lớn quanh bởi 6 ô trang bị: trái = Áo/Quần/Vũ Khí, phải = Trâm/Giày/(trống) -->
+          <div style="display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:14px;">
+            <div id="equip-slots-left" style="width:48px;flex-shrink:0;display:flex;flex-direction:column;gap:6px;">
+              ${eqCols.left}
             </div>
-            <div style="flex:1;overflow-y:auto;overflow-x:hidden;padding:8px;" id="char-inv-body">
-              <div id="char-inv-msg" style="display:none;font-size:10px;padding:5px 8px;margin-bottom:6px;border-radius:6px;background:rgba(80,200,80,.08);border:1px solid rgba(80,200,80,.2);transition:opacity .5s;"></div>
-              <div id="char-inv-grid" style="display:grid;grid-template-columns:repeat(5,1fr);gap:5px;">
-                ${invGridHTML}
-              </div>
+
+            <div style="position:relative;display:flex;align-items:center;justify-content:center;flex-shrink:0;width:150px;">
+              ${isActive?`<div style="position:absolute;width:150px;height:150px;border-radius:50%;background:radial-gradient(circle,rgba(80,220,200,.18) 0%,transparent 70%);animation:cultivate-glow 2.5s ease-in-out infinite;pointer-events:none;"></div>`:''}
+              <img
+                src="${S.avatar||_TL}"
+                alt="Tu Luyện"
+                style="
+                  width:140px;height:auto;
+                  mix-blend-mode:screen;
+                  filter:${isActive
+                    ?'brightness(0.92) sepia(0.5) hue-rotate(140deg) saturate(2) drop-shadow(0 0 8px rgba(80,220,200,.7))'
+                    :'brightness(0.7) sepia(0.3) hue-rotate(140deg) saturate(1.2) drop-shadow(0 0 4px rgba(80,220,200,.25))'};
+                  transition:filter .4s ease;
+                  display:block;
+                "
+              />
+            </div>
+
+            <div id="equip-slots-right" style="width:48px;flex-shrink:0;display:flex;flex-direction:column;gap:6px;">
+              ${eqCols.right}
             </div>
           </div>
+
+          <!-- Bảng chỉ số đầy đủ -->
+          <div id="char-stats-panel" style="width:100%;max-width:320px;">${_buildCharStatsHTML()}</div>
 
         </div>
         <style>
@@ -8171,6 +8252,30 @@ function openScreen(id){
             50%{opacity:1;transform:scale(1.12);}
           }
         </style>
+      `;
+    },
+    character_inv:()=>{
+      t.textContent="💍 Nhẫn Trữ Vật";
+      b.style.padding="10px";
+      b.style.overflow="hidden";
+      b.style.display="flex";
+      b.style.flexDirection="column";
+      b.style.height="100%";
+
+      window._charInvFilter = window._charInvFilter || "all";
+      const tabsHTML = _buildInvTabsHTML(window._charInvFilter);
+      const invGridHTML = _buildInvGridHTML(window._charInvFilter);
+
+      b.innerHTML=`
+        <div style="flex:1;min-height:0;display:flex;flex-direction:column;overflow:hidden;">
+          <div id="char-inv-tabs" style="flex-shrink:0;margin-bottom:8px;">${tabsHTML}</div>
+          <div id="char-inv-msg" style="display:none;font-size:10px;padding:5px 8px;margin-bottom:6px;border-radius:6px;background:rgba(80,200,80,.08);border:1px solid rgba(80,200,80,.2);transition:opacity .5s;flex-shrink:0;"></div>
+          <div style="flex:1;overflow-y:auto;overflow-x:hidden;" id="char-inv-body">
+            <div id="char-inv-grid" style="display:grid;grid-template-columns:repeat(5,1fr);gap:6px;">
+              ${invGridHTML}
+            </div>
+          </div>
+        </div>
       `;
     },
     cultivate:()=>{
@@ -12047,9 +12152,11 @@ function _showAnisHudTutorial(){
 
 function _showAnisNhanVatTutorial(){
   if(document.getElementById("anis-nhanvat-popup")) return;
-  // Glow nút Nhân Vật
+  // Glow nút Nhân Vật + Nhẫn Trữ Vật
   var navChar = document.getElementById("nav-character");
   if(navChar) navChar.classList.add("tutorial-glow");
+  var navCharInv = document.getElementById("nav-char-inv");
+  if(navCharInv) navCharInv.classList.add("tutorial-glow");
   var pop = document.createElement("div");
   pop.id = "anis-nhanvat-popup";
   pop.style.cssText = "position:fixed;inset:0;z-index:3000;display:flex;align-items:flex-start;justify-content:center;padding:16px;padding-top:80px;background:rgba(0,0,0,0.5);pointer-events:all;";
@@ -12063,7 +12170,7 @@ function _showAnisNhanVatTutorial(){
         <div style="flex:1;min-width:0;">
           <div style="font-size:13px;font-weight:700;color:#d6b15f;letter-spacing:1.5px;margin-bottom:6px;">Aniskun</div>
           <div style="font-size:13px;line-height:1.75;color:#d0c090;">
-          Hãy chú ý tab <b style="color:#f0d98c">Nhân Vật</b> — nơi xem toàn bộ chỉ số, linh căn và trang bị. Đặc biệt vào <b style="color:#d6b15f">Nhẫn Trữ Vật</b> để tìm và học <b>Tâm Pháp Căn Bản</b> ngay!
+          Hãy chú ý tab <b style="color:#f0d98c">Nhân Vật</b> — nơi xem toàn bộ chỉ số, linh căn và trang bị. Đặc biệt vào tab <b style="color:#d6b15f">Nhẫn Trữ Vật</b> bên cạnh để tìm và học <b>Tâm Pháp Căn Bản</b> ngay!
           </div>
           <div style="color:#7a6030;font-size:11px;margin-top:5px;">(Học Tâm Pháp sẽ tăng đáng kể chỉ số của các hạ)</div>
         </div>
@@ -12075,11 +12182,15 @@ function _showAnisNhanVatTutorial(){
     pop.remove(); 
     var navChar2 = document.getElementById("nav-character");
     if(navChar2) navChar2.classList.remove("tutorial-glow");
+    var navCharInv2 = document.getElementById("nav-char-inv");
+    if(navCharInv2) navCharInv2.classList.remove("tutorial-glow");
   };
   pop.onclick = function(e){ if(e.target===pop){ 
     pop.remove(); 
     var navChar2 = document.getElementById("nav-character");
     if(navChar2) navChar2.classList.remove("tutorial-glow");
+    var navCharInv2 = document.getElementById("nav-char-inv");
+    if(navCharInv2) navCharInv2.classList.remove("tutorial-glow");
   } };
   document.body.appendChild(pop);
 }
@@ -12152,16 +12263,18 @@ function _learnTamPhapBook(uid){
   // Refresh màn hình Nhẫn Trữ Vật / Nhân Vật nếu đang mở
   const screenBody = document.getElementById("screen-body");
   if(screenBody && document.getElementById("screen-overlay")?.classList.contains("active")){
+    const invGridNow = document.getElementById("char-inv-grid");
     const titleEl = document.getElementById("screen-title");
     const titleText = titleEl ? titleEl.textContent : "";
-    if(titleText.includes("Nhẫn")) {
+    if(invGridNow) {
+      // Màn Nhẫn Trữ Vật (lưới 30 ô) hoặc màn Nhân Vật đang mở → chỉ rebuild lưới
+      invGridNow.innerHTML = _buildInvGridHTML(window._charInvFilter || "all");
+      const tabsElNow = document.getElementById("char-inv-tabs");
+      if(tabsElNow) tabsElNow.innerHTML = _buildInvTabsHTML(window._charInvFilter || "all");
+    } else if(titleText.includes("Nhẫn")) {
       screenBody.innerHTML = buildInventoryHTML();
     } else if(titleText.includes("Công Pháp")) {
       openScreen("skills");
-    } else if(titleText.includes("Nhân Vật")) {
-      // Chỉ rebuild lưới nhẫn trữ vật trong màn Nhân Vật
-      const invGrid = document.getElementById("char-inv-grid");
-      if(invGrid) invGrid.innerHTML = _buildInvGridHTML();
     }
   }
   showNotif({
@@ -12397,6 +12510,7 @@ return {
   dlResetShop, ddResetShop, ctResetShop,
   pkResetShop, buyPhapKhi, openPhapKhiDetail, equipPhapKhi, openEquippedDetail, unequipPhapKhi,
   sellDuocLieu, sellDanDuoc, sellCongThuc, sellPhapKhi,
+  setCharInvFilter,
   useDanDuocUI: function(id){
     const result = useDanDuoc(id);
     showShopMsg(result.msg, result.ok?"success":"warn");
@@ -12408,7 +12522,9 @@ return {
     // Check if inside character screen
     const invGrid = document.getElementById("char-inv-grid");
     if(invGrid){
-      invGrid.innerHTML = _buildInvGridHTML();
+      invGrid.innerHTML = _buildInvGridHTML(window._charInvFilter || "all");
+      var tabsEl = document.getElementById("char-inv-tabs");
+      if(tabsEl) tabsEl.innerHTML = _buildInvTabsHTML(window._charInvFilter || "all");
       var cm = document.getElementById("char-inv-msg");
       if(cm){
         cm.textContent = result.msg;
