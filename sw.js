@@ -4,7 +4,7 @@
 // ============================================================
 
 // ★ ĐỔI SỐ NÀY MỖI KHI DEPLOY BẢN MỚI ★
-const APP_VERSION = '1.1.4';
+const APP_VERSION = '1.1.5';
 
 // Cache name gắn liền với version → mỗi bản mới = cache namespace mới
 // (đảm bảo activate luôn xóa sạch cache cũ và không bao giờ giữ asset cũ)
