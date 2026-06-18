@@ -19,7 +19,7 @@
 
 <script>
 // ★ ĐỔI SỐ NÀY MỖI KHI DEPLOY BẢN MỚI (phải khớp với sw.js) ★
-const APP_VERSION = '1.0.2';
+const APP_VERSION = '1.0.4';
 
 // ── Đăng ký Service Worker + kiểm tra update ──
 if ('serviceWorker' in navigator) {
@@ -1555,15 +1555,24 @@ window._cloudLogin = async function() {
     }
 
     setTimeout(() => {
-      document.getElementById("cloud-auth-screen").style.display = "none";
-      _updateTitleLoginBtn();
-      // Tự động vào game nếu có save data
-      if (data.saveData) {
-        document.getElementById("title-screen").style.display = "none";
-        // continueGame() → loadGame() → goto() → renderHUD() → checkUnlocks() đúng thứ tự
-        if (typeof G !== "undefined" && typeof G.continueGame === "function") {
-          G.continueGame();
+      try {
+        document.getElementById("cloud-auth-screen").style.display = "none";
+        _updateTitleLoginBtn();
+        // Tự động vào game nếu có save data
+        if (data.saveData) {
+          const titleEl = document.getElementById("title-screen");
+          // continueGame() → loadGame() → goto() → renderHUD() → checkUnlocks() đúng thứ tự
+          if (typeof G !== "undefined" && typeof G.continueGame === "function") {
+            titleEl.style.display = "none";
+            G.continueGame();
+          }
         }
+      } catch(e) {
+        console.error("[Cloud] Lỗi khi vào game sau đăng nhập:", e);
+        // Tránh màn hình đen im lặng: hiện lại title-screen và báo lỗi rõ ràng
+        const titleEl = document.getElementById("title-screen");
+        if (titleEl) titleEl.style.display = "";
+        alert("❌ Đăng nhập thành công nhưng không tải được save: " + e.message + "\nVui lòng thử lại hoặc liên hệ hỗ trợ.");
       }
     }, 900);
   };
