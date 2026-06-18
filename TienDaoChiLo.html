@@ -19,7 +19,7 @@
 
 <script>
 // ★ ĐỔI SỐ NÀY MỖI KHI DEPLOY BẢN MỚI (phải khớp với sw.js) ★
-const APP_VERSION = '1.0.1';
+const APP_VERSION = '1.0.2';
 
 // ── Đăng ký Service Worker + kiểm tra update ──
 if ('serviceWorker' in navigator) {
@@ -1355,6 +1355,25 @@ body.story-closed #main{
 .dh-search-btn:hover{background:rgba(201,168,76,.18);}
 .dh-search-result{margin-top:12px;}
 .dh-search-msg{font-size:11px;color:#7a6030;text-align:center;padding:16px 0;}
+.dh-req-badge{
+  position:absolute;top:6px;right:6px;
+  min-width:15px;height:15px;padding:0 3px;
+  background:#e05050;color:#fff;font-size:9px;font-weight:700;
+  border-radius:99px;display:flex;align-items:center;justify-content:center;
+  line-height:1;box-shadow:0 0 6px rgba(224,80,80,.6);
+}
+.dh-accept-btn{
+  width:28px;height:28px;display:flex;align-items:center;justify-content:center;
+  background:rgba(80,200,80,.08);border:1px solid rgba(80,200,80,.3);
+  border-radius:7px;color:#70d870;font-size:14px;cursor:pointer;transition:all .15s;font-weight:700;
+}
+.dh-accept-btn:hover{background:rgba(80,200,80,.22);border-color:rgba(80,200,80,.7);color:#90f890;}
+.dh-reject-btn{
+  width:28px;height:28px;display:flex;align-items:center;justify-content:center;
+  background:rgba(200,50,50,.08);border:1px solid rgba(200,50,50,.25);
+  border-radius:7px;color:#c07070;font-size:14px;cursor:pointer;transition:all .15s;
+}
+.dh-reject-btn:hover{background:rgba(200,50,50,.22);border-color:rgba(200,50,50,.6);color:#e08888;}
 </style>
 </head>
 <body>
@@ -1362,7 +1381,7 @@ body.story-closed #main{
 <!-- ===== FIREBASE ===== -->
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-import { getFirestore, doc, setDoc, getDoc, getDocs, collection, query, orderBy, limit, deleteDoc, runTransaction } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { getFirestore, doc, setDoc, getDoc, getDocs, collection, query, orderBy, limit, where, deleteDoc, runTransaction } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 import {
   getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword,
   onAuthStateChanged, signOut, deleteUser, EmailAuthProvider, reauthenticateWithCredential
@@ -1432,7 +1451,7 @@ onAuthStateChanged(auth, async (user) => {
         const key = _userKey(savedUsername);
         const snap = await getDoc(doc(db, "players", key));
         if (snap.exists() && snap.data().uid === user.uid) {
-          window._cloudUser = { username: snap.data().username, userKey: key };
+          window._cloudUser = { username: snap.data().username, userKey: key, playerUid: snap.data().playerUid || null };
         }
       }
     } else {
@@ -1515,7 +1534,15 @@ window._cloudLogin = async function() {
   };
 
   const finishOk = async (data) => {
-    window._cloudUser = { username: data.username, userKey: key };
+    // Tài khoản tạo trước khi có tính năng UID → tự sinh bổ sung ngay khi đăng nhập
+    if (!data.playerUid) {
+      const newUid = await _generatePlayerUid(key);
+      if (newUid) {
+        data.playerUid = newUid;
+        setDoc(playerRef, { playerUid: newUid }, { merge: true }).catch(()=>{});
+      }
+    }
+    window._cloudUser = { username: data.username, userKey: key, playerUid: data.playerUid || null };
     localStorage.setItem("_tdcl_last_username", data.username);
     msgEl.textContent = "✅ Đăng nhập thành công!";
     msgEl.style.color = "#70e880";
@@ -1562,7 +1589,12 @@ window._cloudLogin = async function() {
         // Mật khẩu cũ đúng → nâng cấp tài khoản này lên Firebase Auth ngay
         try {
           const cred = await createUserWithEmailAndPassword(auth, pseudoEmail, password);
-          await setDoc(playerRef, { uid: cred.user.uid }, { merge: true });
+          const upgradeData = { uid: cred.user.uid };
+          if (!data.playerUid) {
+            const newUid = await _generatePlayerUid(key);
+            if (newUid) { upgradeData.playerUid = newUid; data.playerUid = newUid; }
+          }
+          await setDoc(playerRef, upgradeData, { merge: true });
         } catch(upgradeErr) {
           // Mật khẩu cũ ngắn hơn 6 ký tự (yêu cầu của Firebase Auth) → chưa nâng cấp được lúc này,
           // vẫn cho đăng nhập bình thường theo cách cũ, sẽ thử nâng cấp lại lần sau.
@@ -1577,6 +1609,25 @@ window._cloudLogin = async function() {
     fail("Lỗi kết nối: " + e.message);
   }
 };
+
+// ── Sinh UID số 10 chữ số ngẫu nhiên, duy nhất toàn server ──
+// Dùng collection riêng "player_uids", doc id = chính số UID, value = userKey trỏ tới tài khoản.
+// Dùng setDoc với điều kiện "chưa tồn tại" qua getDoc trước, lặp lại nếu trùng (cực hiếm: 1/10 tỷ).
+async function _generatePlayerUid(userKey) {
+  for (let attempt = 0; attempt < 8; attempt++) {
+    const uid = String(Math.floor(1000000000 + Math.random() * 9000000000)); // 10 chữ số, không bắt đầu bằng 0
+    const uidRef = doc(db, "player_uids", uid);
+    try {
+      const snap = await getDoc(uidRef);
+      if (snap.exists()) continue; // trùng, thử số khác
+      await setDoc(uidRef, { userKey, claimedAt: Date.now() });
+      return uid;
+    } catch(e) {
+      console.warn("[Cloud] Lỗi sinh UID:", e.message);
+    }
+  }
+  return null; // Hiếm khi xảy ra — tài khoản vẫn hoạt động bình thường, chỉ thiếu UID
+}
 
 // ── Đăng ký tài khoản từ trong game (Cài Đặt) ─────────────
 window._cloudRegister = async function() {
@@ -1610,15 +1661,19 @@ window._cloudRegister = async function() {
     // Lấy save hiện tại
     const currentSave = localStorage.getItem("tdcl") || null;
 
+    // Sinh UID số 10 chữ số để người chơi có thể tìm Đạo Hữu chính xác (tránh trùng tên)
+    const playerUid = await _generatePlayerUid(key);
+
     await setDoc(playerRef, {
       username,
       uid: cred.user.uid,
+      playerUid,
       createdAt: Date.now(),
       saveData: currentSave,
       lastSaved: Date.now()
     });
 
-    window._cloudUser = { username, userKey: key };
+    window._cloudUser = { username, userKey: key, playerUid };
     localStorage.setItem("_tdcl_last_username", username);
     msgEl.textContent = "✅ Tạo tài khoản thành công! Save đã lên cloud.";
     msgEl.style.color = "#70e880";
@@ -1698,9 +1753,19 @@ window._cloudDeleteAccount = async function(userKey) {
         }
       }
     }
+    // Đọc playerUid trước khi xoá document players, để giải phóng UID tương ứng
+    let oldPlayerUid = null;
+    try {
+      const pSnap = await getDoc(doc(db, "players", userKey));
+      if (pSnap.exists()) oldPlayerUid = pSnap.data().playerUid || null;
+    } catch(e) {}
+
     await deleteDoc(doc(db, "players", userKey));
     for(const tab of ["tuvi","luyen_dan","luyen_khi","luyen_phu","tran_phap"]){
       await deleteDoc(doc(db, "bxh_"+tab, userKey)).catch(()=>{});
+    }
+    if (oldPlayerUid) {
+      await deleteDoc(doc(db, "player_uids", oldPlayerUid)).catch(()=>{});
     }
     return true;
   } catch(e) {
@@ -1758,9 +1823,13 @@ window._fsGetDocs    = getDocs;
 window._fsCollection = collection;
 window._fsQuery      = query;
 window._fsLimit      = limit;
+window._fsWhere      = where;
 window._fsDb         = db;
 window._fsGetDoc     = getDoc;
 window._fsDoc        = doc;
+window._fsSetDoc     = setDoc;
+window._fsDeleteDoc  = deleteDoc;
+window._fsRunTransaction = runTransaction;
 </script>
 
 <!-- ===== CLOUD AUTH SCREEN (Đăng Nhập từ Title) ===== -->
@@ -9406,6 +9475,7 @@ function openScreen(id, tab){
       b.style.flexDirection="column";
       b.style.height="100%";
       b.innerHTML = buildDaoHuuHTML();
+      _daoHuuLoadRequests();
     },
     bxh:()=>{
       t.textContent="🏅 Bảng Xếp Hạng";
@@ -9450,6 +9520,7 @@ function openScreen(id, tab){
           <div style="padding:10px 12px;background:rgba(90,176,255,.06);border:1px solid rgba(90,176,255,.2);border-radius:10px;margin-bottom:8px;">
             <div style="font-size:10px;color:#5ab0ff;margin-bottom:2px;">☁️ Tài khoản</div>
             <div style="font-size:14px;font-weight:700;color:#f0c14b;">${window._cloudUser.username}</div>
+            ${window._cloudUser.playerUid ? `<div style="font-size:10px;color:#7a9ab8;margin-top:4px;">UID: <b style="color:#a8c8e0;letter-spacing:.5px;">${window._cloudUser.playerUid}</b></div>` : ``}
           </div>
           <button class="roll-btn" style="border-color:rgba(180,50,50,.3);color:#e07070;margin-bottom:14px;" onclick="window._cloudLogout()">Đăng Xuất</button>
         ` : window._settingsFromGame ? `
@@ -9732,14 +9803,17 @@ function _updateDaoHuuBtnAvatar() {
 
 function buildDaoHuuHTML() {
   const tabs = [
-    { id:"daohuu_list",   icon:"🤝", label:"Đạo Hữu" },
-    { id:"daohuu_search", icon:"🔍", label:"Tìm Đạo Hữu" },
+    { id:"daohuu_list",     icon:"🤝", label:"Đạo Hữu" },
+    { id:"daohuu_search",   icon:"🔍", label:"Tìm Đạo Hữu" },
+    { id:"daohuu_requests", icon:"✉️", label:"Lời Mời" },
   ];
   const activeTab = window._daoHuuTab || "daohuu_list";
+  const reqCount = (window._daoHuuRequestsCache || []).length;
   const sidebarHTML = tabs.map(tab =>
-    `<div class="shop-tab ${activeTab===tab.id?"active":""}"
+    `<div class="shop-tab ${activeTab===tab.id?"active":""}" style="position:relative;"
       onclick="G._daoHuuSwitch('${tab.id}')">
       <span class="stab-icon">${tab.icon}</span>${tab.label}
+      ${tab.id==="daohuu_requests" && reqCount>0 ? `<span class="dh-req-badge">${reqCount>9?"9+":reqCount}</span>` : ``}
     </div>`
   ).join("");
 
@@ -9755,6 +9829,7 @@ function buildDaoHuuHTML() {
 function buildDaoHuuTabContent(tab) {
   if (tab === "daohuu_list") return buildDaoHuuListHTML();
   if (tab === "daohuu_search") return buildDaoHuuSearchHTML();
+  if (tab === "daohuu_requests") return buildDaoHuuRequestsHTML();
   return "";
 }
 
@@ -9789,17 +9864,47 @@ function buildDaoHuuSearchHTML() {
   return `
     <div class="dh-search-wrap">
       <div style="font-size:11px;color:#7a6030;margin-bottom:10px;line-height:1.6;">
-        Nhập tên người chơi để tìm kiếm Đạo Hữu.
+        Nhập tên đạo hiệu hoặc UID (10 số) để tìm kiếm Đạo Hữu.
       </div>
       <input class="dh-search-input" id="dh-search-input" type="text"
-        maxlength="20" placeholder="Nhập tên người chơi..."
+        maxlength="20" placeholder="Nhập tên hoặc UID..."
         autocomplete="off"
         onkeydown="if(event.key==='Enter')G._daoHuuSearch()">
       <div class="dh-search-btn" onclick="G._daoHuuSearch()">🔍 Tìm Kiếm</div>
     </div>
     <div class="dh-search-result" id="dh-search-result">
-      <div class="dh-search-msg">Nhập tên và bấm Tìm Kiếm</div>
+      <div class="dh-search-msg">Nhập tên hoặc UID và bấm Tìm Kiếm</div>
     </div>`;
+}
+
+function buildDaoHuuRequestsHTML() {
+  const requests = window._daoHuuRequestsCache;
+  if (requests === undefined) {
+    return `<div class="dh-search-msg">⏳ Đang tải lời mời...</div>`;
+  }
+  if (!requests || requests.length === 0) {
+    return `<div class="dh-empty">
+      <div class="dh-empty-icon">✉️</div>
+      <div class="dh-empty-text">Chưa có lời mời nào<br><span style="font-size:10px;color:#3a2010">Lời mời kết bạn từ người khác sẽ hiện ở đây</span></div>
+    </div>`;
+  }
+  return requests.map(r => `
+    <div class="dh-card" id="dh-req-card-${r.id}">
+      <div class="dh-ava">
+        ${r.fromAvatar
+          ? `<img src="${r.fromAvatar}" alt="">`
+          : `<span style="font-size:22px;">👤</span>`}
+      </div>
+      <div class="dh-info">
+        <div class="dh-name">${r.fromName || "Ẩn danh"}</div>
+        <div class="dh-age">Tuổi: ???</div>
+        <div class="dh-stage">Cảnh Giới: ???</div>
+      </div>
+      <div class="dh-actions" style="flex-direction:row;">
+        <div class="dh-accept-btn" title="Đồng ý" onclick="G._daoHuuAcceptRequest('${r.id}')">✓</div>
+        <div class="dh-reject-btn" title="Từ chối" onclick="G._daoHuuRejectRequest('${r.id}')">✕</div>
+      </div>
+    </div>`).join("");
 }
 
 function _daoHuuSwitch(tab) {
@@ -9811,6 +9916,9 @@ function _daoHuuSwitch(tab) {
   const b2 = document.getElementById("screen-body");
   if (b2) {
     b2.innerHTML = buildDaoHuuHTML();
+  }
+  if (tab === "daohuu_requests") {
+    _daoHuuLoadRequests();
   }
 }
 
@@ -9841,33 +9949,61 @@ function _daoHuuMsg(userKey) {
 async function _daoHuuSearch() {
   const input = document.getElementById("dh-search-input");
   if (!input) return;
-  const name = (input.value || "").trim();
-  if (!name) {
-    _daoHuuSearchResult(`<div class="dh-search-msg" style="color:#ff7060;">Vui lòng nhập tên người chơi.</div>`);
+  const raw = (input.value || "").trim();
+  if (!raw) {
+    _daoHuuSearchResult(`<div class="dh-search-msg" style="color:#ff7060;">Vui lòng nhập tên hoặc UID người chơi.</div>`);
     return;
   }
   _daoHuuSearchResult(`<div class="dh-search-msg">⏳ Đang tìm kiếm...</div>`);
 
-  try {
-    // Tìm theo userKey (lowercase, không dấu đặc biệt)
-    function _userKeyLocal(username) {
-      return username.toLowerCase().replace(/[^a-z0-9_\u00c0-\u024f\u1e00-\u1eff]/gi, "_");
-    }
-    const searchKey = _userKeyLocal(name);
-    const snap = await window._fsGetDoc(window._fsDoc(window._fsDb, "players", searchKey));
+  const isUidSearch = /^[0-9]{10}$/.test(raw);
 
-    if (!snap.exists()) {
-      _daoHuuSearchResult(`<div class="dh-search-msg">Không tìm thấy người chơi "<b style="color:#c8a84a">${name}</b>".</div>`);
+  try {
+    let matchKey = null, matchData = null, matchSaveObj = {};
+
+    if (isUidSearch) {
+      // ── Tìm theo UID (10 chữ số) — tra trực tiếp, nhanh, không cần quét toàn bộ ──
+      const uidSnap = await window._fsGetDoc(window._fsDoc(window._fsDb, "player_uids", raw));
+      if (uidSnap.exists()) {
+        const uidData = uidSnap.data();
+        const playerSnap = await window._fsGetDoc(window._fsDoc(window._fsDb, "players", uidData.userKey));
+        if (playerSnap.exists()) {
+          matchKey = uidData.userKey;
+          matchData = playerSnap.data();
+          try { if (matchData.saveData) matchSaveObj = JSON.parse(matchData.saveData); } catch(e) {}
+        }
+      }
+    } else {
+      // ── Tìm theo TÊN NHÂN VẬT (charName) — quét danh sách players giống Bảng Xếp Hạng ──
+      const searchNorm = _charNameKey(raw);
+      const q = window._fsQuery(window._fsCollection(window._fsDb, "players"), window._fsLimit(500));
+      const snap = await window._fsGetDocs(q);
+
+      snap.forEach(docSnap => {
+        if (matchKey) return; // đã tìm thấy rồi thì bỏ qua phần còn lại
+        const d = docSnap.data();
+        let charName = d.charName || "";
+        let saveObj = {};
+        try { if (d.saveData) saveObj = JSON.parse(d.saveData); } catch(e) {}
+        if (!charName) charName = saveObj.name || "";
+        if (charName && _charNameKey(charName) === searchNorm) {
+          matchKey = docSnap.id;
+          matchData = d;
+          matchSaveObj = saveObj;
+        }
+      });
+    }
+
+    if (!matchKey) {
+      const notFoundLabel = isUidSearch ? `UID "<b style="color:#c8a84a">${raw}</b>"` : `người chơi "<b style="color:#c8a84a">${raw}</b>"`;
+      _daoHuuSearchResult(`<div class="dh-search-msg">Không tìm thấy ${notFoundLabel}.</div>`);
       return;
     }
 
-    const data = snap.data();
-
-    // Parse saveData đúng field name
-    let saveObj = {};
-    try {
-      if (data.saveData) saveObj = JSON.parse(data.saveData);
-    } catch(e) {}
+    const data = matchData;
+    const searchKey = matchKey;
+    const saveObj = matchSaveObj || {};
+    const realCharName = data.charName || saveObj.name || raw;
 
     // Không hiện chính mình — so sánh theo searchKey
     if (window._cloudUser && searchKey === window._cloudUser.userKey) {
@@ -9881,10 +10017,11 @@ async function _daoHuuSearch() {
 
     const foundUser = {
       userKey: searchKey,
-      username: data.username || name,
+      username: realCharName,
       avatar: saveObj.avatar || null,
       age: saveObj.age != null ? saveObj.age : null,
       stageName: data.stageName || saveObj.stageName || "???",
+      playerUid: data.playerUid || null,
     };
 
     _daoHuuSearchResult(`
@@ -9897,6 +10034,7 @@ async function _daoHuuSearch() {
         </div>
         <div class="dh-info">
           <div class="dh-name">${foundUser.username}</div>
+          ${foundUser.playerUid ? `<div style="font-size:9px;color:#7a9ab8;">UID: ${foundUser.playerUid}</div>` : ``}
           <div class="dh-age">Tuổi: ${foundUser.age != null ? foundUser.age : "???"}</div>
           <div class="dh-stage">Cảnh Giới: ${foundUser.stageName}</div>
         </div>
@@ -9917,20 +10055,41 @@ function _daoHuuSearchResult(html) {
   if (el) el.innerHTML = html;
 }
 
-function _daoHuuSendRequest(userJsonStr) {
-  // Placeholder — gửi lời mời kết bạn làm sau
-  // Tạm thời: thêm thẳng vào danh sách cho demo
+async function _daoHuuSendRequest(userJsonStr) {
   try {
     const foundUser = JSON.parse(userJsonStr);
+
+    if (!window._cloudUser) {
+      showNotif({icon:"⚠️",title:"Chưa Đăng Nhập",lines:["Cần đăng ký/đăng nhập Cloud để kết bạn Đạo Hữu."],color:"#ffaa60",duration:3000});
+      return;
+    }
+
     S.daoHuu = S.daoHuu || [];
     const alreadyFriend = S.daoHuu.some(f => f.userKey === foundUser.userKey);
     if (alreadyFriend) {
       showNotif({icon:"🤝",title:"Đã là Đạo Hữu",lines:["Người này đã trong danh sách của ngươi!"],color:"#c8a84a",duration:2000});
       return;
     }
-    // TODO: gửi lời mời thực sự qua Firebase — hiện tại thêm thẳng
-    S.daoHuu.push({ ...foundUser, addedAt: Date.now() });
-    saveGame();
+
+    const myKey = window._cloudUser.userKey;
+    const reqId = myKey + "__" + foundUser.userKey;
+    const reqRef = window._fsDoc(window._fsDb, "daohuu_requests", reqId);
+
+    // Đã gửi lời mời này trước đó rồi (chưa được xử lý) → không gửi lại
+    const existSnap = await window._fsGetDoc(reqRef);
+    if (existSnap.exists()) {
+      showNotif({icon:"✉️",title:"Đã Gửi Trước Đó",lines:["Lời mời đang chờ người này phản hồi."],color:"#c8a84a",duration:2500});
+      return;
+    }
+
+    await window._fsSetDoc(reqRef, {
+      fromKey: myKey,
+      fromName: S.name || window._cloudUser.username || "Ẩn danh",
+      fromAvatar: S.avatar || null,
+      toKey: foundUser.userKey,
+      createdAt: Date.now()
+    });
+
     showNotif({
       icon:"🤝",
       title:"Đã Gửi Lời Mời!",
@@ -9949,15 +10108,135 @@ function _daoHuuSendRequest(userJsonStr) {
         </div>
         <div class="dh-info">
           <div class="dh-name">${foundUser.username}</div>
+          ${foundUser.playerUid ? `<div style="font-size:9px;color:#7a9ab8;">UID: ${foundUser.playerUid}</div>` : ``}
           <div class="dh-age">Tuổi: ${foundUser.age != null ? foundUser.age : "???"}</div>
           <div class="dh-stage">Cảnh Giới: ${foundUser.stageName}</div>
         </div>
         <div class="dh-actions">
-          <div style="font-size:9px;color:#70d870;padding:4px 7px;background:rgba(80,200,80,.1);border:1px solid rgba(80,200,80,.3);border-radius:6px;">✓ Đã kết bạn</div>
+          <div style="font-size:9px;color:#5ab0ff;padding:4px 7px;background:rgba(90,176,255,.1);border:1px solid rgba(90,176,255,.3);border-radius:6px;">✉️ Đã gửi lời mời</div>
         </div>
       </div>`);
   } catch(e) {
-    console.error("[DaoHuu] AddFriend error:", e);
+    console.error("[DaoHuu] SendRequest error:", e);
+    showNotif({icon:"⚠️",title:"Lỗi Kết Nối",lines:["Không gửi được lời mời, vui lòng thử lại."],color:"#ffaa60",duration:2500});
+  }
+}
+
+// ── Tải danh sách lời mời Đạo Hữu đang chờ (gửi đến mình) ──
+async function _daoHuuLoadRequests() {
+  if (!window._cloudUser) {
+    window._daoHuuRequestsCache = [];
+    _daoHuuRefreshRequestsUI();
+    return;
+  }
+  try {
+    const myKey = window._cloudUser.userKey;
+    const q = window._fsQuery(
+      window._fsCollection(window._fsDb, "daohuu_requests"),
+      window._fsWhere("toKey", "==", myKey)
+    );
+    const snap = await window._fsGetDocs(q);
+    const list = [];
+    snap.forEach(docSnap => {
+      const d = docSnap.data();
+      list.push({ id: docSnap.id, fromKey: d.fromKey, fromName: d.fromName, fromAvatar: d.fromAvatar || null, createdAt: d.createdAt || 0 });
+    });
+    list.sort((a,b) => b.createdAt - a.createdAt);
+    window._daoHuuRequestsCache = list;
+  } catch(e) {
+    console.error("[DaoHuu] LoadRequests error:", e);
+    window._daoHuuRequestsCache = window._daoHuuRequestsCache || [];
+  }
+  _daoHuuRefreshRequestsUI();
+}
+
+function _daoHuuRefreshRequestsUI() {
+  const b2 = document.getElementById("screen-body");
+  if (b2 && document.getElementById("daohuu-content-area")) b2.innerHTML = buildDaoHuuHTML();
+}
+
+// ── Đồng ý lời mời: thêm vào danh sách Đạo Hữu của CẢ HAI bên ──
+async function _daoHuuAcceptRequest(reqId) {
+  const requests = window._daoHuuRequestsCache || [];
+  const req = requests.find(r => r.id === reqId);
+  if (!req || !window._cloudUser) return;
+
+  const card = document.getElementById("dh-req-card-" + reqId);
+  if (card) card.style.opacity = "0.5";
+
+  try {
+    const myKey = window._cloudUser.userKey;
+
+    // 1) Thêm người gửi vào danh sách Đạo Hữu của MÌNH (local + cloud qua saveGame)
+    S.daoHuu = S.daoHuu || [];
+    if (!S.daoHuu.some(f => f.userKey === req.fromKey)) {
+      S.daoHuu.push({
+        userKey: req.fromKey,
+        username: req.fromName || "Ẩn danh",
+        avatar: req.fromAvatar || null,
+        age: null,
+        stageName: "???",
+        addedAt: Date.now()
+      });
+      saveGame();
+    }
+
+    // 2) Thêm MÌNH vào danh sách Đạo Hữu của người gửi — sửa trực tiếp document của họ qua Transaction
+    const fromRef = window._fsDoc(window._fsDb, "players", req.fromKey);
+    await window._fsRunTransaction(window._fsDb, async (tx) => {
+      const snap = await tx.get(fromRef);
+      if (!snap.exists()) return;
+      const data = snap.data();
+      let saveObj = {};
+      try { if (data.saveData) saveObj = JSON.parse(data.saveData); } catch(e) {}
+      if (!Array.isArray(saveObj.daoHuu)) saveObj.daoHuu = [];
+      if (!saveObj.daoHuu.some(f => f.userKey === myKey)) {
+        saveObj.daoHuu.push({
+          userKey: myKey,
+          username: S.name || window._cloudUser.username || "Ẩn danh",
+          avatar: S.avatar || null,
+          age: S.age != null ? S.age : null,
+          stageName: S.stageName || "???",
+          addedAt: Date.now()
+        });
+        tx.update(fromRef, { saveData: JSON.stringify(saveObj) });
+      }
+    });
+
+    // 3) Xoá lời mời đã xử lý
+    await window._fsDeleteDoc(window._fsDoc(window._fsDb, "daohuu_requests", reqId));
+
+    window._daoHuuRequestsCache = requests.filter(r => r.id !== reqId);
+    _daoHuuRefreshRequestsUI();
+
+    showNotif({
+      icon:"🤝",
+      title:"Đã Kết Đạo Hữu!",
+      lines:[`<b style="color:#f0d98c">${req.fromName}</b>`, `<span style="color:#7a9060">Đã trở thành Đạo Hữu của nhau.</span>`],
+      color:"#70d870",
+      duration:3000
+    });
+  } catch(e) {
+    console.error("[DaoHuu] Accept error:", e);
+    if (card) card.style.opacity = "1";
+    showNotif({icon:"⚠️",title:"Lỗi Kết Nối",lines:["Không xử lý được lời mời, vui lòng thử lại."],color:"#ffaa60",duration:2500});
+  }
+}
+
+// ── Từ chối lời mời: chỉ xoá document lời mời ──
+async function _daoHuuRejectRequest(reqId) {
+  const requests = window._daoHuuRequestsCache || [];
+  const card = document.getElementById("dh-req-card-" + reqId);
+  if (card) card.style.opacity = "0.5";
+
+  try {
+    await window._fsDeleteDoc(window._fsDoc(window._fsDb, "daohuu_requests", reqId));
+    window._daoHuuRequestsCache = requests.filter(r => r.id !== reqId);
+    _daoHuuRefreshRequestsUI();
+  } catch(e) {
+    console.error("[DaoHuu] Reject error:", e);
+    if (card) card.style.opacity = "1";
+    showNotif({icon:"⚠️",title:"Lỗi Kết Nối",lines:["Không từ chối được lời mời, vui lòng thử lại."],color:"#ffaa60",duration:2500});
   }
 }
 
@@ -13018,6 +13297,7 @@ return {
     document.getElementById("cloud-auth-screen").style.display="flex";
   },
   _daoHuuSwitch, _daoHuuRemove, _daoHuuMsg, _daoHuuSearch, _daoHuuSendRequest, _updateDaoHuuBtnAvatar,
+  _daoHuuLoadRequests, _daoHuuAcceptRequest, _daoHuuRejectRequest,
   startNewGame, confirmName, continueGame, openSettings, quitGame, _selectAvatar,
   _showAvatarScreen, _showWelcomePopup,
   _showThienDaoPopup, _showDeaPopup,
