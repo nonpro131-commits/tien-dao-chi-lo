@@ -19,7 +19,7 @@
 
 <script>
 // ★ ĐỔI SỐ NÀY MỖI KHI DEPLOY BẢN MỚI (phải khớp với sw.js) ★
-const APP_VERSION = '1.1.3';
+const APP_VERSION = '1.1.4';
 
 // ── DEBUG PANEL: thêm ?debug=1 vào URL để xem chẩn đoán ngay trên màn hình ──
 // (không cần DevTools — hữu ích để chẩn đoán trên điện thoại)
@@ -78,7 +78,20 @@ async function _runUpdateCheck() {
   _dbg('--- _runUpdateCheck() bắt đầu, APP_VERSION hiện tại = ' + APP_VERSION + ' ---');
   const latest = await _checkVersionViaFetch();
   if (latest && latest !== APP_VERSION) {
-    _dbg('=> KHÁC NHAU (' + APP_VERSION + ' vs ' + latest + ') → hiện banner');
+    _dbg('=> KHÁC NHAU (' + APP_VERSION + ' vs ' + latest + ') → force unregister SW cũ rồi hiện banner');
+    // Force unregister toàn bộ SW cũ để tránh SW cũ chặn bản mới
+    if ('serviceWorker' in navigator) {
+      try {
+        const regs = await navigator.serviceWorker.getRegistrations();
+        await Promise.all(regs.map(r => {
+          _dbg('Unregister SW: ' + r.scope);
+          return r.unregister();
+        }));
+        _dbg('Đã unregister ' + regs.length + ' SW cũ');
+      } catch(e) {
+        _dbg('Unregister SW lỗi: ' + e.message);
+      }
+    }
     _showUpdateBanner();
     return true;
   }
@@ -215,18 +228,28 @@ function _showUpdateBanner() {
   _dbg('_showUpdateBanner(): đã append banner vào DOM thành công ✓');
 }
 
-// ── Thực hiện update: xóa cache → reload ──
-function _doUpdate() {
+// ── Thực hiện update: unregister SW cũ → xóa cache → reload ──
+async function _doUpdate() {
   const btn = document.querySelector('#update-banner div[onclick="_doUpdate()"]');
   if (btn) { btn.textContent = 'Đang cập nhật...'; btn.style.opacity = '0.6'; btn.style.pointerEvents = 'none'; }
-  if (navigator.serviceWorker.controller) {
-    navigator.serviceWorker.controller.postMessage('CLEAR_CACHE');
-    // SW sẽ gửi CACHE_CLEARED → location.reload()
-    // Fallback nếu SW không phản hồi
-    setTimeout(() => location.reload(true), 3000);
-  } else {
-    location.reload(true);
+  try {
+    // 1. Unregister toàn bộ SW cũ
+    if ('serviceWorker' in navigator) {
+      const regs = await navigator.serviceWorker.getRegistrations();
+      await Promise.all(regs.map(r => r.unregister()));
+      _dbg('_doUpdate: đã unregister ' + regs.length + ' SW');
+    }
+    // 2. Xóa toàn bộ cache
+    if ('caches' in window) {
+      const keys = await caches.keys();
+      await Promise.all(keys.map(k => caches.delete(k)));
+      _dbg('_doUpdate: đã xóa ' + keys.length + ' cache');
+    }
+  } catch(e) {
+    _dbg('_doUpdate lỗi: ' + e.message);
   }
+  // 3. Reload sạch
+  location.reload(true);
 }
 </script>
 <style>
