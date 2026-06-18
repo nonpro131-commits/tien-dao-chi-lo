@@ -19,7 +19,7 @@
 
 <script>
 // ★ ĐỔI SỐ NÀY MỖI KHI DEPLOY BẢN MỚI (phải khớp với sw.js) ★
-const APP_VERSION = '1.0.2';
+const APP_VERSION = '1.0.4';
 
 // ── DEBUG PANEL: thêm ?debug=1 vào URL để xem chẩn đoán ngay trên màn hình ──
 // (không cần DevTools — hữu ích để chẩn đoán trên điện thoại)
@@ -2055,8 +2055,8 @@ window._cloudWatchDaoHuu = function() {
     snap.forEach(d => newFriends.push({ id: d.id, ...d.data() }));
     _dbg("[WatchDH] inbox has "+newFriends.length+" entries");
 
-    // Đợi G.S sẵn sàng rồi merge
-    window._onGReady(async (S) => {
+    // Merge ngay nếu G.S sẵn sàng, nếu không thì đợi qua _onGReady
+    const doMerge = async (S) => {
       S.daoHuu = S.daoHuu || [];
       let changed = false;
       const toDelete = [];
@@ -2080,16 +2080,18 @@ window._cloudWatchDaoHuu = function() {
         if (document.getElementById("daohuu-content-area") && typeof window._daoHuuRefreshRequestsUI === "function") {
           window._daoHuuRefreshRequestsUI();
         }
-        showNotif && showNotif({icon:"🤝",title:"Kết Bạn Thành Công!",lines:["Bạn có Đạo Hữu mới!"],color:"#70d870",duration:3000});
+        if (typeof showNotif === "function") showNotif({icon:"🤝",title:"Kết Bạn Thành Công!",lines:["Bạn có Đạo Hữu mới!"],color:"#70d870",duration:3000});
       }
-      // Xóa các entries đã xử lý
       for (const eid of toDelete) {
         try {
           await deleteDoc(doc(db, "daohuu_inbox", myKey, "entries", eid));
           _dbg("[WatchDH] deleted inbox entry: "+eid);
         } catch(e) { _dbg("[WatchDH] delete entry fail: "+e.message); }
       }
-    });
+    };
+    const _S = window.G && window.G.S;
+    if (_S) { doMerge(_S); }
+    else { window._onGReady(doMerge); }
   }, err => {
     console.warn("[Cloud] _cloudWatchDaoHuu error:", err.message);
   });
