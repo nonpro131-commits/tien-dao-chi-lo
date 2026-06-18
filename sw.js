@@ -75,6 +75,10 @@ self.addEventListener('fetch', event => {
   // tự fetch sw.js để so APP_VERSION) sẽ luôn nhận lại bản cũ trong
   // cache do chiến lược stale-while-revalidate trả cache trước.
   if (url.pathname.endsWith('/sw.js')) return;
+  // index.html luôn lấy từ network — đây là "cửa vào" không bao giờ cache
+  if (url.pathname.endsWith('/index.html') || url.pathname.endsWith('/')) return;
+  // TienDaoChiLo.html?v=xxx — có query string version → không cache, luôn fetch mới
+  if (url.pathname.endsWith('/TienDaoChiLo.html') && url.search) return;
 
   const isGoogleFonts = url.hostname.includes('fonts.googleapis.com') ||
                         url.hostname.includes('fonts.gstatic.com');

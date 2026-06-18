@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+<title>Tiên Đạo Chi Lộ</title>
+<script>
+// Phiên bản app — đổi số này mỗi khi deploy bản mới (phải khớp với TienDaoChiLo.html và sw.js)
+const ENTRY_VERSION = '1.1.4';
+
+(async function() {
+  // Unregister toàn bộ SW cũ trước khi vào game
+  // Đây là file KHÔNG bao giờ bị SW cache (SW bypass index.html)
+  // nên luôn chạy code mới nhất từ server
+  if ('serviceWorker' in navigator) {
+    try {
+      const regs = await navigator.serviceWorker.getRegistrations();
+      if (regs.length > 0) {
+        await Promise.all(regs.map(r => r.unregister()));
+        // Xóa cache cũ
+        if ('caches' in window) {
+          const keys = await caches.keys();
+          await Promise.all(keys.map(k => caches.delete(k)));
+        }
+      }
+    } catch(e) {}
+  }
+  // Redirect vào game với version trong URL để bust cache
+  window.location.replace('TienDaoChiLo.html?v=' + ENTRY_VERSION);
+})();
+</script>
+</head>
+<body style="background:#06080e;color:#f0d98c;font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;">
+  Đang tải...
+</body>
+</html>
