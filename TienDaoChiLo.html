@@ -19,7 +19,7 @@
 
 <script>
 // ★ ĐỔI SỐ NÀY MỖI KHI DEPLOY BẢN MỚI (phải khớp với sw.js) ★
-const APP_VERSION = '1.1.6';
+const APP_VERSION = '1.1.7';
 
 // ── DEBUG PANEL: thêm ?debug=1 vào URL để xem chẩn đoán ngay trên màn hình ──
 // (không cần DevTools — hữu ích để chẩn đoán trên điện thoại)
@@ -1900,7 +1900,7 @@ window._cloudSave = async function(saveObj) {
 
 // ── Đăng xuất ─────────────────────────────────────────────
 window._cloudLogout = async function() {
-  const ok = await _showGameConfirm({
+  const ok = await window._showGameConfirm({
     title: "Đăng Xuất",
     msg: "Đăng xuất tài khoản " + (window._cloudUser ? `"${window._cloudUser.username}"` : "") + "?\n\nTiến trình vẫn được lưu trên cloud.\nMàn hình sẽ quay về Chơi Mới.",
     okLabel: "Đăng Xuất"
@@ -1966,7 +1966,7 @@ window._cloudDeleteAccount = async function(userKey) {
 
 // ── Cảnh báo khi chưa đăng ký mà muốn thoát/đăng xuất ────
 window._warnNotRegistered = function() {
-  return _showGameConfirm({
+  return window._showGameConfirm({
     title: "⚠️ Chưa Đăng Ký Tài Khoản",
     msg: "Dữ liệu chỉ lưu trên máy này.\nXóa app hoặc đổi thiết bị sẽ MẤT toàn bộ tiến trình.\n\nVào Cài Đặt → Đăng Ký để bảo vệ save của bạn.\n\nVẫn muốn tiếp tục thoát?",
     okLabel: "Thoát", okDanger: true
@@ -2004,6 +2004,32 @@ function _updateTitleLoginBtn() {
   }
 }
 window._updateTitleLoginBtn = _updateTitleLoginBtn;
+
+// ── Pull fresh daoHuu từ cloud về local (gọi khi mở màn hình Đạo Hữu) ──
+window._cloudFetchDaoHuu = async function() {
+  if (!window._cloudUser) return;
+  try {
+    const snap = await getDoc(doc(db, "players", window._cloudUser.userKey));
+    if (!snap.exists()) return;
+    const data = snap.data();
+    let saveObj = {};
+    try { if (data.saveData) saveObj = JSON.parse(data.saveData); } catch(e) {}
+    if (Array.isArray(saveObj.daoHuu) && typeof S !== "undefined") {
+      // Merge: giữ local, bổ sung những người chưa có
+      S.daoHuu = S.daoHuu || [];
+      let changed = false;
+      for (const remote of saveObj.daoHuu) {
+        if (!S.daoHuu.some(f => f.userKey === remote.userKey)) {
+          S.daoHuu.push(remote);
+          changed = true;
+        }
+      }
+      if (changed && typeof saveGame === "function") saveGame();
+    }
+  } catch(e) {
+    console.warn("[Cloud] _cloudFetchDaoHuu lỗi:", e.message);
+  }
+};
 
 // Expose Firestore helpers ra window để dùng trong script chính
 window._fsGetDocs    = getDocs;
@@ -9676,6 +9702,10 @@ function openScreen(id, tab){
       b.style.height="100%";
       b.innerHTML = buildDaoHuuHTML();
       _daoHuuLoadRequests();
+      // Kéo fresh daoHuu từ cloud để A thấy B sau khi B accept lời mời
+      if (typeof window._cloudFetchDaoHuu === "function") window._cloudFetchDaoHuu().then(() => {
+        if (document.getElementById("daohuu-content-area")) _daoHuuRefreshRequestsUI();
+      });
     },
     bxh:()=>{
       t.textContent="🏅 Bảng Xếp Hạng";
@@ -10310,6 +10340,9 @@ async function _daoHuuSendRequest(foundUser) {
 // ── Realtime listener cho lời mời Đạo Hữu (onSnapshot) ──
 let _daoHuuUnsubscribe = null;
 
+// Track các reqId đã được accept/reject (để onSnapshot không restore lại lời mời chưa kịp xóa trên Firestore)
+window._daoHuuAcceptedIds = window._daoHuuAcceptedIds || new Set();
+
 function _daoHuuLoadRequests() {
   // Hủy listener cũ nếu có
   if (_daoHuuUnsubscribe) { _daoHuuUnsubscribe(); _daoHuuUnsubscribe = null; }
@@ -10326,6 +10359,8 @@ function _daoHuuLoadRequests() {
   _daoHuuUnsubscribe = window._fsOnSnapshot(q, snap => {
     const list = [];
     snap.forEach(docSnap => {
+      // Bỏ qua các reqId đã được accept/reject trong session này
+      if (window._daoHuuAcceptedIds.has(docSnap.id)) return;
       const d = docSnap.data();
       list.push({ id: docSnap.id, fromKey: d.fromKey, fromName: d.fromName, fromAvatar: d.fromAvatar || null, createdAt: d.createdAt || 0 });
     });
@@ -10404,10 +10439,14 @@ async function _daoHuuAcceptRequest(reqId) {
       console.warn("[DaoHuu] Xóa lời mời thất bại (bỏ qua):", eDel);
     }
 
+    window._daoHuuAcceptedIds.add(reqId); // đánh dấu để onSnapshot không restore lại
     window._daoHuuRequestsCache = requests.filter(r => r.id !== reqId);
     // Chuyển sang tab Đạo Hữu để người dùng thấy ngay người vừa kết bạn
     window._daoHuuTab = "daohuu_list";
     _daoHuuRefreshRequestsUI();
+    // Re-subscribe onSnapshot để sync trạng thái thật từ Firestore
+    // (_daoHuuTab đã set = "daohuu_list" nên kể cả khi onSnapshot fire lại cũng không reset tab)
+    _daoHuuLoadRequests();
 
     showNotif({
       icon:"🤝",
@@ -10435,6 +10474,7 @@ async function _daoHuuRejectRequest(reqId) {
     } catch(eDel) {
       console.warn("[DaoHuu] Xóa lời mời thất bại (bỏ qua):", eDel);
     }
+    window._daoHuuAcceptedIds.add(reqId); // đánh dấu để onSnapshot không restore lại
     window._daoHuuRequestsCache = requests.filter(r => r.id !== reqId);
     _daoHuuRefreshRequestsUI();
   } catch(e) {
