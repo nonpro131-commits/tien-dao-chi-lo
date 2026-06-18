@@ -38,6 +38,14 @@ if ('serviceWorker' in navigator) {
             }
           });
         });
+
+        // ★ Ép kiểm tra sw.js mới ngay khi vào trang ★
+        // Mặc định browser chỉ tự check sw.js theo chu kỳ riêng (có thể
+        // rất lâu) và còn có thể bị HTTP cache chặn. Gọi update() thủ công
+        // buộc browser fetch lại sw.js qua network (bỏ qua HTTP cache nếu
+        // server có ETag/Last-Modified hợp lệ), từ đó updatefound mới có
+        // cơ hội bắn ra đúng lúc.
+        reg.update().catch(() => {});
       })
       .catch(err => console.warn('[PWA] SW lỗi:', err));
 

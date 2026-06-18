@@ -3,10 +3,12 @@
 // Chiến lược: Cache First cho game chính, Network First cho updates
 // ============================================================
 
-const CACHE_NAME = 'tien-dao-v4';
-
 // ★ ĐỔI SỐ NÀY MỖI KHI DEPLOY BẢN MỚI ★
 const APP_VERSION = '1.0.6';
+
+// Cache name gắn liền với version → mỗi bản mới = cache namespace mới
+// (đảm bảo activate luôn xóa sạch cache cũ và không bao giờ giữ asset cũ)
+const CACHE_NAME = 'tien-dao-v' + APP_VERSION;
 
 // Các file cần cache khi cài app (install event)
 const CORE_FILES = [
