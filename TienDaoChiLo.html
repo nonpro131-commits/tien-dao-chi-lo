@@ -19,7 +19,7 @@
 
 <script>
 // ★ ĐỔI SỐ NÀY MỖI KHI DEPLOY BẢN MỚI (phải khớp với sw.js) ★
-const APP_VERSION = '1.1.5';
+const APP_VERSION = '1.1.6';
 
 // ── DEBUG PANEL: thêm ?debug=1 vào URL để xem chẩn đoán ngay trên màn hình ──
 // (không cần DevTools — hữu ích để chẩn đoán trên điện thoại)
@@ -550,6 +550,49 @@ html,body{width:100%;height:100%;overflow:hidden;background:#06080e;font-family:
   cursor:pointer;letter-spacing:1px;transition:all .2s;
 }
 .die-revive-do:hover{background:rgba(201,168,76,.25);}
+
+/* ===== GAME CONFIRM DIALOG ===== */
+#gc-overlay{
+  position:fixed;inset:0;z-index:99999;
+  display:none;align-items:center;justify-content:center;
+  background:rgba(0,0,0,.72);backdrop-filter:blur(4px);
+}
+#gc-overlay.active{display:flex;}
+#gc-box{
+  background:linear-gradient(160deg,#0e0b04,#1a1408);
+  border:1.5px solid rgba(201,168,76,.35);
+  border-radius:16px;padding:26px 22px 20px;
+  width:88%;max-width:360px;
+  box-shadow:0 8px 40px rgba(0,0,0,.7),0 0 0 1px rgba(201,168,76,.08);
+  animation:boxIn .22s cubic-bezier(.16,1,.3,1);
+}
+#gc-title{
+  font-size:15px;font-weight:700;color:#f0d98c;
+  letter-spacing:1px;margin-bottom:10px;line-height:1.5;
+  text-align:center;
+}
+#gc-msg{
+  font-size:12.5px;color:#b09060;line-height:1.75;
+  text-align:center;margin-bottom:20px;
+  white-space:pre-wrap;
+}
+.gc-btns{display:flex;gap:10px;justify-content:center;}
+.gc-btn{
+  flex:1;max-width:140px;
+  padding:11px 10px;border-radius:10px;
+  font-size:13px;font-weight:700;letter-spacing:1px;
+  cursor:pointer;transition:all .18s;text-align:center;
+}
+.gc-btn-ok{
+  background:rgba(201,168,76,.15);border:1.5px solid rgba(201,168,76,.55);
+  color:#f0d98c;
+}
+.gc-btn-ok:hover{background:rgba(201,168,76,.3);border-color:#f0d98c;}
+.gc-btn-cancel{
+  background:rgba(80,40,20,.25);border:1.5px solid rgba(120,60,30,.4);
+  color:#7a5a35;
+}
+.gc-btn-cancel:hover{background:rgba(80,40,20,.5);border-color:rgba(160,80,40,.6);color:#c08060;}
 
 /* ===== FLOAT BARS top-left ===== */
 #float-bars{
@@ -1857,11 +1900,11 @@ window._cloudSave = async function(saveObj) {
 
 // ── Đăng xuất ─────────────────────────────────────────────
 window._cloudLogout = async function() {
-  const ok = confirm(
-    "Đăng xuất tài khoản " + (window._cloudUser ? `"${window._cloudUser.username}"` : "") + "?\n\n" +
-    "Tiến trình vẫn được lưu trên cloud.\n" +
-    "Màn hình sẽ quay về Chơi Mới."
-  );
+  const ok = await _showGameConfirm({
+    title: "Đăng Xuất",
+    msg: "Đăng xuất tài khoản " + (window._cloudUser ? `"${window._cloudUser.username}"` : "") + "?\n\nTiến trình vẫn được lưu trên cloud.\nMàn hình sẽ quay về Chơi Mới.",
+    okLabel: "Đăng Xuất"
+  });
   if (!ok) return;
   // Lưu game lên cloud trước khi đăng xuất
   if (typeof G !== "undefined" && typeof G.saveGame === "function") {
@@ -1923,13 +1966,11 @@ window._cloudDeleteAccount = async function(userKey) {
 
 // ── Cảnh báo khi chưa đăng ký mà muốn thoát/đăng xuất ────
 window._warnNotRegistered = function() {
-  return confirm(
-    "⚠️ Bạn chưa đăng ký tài khoản!\n\n" +
-    "Dữ liệu chỉ lưu trên máy này.\n" +
-    "Xóa app hoặc đổi thiết bị sẽ MẤT toàn bộ tiến trình.\n\n" +
-    "Vào Cài Đặt → Đăng Ký để bảo vệ save của bạn.\n\n" +
-    "Vẫn muốn tiếp tục thoát?"
-  );
+  return _showGameConfirm({
+    title: "⚠️ Chưa Đăng Ký Tài Khoản",
+    msg: "Dữ liệu chỉ lưu trên máy này.\nXóa app hoặc đổi thiết bị sẽ MẤT toàn bộ tiến trình.\n\nVào Cài Đặt → Đăng Ký để bảo vệ save của bạn.\n\nVẫn muốn tiếp tục thoát?",
+    okLabel: "Thoát", okDanger: true
+  });
 };
 
 // ── Cập nhật nút title screen ─────────────────────────────
@@ -2127,6 +2168,18 @@ window._fsOnSnapshot     = onSnapshot;
     <div class="die-revive-title">🔮 Cửu Chuyển Đan</div>
     <div class="die-revive-desc" id="die-revive-desc"></div>
     <div class="die-revive-do" onclick="G._dieDoRevive()">✦ Sử Dụng Đan ✦</div>
+  </div>
+</div>
+
+<!-- Game Confirm Dialog -->
+<div id="gc-overlay">
+  <div id="gc-box">
+    <div id="gc-title"></div>
+    <div id="gc-msg"></div>
+    <div class="gc-btns">
+      <div class="gc-btn gc-btn-cancel" onclick="window._gcResolve(false)">Hủy</div>
+      <div class="gc-btn gc-btn-ok" id="gc-btn-ok" onclick="window._gcResolve(true)">Xác Nhận</div>
+    </div>
   </div>
 </div>
 
@@ -10070,11 +10123,16 @@ function _daoHuuSwitch(tab) {
   }
 }
 
-function _daoHuuRemove(index) {
+async function _daoHuuRemove(index) {
   const friends = S.daoHuu || [];
   const f = friends[index];
   if (!f) return;
-  if (!confirm(`Xóa ${f.username} khỏi danh sách Đạo Hữu?`)) return;
+  const ok = await _showGameConfirm({
+    title: "Xóa Đạo Hữu",
+    msg: `Xóa ${f.username} khỏi danh sách Đạo Hữu?`,
+    okLabel: "Xóa", okDanger: true
+  });
+  if (!ok) return;
   friends.splice(index, 1);
   S.daoHuu = friends;
   saveGame();
@@ -10339,8 +10397,12 @@ async function _daoHuuAcceptRequest(reqId) {
       }
     });
 
-    // 3) Xoá lời mời đã xử lý
-    await window._fsDeleteDoc(window._fsDoc(window._fsDb, "daohuu_requests", reqId));
+    // 3) Xoá lời mời đã xử lý (lỗi xóa không được chặn flow cập nhật UI)
+    try {
+      await window._fsDeleteDoc(window._fsDoc(window._fsDb, "daohuu_requests", reqId));
+    } catch(eDel) {
+      console.warn("[DaoHuu] Xóa lời mời thất bại (bỏ qua):", eDel);
+    }
 
     window._daoHuuRequestsCache = requests.filter(r => r.id !== reqId);
     // Chuyển sang tab Đạo Hữu để người dùng thấy ngay người vừa kết bạn
@@ -10368,7 +10430,11 @@ async function _daoHuuRejectRequest(reqId) {
   if (card) card.style.opacity = "0.5";
 
   try {
-    await window._fsDeleteDoc(window._fsDoc(window._fsDb, "daohuu_requests", reqId));
+    try {
+      await window._fsDeleteDoc(window._fsDoc(window._fsDb, "daohuu_requests", reqId));
+    } catch(eDel) {
+      console.warn("[DaoHuu] Xóa lời mời thất bại (bỏ qua):", eDel);
+    }
     window._daoHuuRequestsCache = requests.filter(r => r.id !== reqId);
     _daoHuuRefreshRequestsUI();
   } catch(e) {
@@ -10610,6 +10676,33 @@ function redeemCode(){
 
 /* ===== HUD THÔNG BÁO NỔI ===== */
 let _notifTimer = null;
+/* ===== GAME CONFIRM DIALOG ===== */
+let _gcPendingResolve = null;
+window._gcResolve = function(val) {
+  const overlay = document.getElementById("gc-overlay");
+  if (overlay) overlay.classList.remove("active");
+  if (_gcPendingResolve) { _gcPendingResolve(val); _gcPendingResolve = null; }
+};
+function _showGameConfirm(opts) {
+  // opts: { title, msg, okLabel, okDanger }
+  // returns Promise<boolean>
+  return new Promise(resolve => {
+    const overlay = document.getElementById("gc-overlay");
+    const elTitle = document.getElementById("gc-title");
+    const elMsg   = document.getElementById("gc-msg");
+    const elOk    = document.getElementById("gc-btn-ok");
+    if (!overlay) { resolve(confirm((opts.title || "") + "\n" + (opts.msg || ""))); return; }
+    elTitle.textContent = opts.title || "Xác Nhận";
+    elMsg.textContent   = opts.msg   || "";
+    elOk.textContent    = opts.okLabel || "Xác Nhận";
+    elOk.style.background    = opts.okDanger ? "rgba(180,30,30,.2)"    : "";
+    elOk.style.borderColor   = opts.okDanger ? "rgba(220,60,60,.6)"    : "";
+    elOk.style.color         = opts.okDanger ? "#ff8080"               : "";
+    _gcPendingResolve = resolve;
+    overlay.classList.add("active");
+  });
+}
+
 function showNotif(opts){
   // opts: { icon, title, lines:[], color, pulseColor, duration }
   const el    = document.getElementById("hud-notif");
@@ -10857,12 +10950,17 @@ function openSettings(){
   openScreen("system");
 }
 
-function quitGame(){
+async function quitGame(){
   if(!window._cloudUser){
-    const ok = window._warnNotRegistered ? window._warnNotRegistered() : confirm("Thoát game?");
+    const ok = window._warnNotRegistered ? await window._warnNotRegistered() : await _showGameConfirm({title:"Thoát Game",msg:"Thoát game?",okLabel:"Thoát"});
     if(!ok) return;
   } else {
-    if(!confirm("Bạn có muốn thoát game không?\n(Dữ liệu đã lưu trên cloud)")) return;
+    const ok = await _showGameConfirm({
+      title: "Thoát Game",
+      msg: "Bạn có muốn thoát game không?\n(Dữ liệu đã lưu trên cloud)",
+      okLabel: "Thoát"
+    });
+    if(!ok) return;
   }
   window.close();
   document.getElementById("title-screen").innerHTML = `
@@ -13407,8 +13505,18 @@ function _dieDoRevive(){
 }
 
 async function _dieAccept(){
-  if(!confirm("⚠️ Xác nhận chấp nhận thất bại?\n\nTài khoản sẽ bị XÓA VĨNH VIỄN.\nNgươi sẽ bị xóa khỏi Bảng Xếp Hạng và không thể đăng nhập lại.\n\nHành động này KHÔNG THỂ HÒA GIẢI!")) return;
-  if(!confirm("⚠️ Lần cuối xác nhận — THỰC SỰ xóa tài khoản?")) return;
+  const ok1 = await _showGameConfirm({
+    title: "⚠️ Xác Nhận Thất Bại",
+    msg: "Tài khoản sẽ bị XÓA VĨNH VIỄN.\nNgươi sẽ bị xóa khỏi Bảng Xếp Hạng và không thể đăng nhập lại.\n\nHành động này KHÔNG THỂ HÒA GIẢI!",
+    okLabel: "Tiếp Tục", okDanger: true
+  });
+  if (!ok1) return;
+  const ok2 = await _showGameConfirm({
+    title: "⚠️ Lần Cuối Xác Nhận",
+    msg: "THỰC SỰ xóa tài khoản?\nKhông thể hoàn tác!",
+    okLabel: "Xóa Tài Khoản", okDanger: true
+  });
+  if (!ok2) return;
 
   // Xóa khỏi Firebase nếu đã đăng nhập cloud
   if(window._cloudUser && window._cloudUser.userKey){
@@ -13556,8 +13664,13 @@ function _checkUpdateStatus() {
 }
 
 // ── Xóa cache thủ công từ Settings ──
-function _clearCacheManual() {
-  if (!confirm('Xóa toàn bộ cache ứng dụng?\n\nSave game trên cloud sẽ không bị mất.\nTrang sẽ tải lại sau khi xóa.')) return;
+async function _clearCacheManual() {
+  const ok = await _showGameConfirm({
+    title: "Xóa Cache Ứng Dụng",
+    msg: "Xóa toàn bộ cache ứng dụng?\n\nSave game trên cloud sẽ không bị mất.\nTrang sẽ tải lại sau khi xóa.",
+    okLabel: "Xóa Cache", okDanger: true
+  });
+  if (!ok) return;
   if (navigator.serviceWorker?.controller) {
     navigator.serviceWorker.controller.postMessage('CLEAR_CACHE');
     // Fallback reload nếu SW không phản hồi
