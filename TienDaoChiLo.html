@@ -19,7 +19,7 @@
 
 <script>
 // ★ ĐỔI SỐ NÀY MỖI KHI DEPLOY BẢN MỚI (phải khớp với sw.js) ★
-const APP_VERSION = '1.0.5';
+const APP_VERSION = '1.0.6';
 
 // ── Đăng ký Service Worker + kiểm tra update ──
 if ('serviceWorker' in navigator) {
@@ -10038,7 +10038,7 @@ async function _daoHuuSearch() {
         <div class="dh-actions">
           ${alreadyFriend
             ? `<div style="font-size:9px;color:#70d870;padding:4px 7px;background:rgba(80,200,80,.1);border:1px solid rgba(80,200,80,.3);border-radius:6px;">✓ Đã kết bạn</div>`
-            : `<div class="dh-add-btn" title="Gửi lời mời kết bạn" onclick="G._daoHuuSendRequest(${JSON.stringify(JSON.stringify(foundUser))})">＋</div>`}
+            : `<div class="dh-add-btn" title="Gửi lời mời kết bạn" onclick="G._daoHuuSendRequest(${JSON.stringify(foundUser).replace(/"/g, '&quot;')})">＋</div>`}
         </div>
       </div>`);
   } catch (e) {
@@ -10052,10 +10052,8 @@ function _daoHuuSearchResult(html) {
   if (el) el.innerHTML = html;
 }
 
-async function _daoHuuSendRequest(userJsonStr) {
+async function _daoHuuSendRequest(foundUser) {
   try {
-    const foundUser = JSON.parse(userJsonStr);
-
     if (!window._cloudUser) {
       showNotif({icon:"⚠️",title:"Chưa Đăng Nhập",lines:["Cần đăng ký/đăng nhập Cloud để kết bạn Đạo Hữu."],color:"#ffaa60",duration:3000});
       return;
