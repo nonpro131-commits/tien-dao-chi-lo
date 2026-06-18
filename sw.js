@@ -70,6 +70,12 @@ self.addEventListener('fetch', event => {
 
   if (event.request.method !== 'GET') return;
 
+  // Không bao giờ can thiệp vào chính sw.js — luôn để trình duyệt
+  // lấy thẳng từ network. Nếu không, cơ chế kiểm tra version (HTML
+  // tự fetch sw.js để so APP_VERSION) sẽ luôn nhận lại bản cũ trong
+  // cache do chiến lược stale-while-revalidate trả cache trước.
+  if (url.pathname.endsWith('/sw.js')) return;
+
   const isGoogleFonts = url.hostname.includes('fonts.googleapis.com') ||
                         url.hostname.includes('fonts.gstatic.com');
   const isSameOrigin = url.origin === self.location.origin;
