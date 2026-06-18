@@ -21,6 +21,32 @@
 // ★ ĐỔI SỐ NÀY MỖI KHI DEPLOY BẢN MỚI (phải khớp với sw.js) ★
 const APP_VERSION = '1.0.1';
 
+// ── Kiểm tra version MỚI NHẤT bằng cách fetch trực tiếp sw.js từ network ──
+// (đáng tin cậy hơn cơ chế Service Worker updatefound/controller, vì nó
+//  bỏ qua hoàn toàn cache trình duyệt VÀ không phụ thuộc SW đã activate
+//  hay chưa — quan trọng với GitHub Pages do CDN lan truyền bản mới có
+//  thể chậm vài phút, và registration.update() có thể không bắt được).
+async function _checkVersionViaFetch() {
+  try {
+    const res = await fetch('sw.js?_=' + Date.now(), { cache: 'no-store' });
+    if (!res.ok) return null;
+    const text = await res.text();
+    const m = text.match(/APP_VERSION\s*=\s*['"]([^'"]+)['"]/);
+    return m ? m[1] : null;
+  } catch (e) {
+    return null;
+  }
+}
+
+async function _runUpdateCheck() {
+  const latest = await _checkVersionViaFetch();
+  if (latest && latest !== APP_VERSION) {
+    _showUpdateBanner();
+    return true;
+  }
+  return false;
+}
+
 // ── Đăng ký Service Worker + kiểm tra update ──
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
@@ -40,11 +66,6 @@ if ('serviceWorker' in navigator) {
         });
 
         // ★ Ép kiểm tra sw.js mới ngay khi vào trang ★
-        // Mặc định browser chỉ tự check sw.js theo chu kỳ riêng (có thể
-        // rất lâu) và còn có thể bị HTTP cache chặn. Gọi update() thủ công
-        // buộc browser fetch lại sw.js qua network (bỏ qua HTTP cache nếu
-        // server có ETag/Last-Modified hợp lệ), từ đó updatefound mới có
-        // cơ hội bắn ra đúng lúc.
         reg.update().catch(() => {});
       })
       .catch(err => console.warn('[PWA] SW lỗi:', err));
@@ -70,6 +91,20 @@ if ('serviceWorker' in navigator) {
     }, 1500);
   });
 }
+
+// ── Kiểm tra version độc lập (fetch trực tiếp) — chạy ngay khi script load ──
+// Không cần chờ 'load' event, không phụ thuộc Service Worker.
+_runUpdateCheck();
+
+// ── Polling định kỳ: bắt bản mới dù CDN GitHub Pages lan truyền chậm ──
+setInterval(_runUpdateCheck, 5 * 60 * 1000); // mỗi 5 phút
+
+// ── Kiểm tra lại mỗi khi người chơi quay lại tab (sau khi rời đi) ──
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') {
+    _runUpdateCheck();
+  }
+});
 
 // ── Hiện banner thông báo có update ──
 function _showUpdateBanner() {
@@ -13412,39 +13447,22 @@ function _checkUpdateStatus() {
   const btnWrap  = document.getElementById('sys-update-btn-wrap');
   if (!statusEl) return;
 
-  if (!navigator.serviceWorker?.controller) {
-    statusEl.textContent = '✅ Mới nhất';
-    statusEl.style.color = '#70e880';
-    statusEl.style.borderColor = 'rgba(80,200,80,.25)';
-    return;
-  }
+  statusEl.textContent = '⏳ Đang kiểm tra...';
+  statusEl.style.color = '#c8a84a';
 
-  // Gửi yêu cầu lấy version từ SW
-  const channel = new MessageChannel();
-  channel.port1.onmessage = (e) => {
-    if (e.data?.type === 'SW_VERSION') {
-      const swVer = e.data.version;
-      if (swVer && swVer !== APP_VERSION) {
-        statusEl.textContent = '🆕 Có bản mới';
-        statusEl.style.color = '#90e890';
-        statusEl.style.borderColor = 'rgba(80,200,80,.4)';
-        if (btnWrap) btnWrap.style.display = 'block';
-      } else {
-        statusEl.textContent = '✅ Mới nhất';
-        statusEl.style.color = '#70e880';
-        statusEl.style.borderColor = 'rgba(80,200,80,.25)';
-      }
-    }
-  };
-  navigator.serviceWorker.controller.postMessage('GET_VERSION', [channel.port2]);
-
-  // Timeout fallback
-  setTimeout(() => {
-    if (statusEl && statusEl.textContent === 'Đang kiểm tra...') {
+  _checkVersionViaFetch().then(latest => {
+    if (latest && latest !== APP_VERSION) {
+      statusEl.textContent = '🆕 Có bản mới';
+      statusEl.style.color = '#90e890';
+      statusEl.style.borderColor = 'rgba(80,200,80,.4)';
+      if (btnWrap) btnWrap.style.display = 'block';
+    } else {
       statusEl.textContent = '✅ Mới nhất';
       statusEl.style.color = '#70e880';
+      statusEl.style.borderColor = 'rgba(80,200,80,.25)';
+      if (btnWrap) btnWrap.style.display = 'none';
     }
-  }, 3000);
+  });
 }
 
 // ── Xóa cache thủ công từ Settings ──
