@@ -19,7 +19,7 @@
 
 <script>
 // ★ ĐỔI SỐ NÀY MỖI KHI DEPLOY BẢN MỚI (phải khớp với sw.js) ★
-const APP_VERSION = '1.1.0';
+const APP_VERSION = '1.1.1';
 
 // ── DEBUG PANEL: thêm ?debug=1 vào URL để xem chẩn đoán ngay trên màn hình ──
 // (không cần DevTools — hữu ích để chẩn đoán trên điện thoại)
@@ -9743,16 +9743,8 @@ function openScreen(id, tab){
       b.style.display="flex";
       b.style.flexDirection="column";
       b.style.height="100%";
-      // Pull inbox trước để merge bạn mới, rồi mới render
-      if (typeof window._cloudPullDaoHuuInbox === "function") {
-        window._cloudPullDaoHuuInbox().then(() => {
-          b.innerHTML = buildDaoHuuHTML();
-          _daoHuuLoadRequests();
-        });
-      } else {
-        b.innerHTML = buildDaoHuuHTML();
-        _daoHuuLoadRequests();
-      }
+      b.innerHTML = buildDaoHuuHTML();
+      _daoHuuLoadRequests();
     },
     bxh:()=>{
       t.textContent="🏅 Bảng Xếp Hạng";
