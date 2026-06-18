@@ -19,7 +19,38 @@
 
 <script>
 // ★ ĐỔI SỐ NÀY MỖI KHI DEPLOY BẢN MỚI (phải khớp với sw.js) ★
-const APP_VERSION = '1.1.2';
+const APP_VERSION = '1.1.3';
+
+// ── DEBUG PANEL: thêm ?debug=1 vào URL để xem chẩn đoán ngay trên màn hình ──
+// (không cần DevTools — hữu ích để chẩn đoán trên điện thoại)
+const _DEBUG = new URLSearchParams(location.search).has('debug');
+let _debugLines = [];
+function _dbg(msg) {
+  const line = '[' + new Date().toLocaleTimeString() + '] ' + msg;
+  _debugLines.push(line);
+  console.log('[PWA-DEBUG]', msg);
+  if (_DEBUG) _renderDebugPanel();
+}
+function _renderDebugPanel() {
+  let panel = document.getElementById('debug-panel');
+  if (!panel) {
+    panel = document.createElement('div');
+    panel.id = 'debug-panel';
+    panel.style.cssText = 'position:fixed;bottom:0;left:0;right:0;max-height:50vh;overflow-y:auto;'
+      + 'background:rgba(0,0,0,.92);color:#0f0;font:10px/1.4 monospace;padding:8px;z-index:999999;'
+      + 'white-space:pre-wrap;border-top:2px solid #0f0;';
+    document.body.appendChild(panel);
+  }
+  panel.textContent = _debugLines.join('\n');
+  panel.scrollTop = panel.scrollHeight;
+}
+if (_DEBUG) {
+  window.addEventListener('DOMContentLoaded', () => {
+    _dbg('HTML APP_VERSION = ' + APP_VERSION);
+    _dbg('location = ' + location.href);
+    _dbg('navigator.serviceWorker.controller = ' + (navigator.serviceWorker?.controller ? navigator.serviceWorker.controller.scriptURL : 'null (chưa có SW kiểm soát trang)'));
+  });
+}
 
 // ── Kiểm tra version MỚI NHẤT bằng cách fetch trực tiếp sw.js từ network ──
 // (đáng tin cậy hơn cơ chế Service Worker updatefound/controller, vì nó
@@ -29,21 +60,29 @@ const APP_VERSION = '1.1.2';
 async function _checkVersionViaFetch() {
   try {
     const res = await fetch('sw.js?_=' + Date.now(), { cache: 'no-store' });
-    if (!res.ok) return null;
+    if (!res.ok) {
+      _dbg('fetch sw.js LỖI: HTTP ' + res.status);
+      return null;
+    }
     const text = await res.text();
     const m = text.match(/APP_VERSION\s*=\s*['"]([^'"]+)['"]/);
+    _dbg('fetch sw.js OK, độ dài=' + text.length + ' bytes, APP_VERSION đọc được = ' + (m ? m[1] : 'KHÔNG TÌM THẤY (regex không match!)'));
     return m ? m[1] : null;
   } catch (e) {
+    _dbg('fetch sw.js EXCEPTION: ' + e.message);
     return null;
   }
 }
 
 async function _runUpdateCheck() {
+  _dbg('--- _runUpdateCheck() bắt đầu, APP_VERSION hiện tại = ' + APP_VERSION + ' ---');
   const latest = await _checkVersionViaFetch();
   if (latest && latest !== APP_VERSION) {
+    _dbg('=> KHÁC NHAU (' + APP_VERSION + ' vs ' + latest + ') → hiện banner');
     _showUpdateBanner();
     return true;
   }
+  _dbg('=> GIỐNG NHAU hoặc không đọc được (' + latest + ') → không hiện banner');
   return false;
 }
 
@@ -53,32 +92,47 @@ if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('sw.js')
       .then(reg => {
         console.log('[PWA] SW đăng ký:', reg.scope);
+        _dbg('SW registered, scope=' + reg.scope);
+        _dbg('reg.active=' + (reg.active ? reg.active.scriptURL : 'null') +
+             ' | reg.waiting=' + (reg.waiting ? 'CÓ (chờ activate)' : 'null') +
+             ' | reg.installing=' + (reg.installing ? 'CÓ' : 'null'));
+
+        // Nếu đã có SW đang waiting ngay từ lúc register (vd: tab cũ chưa reload)
+        if (reg.waiting) {
+          _dbg('=> Phát hiện SW MỚI đang waiting ngay từ đầu → hiện banner');
+          _showUpdateBanner();
+        }
 
         // Lắng nghe SW mới sẵn sàng (waiting) → hiện banner update
         reg.addEventListener('updatefound', () => {
+          _dbg('updatefound: SW mới đang được tải/cài...');
           const newWorker = reg.installing;
           newWorker.addEventListener('statechange', () => {
+            _dbg('SW mới statechange => ' + newWorker.state);
             if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
               // Có bản mới đã tải xong, đang chờ activate
+              _dbg('=> SW mới đã installed (đang chờ activate) → hiện banner');
               _showUpdateBanner();
             }
           });
         });
 
         // ★ Ép kiểm tra sw.js mới ngay khi vào trang ★
-        reg.update().catch(() => {});
+        reg.update().then(() => _dbg('reg.update() đã chạy xong (không lỗi)')).catch(e => _dbg('reg.update() lỗi: ' + e.message));
       })
-      .catch(err => console.warn('[PWA] SW lỗi:', err));
+      .catch(err => { console.warn('[PWA] SW lỗi:', err); _dbg('SW register LỖI: ' + err.message); });
 
     // Lắng nghe message từ SW
     navigator.serviceWorker.addEventListener('message', e => {
       if (e.data?.type === 'SW_VERSION') {
         const swVer = e.data.version;
+        _dbg('Nhận message SW_VERSION từ SW: ' + swVer + ' (HTML đang là ' + APP_VERSION + ')');
         if (swVer && swVer !== APP_VERSION) {
           _showUpdateBanner();
         }
       }
       if (e.data?.type === 'CACHE_CLEARED') {
+        _dbg('Nhận message CACHE_CLEARED → reload trang');
         location.reload();
       }
     });
@@ -108,12 +162,22 @@ document.addEventListener('visibilitychange', () => {
 
 // ── Hiện banner thông báo có update ──
 function _showUpdateBanner() {
-  if (document.getElementById('update-banner')) return; // tránh hiện 2 lần
+  // QUAN TRỌNG: hàm này có thể được gọi RẤT SỚM (ngay khi script load,
+  // trong lúc <head> đang được parse, trước khi <body> tồn tại). Nếu
+  // document.body chưa có, appendChild sẽ lỗi và banner không hiện ra
+  // mà không có cảnh báo gì. Nên phải đợi DOM sẵn sàng trước.
+  if (!document.body) {
+    _dbg('_showUpdateBanner() gọi quá sớm, document.body chưa tồn tại → chờ DOMContentLoaded');
+    document.addEventListener('DOMContentLoaded', _showUpdateBanner, { once: true });
+    return;
+  }
+  if (document.getElementById('update-banner')) { _dbg('_showUpdateBanner(): banner đã tồn tại, bỏ qua'); return; } // tránh hiện 2 lần
+  _dbg('_showUpdateBanner(): đang tạo banner...');
   const banner = document.createElement('div');
   banner.id = 'update-banner';
   banner.innerHTML = `
     <div style="
-      position:fixed;top:0;left:0;right:0;z-index:99999;
+      position:fixed;top:0;left:0;right:0;z-index:2147483647;
       background:linear-gradient(135deg,#0d1a2e,#1a2a10);
       border-bottom:1px solid rgba(201,168,76,.5);
       padding:10px 16px;
@@ -148,6 +212,7 @@ function _showUpdateBanner() {
       </div>
     </div>`;
   document.body.appendChild(banner);
+  _dbg('_showUpdateBanner(): đã append banner vào DOM thành công ✓');
 }
 
 // ── Thực hiện update: xóa cache → reload ──
