@@ -19,7 +19,7 @@
 
 <script>
 // ★ ĐỔI SỐ NÀY MỖI KHI DEPLOY BẢN MỚI (phải khớp với sw.js) ★
-const APP_VERSION = '1.0.2';
+const APP_VERSION = '1.1.0';
 
 // ── DEBUG PANEL: thêm ?debug=1 vào URL để xem chẩn đoán ngay trên màn hình ──
 // (không cần DevTools — hữu ích để chẩn đoán trên điện thoại)
@@ -2022,16 +2022,19 @@ function _updateTitleLoginBtn() {
 }
 window._updateTitleLoginBtn = _updateTitleLoginBtn;
 
-// ── Pull inbox khi mở màn hình Đạo Hữu ──
-// Đơn giản: getDocs một lần, merge, xóa entries đã xử lý. Không cần realtime.
-window._cloudPullDaoHuuInbox = async function() {
-  if (!window._cloudUser || !window._fsGetDocs || !window._fsCollection) return;
-  if (!window.G || !window.G.S) return;
+// ── onSnapshot inbox — chỉ gọi SAU KHI G.S sẵn sàng (trong loadGame) ──
+// Realtime: có entry mới → merge ngay, xóa entry → hiện bạn mới tức thì.
+let _inboxUnsub = null;
+window._cloudWatchDaoHuu = function() {
+  if (_inboxUnsub) { _inboxUnsub(); _inboxUnsub = null; }
+  if (!window._cloudUser || !window.G || !window.G.S) {
+    _dbg("[Inbox] chưa sẵn sàng, bỏ qua");
+    return;
+  }
   const S = window.G.S;
   const myKey = window._cloudUser.userKey;
-  try {
-    const inboxCol = window._fsCollection(window._fsDb, "daohuu_inbox", myKey, "entries");
-    const snap = await window._fsGetDocs(inboxCol);
+  const inboxCol = collection(db, "daohuu_inbox", myKey, "entries");
+  _inboxUnsub = onSnapshot(inboxCol, async (snap) => {
     if (snap.empty) { _dbg("[Inbox] trống"); return; }
     S.daoHuu = S.daoHuu || [];
     let changed = false;
@@ -2055,24 +2058,21 @@ window._cloudPullDaoHuuInbox = async function() {
     if (changed) {
       window.G.saveGame();
       if (typeof window._daoHuuRefreshRequestsUI === "function") window._daoHuuRefreshRequestsUI();
+      if (typeof showNotif === "function") showNotif({icon:"🤝",title:"Kết Bạn Thành Công!",lines:["Bạn có Đạo Hữu mới!"],color:"#70d870",duration:3000});
     }
     for (const eid of toDelete) {
       try {
-        await window._fsDeleteDoc(window._fsDoc(window._fsDb, "daohuu_inbox", myKey, "entries", eid));
+        await deleteDoc(doc(db, "daohuu_inbox", myKey, "entries", eid));
         _dbg("[Inbox] deleted: " + eid);
       } catch(e) { _dbg("[Inbox] delete fail: " + e.message); }
     }
-  } catch(e) { _dbg("[Inbox] error: " + e.message); }
+  }, err => { _dbg("[Inbox] onSnapshot error: " + err.message); });
 };
-
-// Không dùng nữa — giữ stub để không lỗi nếu còn chỗ nào gọi
-window._cloudWatchDaoHuu = function() { _dbg("[WatchDH] disabled, dùng pull thay thế"); };
-window._cloudStopWatchDaoHuu = function() {};
-
-// Expose để gọi từ script thường sau khi login
 window._cloudStopWatchDaoHuu = function() {
-  if (_cloudWatchDaoHuuUnsub) { _cloudWatchDaoHuuUnsub(); _cloudWatchDaoHuuUnsub = null; }
+  if (_inboxUnsub) { _inboxUnsub(); _inboxUnsub = null; }
 };
+// Pull thủ công khi mở tab (dùng hàm watch luôn — tự restart listener)
+window._cloudPullDaoHuuInbox = function() { window._cloudWatchDaoHuu(); };
 
 // Expose Firestore helpers ra window để dùng trong script chính
 window._fsGetDocs    = getDocs;
@@ -7015,7 +7015,7 @@ function _buildCharStatsHTML(){
       ${statRow('💨','Tốc Chiến', S.agi,              bonusAgi,  null,       '#90e870')}
       ${statRow('❤','HP Tối Đa',  S.hpmax,            bonusHp,   null,       '#e87070')}
       ${statRow('🎯','Tỷ Lệ CM',  S.critRate||5,      bonusCritR,v=>v+'%',   '#ffd060')}
-      ${statRow('💥','ST Chí Mạng',S.critDmg||50,     bonusCritD,v=>v+'%',   '#ff8040')}
+      ${statRow('??','ST Chí Mạng',S.critDmg||50,     bonusCritD,v=>v+'%',   '#ff8040')}
       ${statRow('🌀','Kháng Hư',  S.khu||0,           bonusKhu,  v=>v+'%',   '#60d8c0')}
       ${statRow('✨','Tâm Hồn',   S.soul||0,          0,         null,       '#c0a0ff')}
       ${(()=>{ const tcd=S.tcd||0; const c=tcd>=80?'#e84545':tcd>=50?'#f0a030':'#b0a080'; const warn=tcd>=80?'⚠ Nguy hiểm!':tcd>=50?'⚠ Cảnh báo':''; return '<div style="display:flex;align-items:center;padding:3.5px 6px;"><div style="font-size:11px;width:18px;flex-shrink:0;">☠</div><div style="flex:1;font-size:9.5px;color:#7a6030;">Tạp Chất Đan</div><div style="display:flex;align-items:baseline;gap:3px;"><div style="font-size:11px;font-weight:700;color:'+c+';">'+tcd+'/100</div>'+(tcd>=50?'<div style="font-size:8px;color:'+c+';font-weight:600;">'+warn+'</div>':'')+'</div></div>'; })()}
@@ -10846,8 +10846,8 @@ function loadGame(){ try{
   // khi HP/Soul đã về 0 hoặc Tâm Ma/Tuổi thọ đã vượt giới hạn trước khi out.
   _isDead = false;
   checkDie();
-  // Thông báo cho Firebase module rằng G.S đã sẵn sàng
-  if (typeof window._fireGReady === "function") window._fireGReady();
+  // G.S sẵn sàng — khởi onSnapshot inbox để nhận bạn mới realtime
+  if (typeof window._cloudWatchDaoHuu === "function") window._cloudWatchDaoHuu();
 }catch(e){ alert("❌ "+e.message); } }
 function resetGame(){ localStorage.removeItem("tdcl"); location.reload(); }
 
