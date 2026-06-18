@@ -19,7 +19,7 @@
 
 <script>
 // ★ ĐỔI SỐ NÀY MỖI KHI DEPLOY BẢN MỚI (phải khớp với sw.js) ★
-const APP_VERSION = '1.1.7';
+const APP_VERSION = '1.0.1';
 
 // ── DEBUG PANEL: thêm ?debug=1 vào URL để xem chẩn đoán ngay trên màn hình ──
 // (không cần DevTools — hữu ích để chẩn đoán trên điện thoại)
@@ -1628,6 +1628,8 @@ onAuthStateChanged(auth, async (user) => {
           window._cloudUser = { username: snap.data().username, userKey: key, playerUid: snap.data().playerUid || null };
           // Khởi realtime listener lời mời kết bạn ngay khi restore session
           setTimeout(() => { if (typeof _daoHuuLoadRequests === "function") _daoHuuLoadRequests(); }, 1000);
+          // Lắng nghe realtime doc của mình để nhận daoHuu khi người khác accept lời mời
+          setTimeout(() => { if (typeof window._cloudWatchDaoHuu === "function") window._cloudWatchDaoHuu(); }, 1200);
         }
       }
     } else {
@@ -1721,6 +1723,8 @@ window._cloudLogin = async function() {
     window._cloudUser = { username: data.username, userKey: key, playerUid: data.playerUid || null };
     // Khởi realtime listener lời mời kết bạn
     setTimeout(() => { if (typeof _daoHuuLoadRequests === "function") _daoHuuLoadRequests(); }, 500);
+    // Lắng nghe realtime doc của mình để nhận daoHuu khi người khác accept lời mời
+    setTimeout(() => { if (typeof window._cloudWatchDaoHuu === "function") window._cloudWatchDaoHuu(); }, 700);
     localStorage.setItem("_tdcl_last_username", data.username);
     msgEl.textContent = "✅ Đăng nhập thành công!";
     msgEl.style.color = "#70e880";
@@ -1863,6 +1867,8 @@ window._cloudRegister = async function() {
     window._cloudUser = { username, userKey: key, playerUid };
     // Khởi realtime listener lời mời kết bạn
     setTimeout(() => { if (typeof _daoHuuLoadRequests === "function") _daoHuuLoadRequests(); }, 500);
+    // Lắng nghe realtime doc của mình để nhận daoHuu khi người khác accept lời mời
+    setTimeout(() => { if (typeof window._cloudWatchDaoHuu === "function") window._cloudWatchDaoHuu(); }, 700);
     localStorage.setItem("_tdcl_last_username", username);
     msgEl.textContent = "✅ Tạo tài khoản thành công! Save đã lên cloud.";
     msgEl.style.color = "#70e880";
@@ -1912,6 +1918,8 @@ window._cloudLogout = async function() {
   }
   // Chờ cloud save hoàn tất rồi mới reload
   await new Promise(r => setTimeout(r, 600));
+  // Dừng realtime listeners
+  if (typeof window._cloudStopWatchDaoHuu === "function") window._cloudStopWatchDaoHuu();
   try { await signOut(auth); } catch(e) {}
   window._cloudUser = null;
   localStorage.removeItem("_tdcl_last_username");
@@ -2006,29 +2014,46 @@ function _updateTitleLoginBtn() {
 window._updateTitleLoginBtn = _updateTitleLoginBtn;
 
 // ── Pull fresh daoHuu từ cloud về local (gọi khi mở màn hình Đạo Hữu) ──
-window._cloudFetchDaoHuu = async function() {
+// ── Lắng nghe realtime doc của chính mình để nhận daoHuu khi người khác accept lời mời ──
+// Khi A accept lời mời của B, A ghi vào doc players/{B_key} qua Transaction.
+// B's onSnapshot sẽ trigger ngay và merge daoHuu mới vào local state.
+let _cloudWatchDaoHuuUnsub = null;
+window._cloudWatchDaoHuu = function() {
+  if (_cloudWatchDaoHuuUnsub) { _cloudWatchDaoHuuUnsub(); _cloudWatchDaoHuuUnsub = null; }
   if (!window._cloudUser) return;
-  try {
-    const snap = await getDoc(doc(db, "players", window._cloudUser.userKey));
+  const myRef = doc(db, "players", window._cloudUser.userKey);
+  _cloudWatchDaoHuuUnsub = onSnapshot(myRef, (snap) => {
     if (!snap.exists()) return;
     const data = snap.data();
     let saveObj = {};
     try { if (data.saveData) saveObj = JSON.parse(data.saveData); } catch(e) {}
-    if (Array.isArray(saveObj.daoHuu) && typeof S !== "undefined") {
-      // Merge: giữ local, bổ sung những người chưa có
-      S.daoHuu = S.daoHuu || [];
-      let changed = false;
-      for (const remote of saveObj.daoHuu) {
-        if (!S.daoHuu.some(f => f.userKey === remote.userKey)) {
-          S.daoHuu.push(remote);
-          changed = true;
-        }
+    if (!Array.isArray(saveObj.daoHuu)) return;
+    // Dùng G.S để truy cập state trong IIFE
+    const S = window.G && window.G.S;
+    if (!S) return;
+    S.daoHuu = S.daoHuu || [];
+    let changed = false;
+    for (const remote of saveObj.daoHuu) {
+      if (!S.daoHuu.some(f => f.userKey === remote.userKey)) {
+        S.daoHuu.push(remote);
+        changed = true;
       }
-      if (changed && typeof saveGame === "function") saveGame();
     }
-  } catch(e) {
-    console.warn("[Cloud] _cloudFetchDaoHuu lỗi:", e.message);
-  }
+    if (changed) {
+      if (window.G && typeof window.G.saveGame === "function") window.G.saveGame();
+      // Nếu đang mở màn hình Đạo Hữu thì refresh UI
+      if (document.getElementById("daohuu-content-area") && typeof _daoHuuRefreshRequestsUI === "function") {
+        _daoHuuRefreshRequestsUI();
+      }
+    }
+  }, err => {
+    console.warn("[Cloud] _cloudWatchDaoHuu error:", err.message);
+  });
+};
+
+// Expose để gọi từ script thường sau khi login
+window._cloudStopWatchDaoHuu = function() {
+  if (_cloudWatchDaoHuuUnsub) { _cloudWatchDaoHuuUnsub(); _cloudWatchDaoHuuUnsub = null; }
 };
 
 // Expose Firestore helpers ra window để dùng trong script chính
@@ -9702,10 +9727,6 @@ function openScreen(id, tab){
       b.style.height="100%";
       b.innerHTML = buildDaoHuuHTML();
       _daoHuuLoadRequests();
-      // Kéo fresh daoHuu từ cloud để A thấy B sau khi B accept lời mời
-      if (typeof window._cloudFetchDaoHuu === "function") window._cloudFetchDaoHuu().then(() => {
-        if (document.getElementById("daohuu-content-area")) _daoHuuRefreshRequestsUI();
-      });
     },
     bxh:()=>{
       t.textContent="🏅 Bảng Xếp Hạng";
@@ -10432,14 +10453,14 @@ async function _daoHuuAcceptRequest(reqId) {
       }
     });
 
-    // 3) Xoá lời mời đã xử lý (lỗi xóa không được chặn flow cập nhật UI)
+    // 3) Xoá lời mời đã xử lý — đánh dấu TRƯỚC khi xóa để onSnapshot không restore lại dù delete thất bại
+    window._daoHuuAcceptedIds.add(reqId);
     try {
       await window._fsDeleteDoc(window._fsDoc(window._fsDb, "daohuu_requests", reqId));
     } catch(eDel) {
       console.warn("[DaoHuu] Xóa lời mời thất bại (bỏ qua):", eDel);
     }
 
-    window._daoHuuAcceptedIds.add(reqId); // đánh dấu để onSnapshot không restore lại
     window._daoHuuRequestsCache = requests.filter(r => r.id !== reqId);
     // Chuyển sang tab Đạo Hữu để người dùng thấy ngay người vừa kết bạn
     window._daoHuuTab = "daohuu_list";
@@ -10742,6 +10763,8 @@ function _showGameConfirm(opts) {
     overlay.classList.add("active");
   });
 }
+// Expose ra window để module script (Firebase) có thể gọi được
+window._showGameConfirm = _showGameConfirm;
 
 function showNotif(opts){
   // opts: { icon, title, lines:[], color, pulseColor, duration }
