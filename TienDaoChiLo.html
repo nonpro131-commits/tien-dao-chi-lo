@@ -19,7 +19,7 @@
 
 <script>
 // ★ ĐỔI SỐ NÀY MỖI KHI DEPLOY BẢN MỚI (phải khớp với sw.js) ★
-const APP_VERSION = '1.0.6';
+const APP_VERSION = '1.0.7';
 
 // ── DEBUG PANEL: thêm ?debug=1 vào URL để xem chẩn đoán ngay trên màn hình ──
 // (không cần DevTools — hữu ích để chẩn đoán trên điện thoại)
@@ -2037,26 +2037,43 @@ window._cloudWatchDaoHuu = function() {
     let saveObj = {};
     try { if (data.saveData) saveObj = JSON.parse(data.saveData); } catch(e) {}
     if (!Array.isArray(saveObj.daoHuu)) return;
-    // Dùng G.S để truy cập state trong IIFE
+
+    // Helper: merge saveObj.daoHuu vào S.daoHuu
+    function _mergeIntoDaoHuu(S) {
+      S.daoHuu = S.daoHuu || [];
+      let changed = false;
+      for (const remote of saveObj.daoHuu) {
+        if (!S.daoHuu.some(f => f.userKey === remote.userKey)) {
+          S.daoHuu.push(remote);
+          changed = true;
+        }
+      }
+      if (changed) {
+        _dbg("[WatchDH] merged! saveGame+refreshUI");
+        if (window.G && typeof window.G.saveGame === "function") window.G.saveGame();
+        if (document.getElementById("daohuu-content-area") && typeof window._daoHuuRefreshRequestsUI === "function") {
+          window._daoHuuRefreshRequestsUI();
+        }
+      } else {
+        _dbg("[WatchDH] no change");
+      }
+    }
+
     const S = window.G && window.G.S;
-    console.log("[WatchDaoHuu] onSnapshot fire, saveObj.daoHuu.length=", saveObj.daoHuu.length, "G.S=", !!S, "S.daoHuu=", S?.daoHuu?.length);
-    if (!S) { _dbg("[WatchDH] G.S=null!"); return; }
-    S.daoHuu = S.daoHuu || [];
-    let changed = false;
-    for (const remote of saveObj.daoHuu) {
-      if (!S.daoHuu.some(f => f.userKey === remote.userKey)) {
-        S.daoHuu.push(remote);
-        changed = true;
-      }
+    _dbg("[WatchDH] snap daoHuu="+saveObj.daoHuu.length+" G.S="+!!S);
+    if (!S) {
+      // G chưa init xong — thử lại sau khi load
+      _dbg("[WatchDH] G.S null, retry on load");
+      const doRetry = () => {
+        const S2 = window.G && window.G.S;
+        if (S2) { _mergeIntoDaoHuu(S2); }
+        else { _dbg("[WatchDH] retry: vẫn null"); }
+      };
+      if (document.readyState === "complete") setTimeout(doRetry, 1500);
+      else window.addEventListener("load", () => setTimeout(doRetry, 500), { once: true });
+      return;
     }
-    if (changed) {
-      _dbg("[WatchDH] changed! saveGame+refreshUI");
-      if (window.G && typeof window.G.saveGame === "function") window.G.saveGame();
-      // Nếu đang mở màn hình Đạo Hữu thì refresh UI
-      if (document.getElementById("daohuu-content-area") && typeof window._daoHuuRefreshRequestsUI === "function") {
-        window._daoHuuRefreshRequestsUI();
-      }
-    }
+    _mergeIntoDaoHuu(S);
   }, err => {
     console.warn("[Cloud] _cloudWatchDaoHuu error:", err.message);
   });
@@ -10494,6 +10511,7 @@ async function _daoHuuAcceptRequest(reqId) {
       duration:3000
     });
   } catch(e) {
+    _dbg("[DH-Accept] CATCH ERROR: "+e.code+" | "+e.message);
     console.error("[DaoHuu] Accept error:", e);
     if (card) card.style.opacity = "1";
     showNotif({icon:"⚠️",title:"Lỗi Kết Nối",lines:["Không xử lý được lời mời, vui lòng thử lại."],color:"#ffaa60",duration:2500});
