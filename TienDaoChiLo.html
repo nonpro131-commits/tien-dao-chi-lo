@@ -19,7 +19,7 @@
 
 <script>
 // ★ ĐỔI SỐ NÀY MỖI KHI DEPLOY BẢN MỚI (phải khớp với sw.js) ★
-const APP_VERSION = '1.0.8';
+const APP_VERSION = '1.0.1';
 
 // ── DEBUG PANEL: thêm ?debug=1 vào URL để xem chẩn đoán ngay trên màn hình ──
 // (không cần DevTools — hữu ích để chẩn đoán trên điện thoại)
@@ -2022,67 +2022,74 @@ function _updateTitleLoginBtn() {
 }
 window._updateTitleLoginBtn = _updateTitleLoginBtn;
 
-// ── Pull fresh daoHuu từ cloud về local (gọi khi mở màn hình Đạo Hữu) ──
-// ── Lắng nghe realtime doc của chính mình để nhận daoHuu khi người khác accept lời mời ──
-// Khi A accept lời mời của B, A ghi vào doc players/{B_key} qua Transaction.
-// B's onSnapshot sẽ trigger ngay và merge daoHuu mới vào local state.
+// ── Event bus: G module gọi window._onGReady(cb) để đăng ký callback khi G.S sẵn sàng ──
+// Firebase module dùng để tránh phụ thuộc timing với G (IIFE).
+window._gReadyCallbacks = window._gReadyCallbacks || [];
+window._gIsReady = false;
+window._onGReady = function(cb) {
+  if (window._gIsReady && window.G && window.G.S) { cb(window.G.S); return; }
+  window._gReadyCallbacks.push(cb);
+};
+window._fireGReady = function() {
+  window._gIsReady = true;
+  const S = window.G && window.G.S;
+  if (!S) return;
+  const cbs = window._gReadyCallbacks.splice(0);
+  cbs.forEach(cb => { try { cb(S); } catch(e) { console.warn("[GReady] cb error:", e); } });
+  _dbg("[GReady] fired "+cbs.length+" callbacks");
+};
+
+// ── Watch daohuu_inbox/{myKey} — collection riêng, không parse saveData lớn ──
+// Khi B accept lời mời của A: ghi entry vào daohuu_inbox/{A_key}/entries/{B_key}
+// A's onSnapshot trigger → merge vào S.daoHuu → xóa entry đã xử lý
 let _cloudWatchDaoHuuUnsub = null;
 window._cloudWatchDaoHuu = function() {
   if (_cloudWatchDaoHuuUnsub) { _cloudWatchDaoHuuUnsub(); _cloudWatchDaoHuuUnsub = null; }
   if (!window._cloudUser) return;
-  const myRef = doc(db, "players", window._cloudUser.userKey);
-  _cloudWatchDaoHuuUnsub = onSnapshot(myRef, (snap) => {
-    if (!snap.exists()) return;
-    const data = snap.data();
-    let saveObj = {};
-    try { if (data.saveData) saveObj = JSON.parse(data.saveData); } catch(e) {}
-    if (!Array.isArray(saveObj.daoHuu)) return;
+  const myKey = window._cloudUser.userKey;
+  // Lắng nghe sub-collection entries trong inbox của mình
+  const inboxCol = collection(db, "daohuu_inbox", myKey, "entries");
+  _cloudWatchDaoHuuUnsub = onSnapshot(inboxCol, async (snap) => {
+    if (snap.empty) { _dbg("[WatchDH] inbox empty"); return; }
+    const newFriends = [];
+    snap.forEach(d => newFriends.push({ id: d.id, ...d.data() }));
+    _dbg("[WatchDH] inbox has "+newFriends.length+" entries");
 
-    // Helper: merge saveObj.daoHuu vào S.daoHuu
-    function _mergeIntoDaoHuu(S) {
+    // Đợi G.S sẵn sàng rồi merge
+    window._onGReady(async (S) => {
       S.daoHuu = S.daoHuu || [];
       let changed = false;
-      for (const remote of saveObj.daoHuu) {
-        if (!S.daoHuu.some(f => f.userKey === remote.userKey)) {
-          S.daoHuu.push(remote);
+      const toDelete = [];
+      for (const entry of newFriends) {
+        if (!S.daoHuu.some(f => f.userKey === entry.userKey)) {
+          S.daoHuu.push({
+            userKey: entry.userKey,
+            username: entry.username || "Ẩn danh",
+            avatar: entry.avatar || null,
+            age: entry.age != null ? entry.age : null,
+            stageName: entry.stageName || "???",
+            addedAt: entry.addedAt || Date.now()
+          });
           changed = true;
+          _dbg("[WatchDH] merged: "+entry.username);
         }
+        toDelete.push(entry.id);
       }
       if (changed) {
-        _dbg("[WatchDH] merged! saveGame+refreshUI");
         if (window.G && typeof window.G.saveGame === "function") window.G.saveGame();
         if (document.getElementById("daohuu-content-area") && typeof window._daoHuuRefreshRequestsUI === "function") {
           window._daoHuuRefreshRequestsUI();
         }
-      } else {
-        _dbg("[WatchDH] no change");
+        showNotif && showNotif({icon:"🤝",title:"Kết Bạn Thành Công!",lines:["Bạn có Đạo Hữu mới!"],color:"#70d870",duration:3000});
       }
-    }
-
-    const S = window.G && window.G.S;
-    _dbg("[WatchDH] snap daoHuu="+saveObj.daoHuu.length+" G.S="+!!S);
-    if (!S) {
-      // G chưa init xong — thử lại nhiều lần với interval
-      _dbg("[WatchDH] G.S null, retry with interval");
-      let _retryCount = 0;
-      const _retryMax = 20; // thử tối đa 20 lần (~10 giây)
-      const _retryInterval = setInterval(() => {
-        _retryCount++;
-        const S2 = window.G && window.G.S;
-        if (S2) {
-          clearInterval(_retryInterval);
-          _dbg("[WatchDH] retry OK sau "+_retryCount+" lần");
-          _mergeIntoDaoHuu(S2);
-        } else if (_retryCount >= _retryMax) {
-          clearInterval(_retryInterval);
-          _dbg("[WatchDH] retry hết lần, bỏ qua");
-        } else {
-          _dbg("[WatchDH] retry #"+_retryCount+": vẫn null");
-        }
-      }, 500);
-      return;
-    }
-    _mergeIntoDaoHuu(S);
+      // Xóa các entries đã xử lý
+      for (const eid of toDelete) {
+        try {
+          await deleteDoc(doc(db, "daohuu_inbox", myKey, "entries", eid));
+          _dbg("[WatchDH] deleted inbox entry: "+eid);
+        } catch(e) { _dbg("[WatchDH] delete entry fail: "+e.message); }
+      }
+    });
   }, err => {
     console.warn("[Cloud] _cloudWatchDaoHuu error:", err.message);
   });
@@ -10394,15 +10401,10 @@ async function _daoHuuSendRequest(foundUser) {
   }
 }
 
-// ── Tải danh sách lời mời Đạo Hữu đang chờ (gửi đến mình) ──
-// ── Realtime listener cho lời mời Đạo Hữu (onSnapshot) ──
+// ── Realtime listener cho lời mời Đạo Hữu đến mình (onSnapshot) ──
 let _daoHuuUnsubscribe = null;
 
-// Track các reqId đã được accept/reject (để onSnapshot không restore lại lời mời chưa kịp xóa trên Firestore)
-window._daoHuuAcceptedIds = window._daoHuuAcceptedIds || new Set();
-
 function _daoHuuLoadRequests() {
-  // Hủy listener cũ nếu có
   if (_daoHuuUnsubscribe) { _daoHuuUnsubscribe(); _daoHuuUnsubscribe = null; }
   if (!window._cloudUser || !window._fsOnSnapshot) {
     window._daoHuuRequestsCache = [];
@@ -10417,10 +10419,6 @@ function _daoHuuLoadRequests() {
   _daoHuuUnsubscribe = window._fsOnSnapshot(q, snap => {
     const list = [];
     snap.forEach(docSnap => {
-      if (window._daoHuuAcceptedIds.has(docSnap.id)) {
-        _dbg("[DH-snap] skip accepted: "+docSnap.id);
-        return;
-      }
       const d = docSnap.data();
       list.push({ id: docSnap.id, fromKey: d.fromKey, fromName: d.fromName, fromAvatar: d.fromAvatar || null, createdAt: d.createdAt || 0 });
     });
@@ -10428,7 +10426,6 @@ function _daoHuuLoadRequests() {
     list.sort((a,b) => b.createdAt - a.createdAt);
     window._daoHuuRequestsCache = list;
     _daoHuuRefreshRequestsUI();
-    // Hiện thông báo nếu có lời mời mới đến (chỉ khi không đang ở tab requests)
     if (list.length > 0 && window._daoHuuTab !== "daohuu_requests") {
       const badge = document.getElementById("dh-req-badge");
       if (badge) { badge.textContent = list.length; badge.style.display = "inline-block"; }
@@ -10474,36 +10471,21 @@ async function _daoHuuAcceptRequest(reqId) {
       saveGame();
     }
 
-    // 2) Thêm MÌNH vào danh sách Đạo Hữu của người gửi — sửa trực tiếp document của họ qua Transaction
-    const fromRef = window._fsDoc(window._fsDb, "players", req.fromKey);
-    await window._fsRunTransaction(window._fsDb, async (tx) => {
-      const snap = await tx.get(fromRef);
-      if (!snap.exists()) return;
-      const data = snap.data();
-      let saveObj = {};
-      try { if (data.saveData) saveObj = JSON.parse(data.saveData); } catch(e) {}
-      if (!Array.isArray(saveObj.daoHuu)) saveObj.daoHuu = [];
-      if (!saveObj.daoHuu.some(f => f.userKey === myKey)) {
-        saveObj.daoHuu.push({
-          userKey: myKey,
-          username: S.name || window._cloudUser.username || "Ẩn danh",
-          avatar: S.avatar || null,
-          age: S.age != null ? S.age : null,
-          stageName: S.stageName || "???",
-          addedAt: Date.now()
-        });
-        tx.update(fromRef, { saveData: JSON.stringify(saveObj) });
-      }
+    // 2) Thêm MÌNH vào inbox của người gửi (A) — không cần Transaction, không parse saveData
+    const inboxEntryRef = window._fsDoc(window._fsDb, "daohuu_inbox", req.fromKey, "entries", myKey);
+    await window._fsSetDoc(inboxEntryRef, {
+      userKey: myKey,
+      username: S.name || window._cloudUser.username || "Ẩn danh",
+      avatar: S.avatar || null,
+      age: S.age != null ? S.age : null,
+      stageName: S.stageName || "???",
+      addedAt: Date.now()
     });
 
-    // 3) Xoá lời mời đã xử lý — đánh dấu TRƯỚC khi xóa để onSnapshot không restore lại dù delete thất bại
-    window._daoHuuAcceptedIds.add(reqId);
-    _dbg("[DH-Accept] acceptedIds size="+window._daoHuuAcceptedIds.size);
+    // 3) Xoá document lời mời trên Firestore — onSnapshot sẽ tự cập nhật UI
     try {
       await window._fsDeleteDoc(window._fsDoc(window._fsDb, "daohuu_requests", reqId));
       _dbg("[DH-Accept] delete OK: "+reqId);
-      // Đã xóa thành công trên Firestore — dọn dẹp khỏi Set sau 5s (document không còn tồn tại nữa)
-      setTimeout(() => { window._daoHuuAcceptedIds.delete(reqId); }, 5000);
     } catch(eDel) {
       _dbg("[DH-Accept] delete FAIL: "+eDel.code+" "+eDel.message);
     }
@@ -10541,8 +10523,6 @@ async function _daoHuuRejectRequest(reqId) {
     } catch(eDel) {
       console.warn("[DaoHuu] Xóa lời mời thất bại (bỏ qua):", eDel);
     }
-    window._daoHuuAcceptedIds.add(reqId); // đánh dấu để onSnapshot không restore lại
-    setTimeout(() => { window._daoHuuAcceptedIds.delete(reqId); }, 5000); // dọn dẹp sau 5s
     window._daoHuuRequestsCache = requests.filter(r => r.id !== reqId);
     _daoHuuRefreshRequestsUI();
   } catch(e) {
@@ -10873,6 +10853,8 @@ function loadGame(){ try{
   // khi HP/Soul đã về 0 hoặc Tâm Ma/Tuổi thọ đã vượt giới hạn trước khi out.
   _isDead = false;
   checkDie();
+  // Thông báo cho Firebase module rằng G.S đã sẵn sàng
+  if (typeof window._fireGReady === "function") window._fireGReady();
 }catch(e){ alert("❌ "+e.message); } }
 function resetGame(){ localStorage.removeItem("tdcl"); location.reload(); }
 
