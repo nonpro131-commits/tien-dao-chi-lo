@@ -19,7 +19,7 @@
 
 <script>
 // ★ ĐỔI SỐ NÀY MỖI KHI DEPLOY BẢN MỚI (phải khớp với sw.js) ★
-const APP_VERSION = '1.1.1';
+const APP_VERSION = '1.1.2';
 
 // ── DEBUG PANEL: thêm ?debug=1 vào URL để xem chẩn đoán ngay trên màn hình ──
 // (không cần DevTools — hữu ích để chẩn đoán trên điện thoại)
@@ -1637,8 +1637,8 @@ onAuthStateChanged(auth, async (user) => {
           window._cloudUser = { username: snap.data().username, userKey: key, playerUid: snap.data().playerUid || null };
           // Khởi realtime listener lời mời kết bạn ngay khi restore session
           setTimeout(() => { if (typeof _daoHuuLoadRequests === "function") _daoHuuLoadRequests(); }, 1000);
-          // Lắng nghe realtime doc của mình để nhận daoHuu khi người khác accept lời mời
-          setTimeout(() => { if (typeof window._cloudWatchDaoHuu === "function") window._cloudWatchDaoHuu(); }, 1200);
+          // KHÔNG gọi _cloudWatchDaoHuu ở đây — G.S chưa sẵn sàng lúc này.
+          // _cloudWatchDaoHuu chỉ được gọi trong loadGame() khi G.S chắc chắn đã init.
         }
       }
     } else {
@@ -1732,8 +1732,7 @@ window._cloudLogin = async function() {
     window._cloudUser = { username: data.username, userKey: key, playerUid: data.playerUid || null };
     // Khởi realtime listener lời mời kết bạn
     setTimeout(() => { if (typeof _daoHuuLoadRequests === "function") _daoHuuLoadRequests(); }, 500);
-    // Lắng nghe realtime doc của mình để nhận daoHuu khi người khác accept lời mời
-    setTimeout(() => { if (typeof window._cloudWatchDaoHuu === "function") window._cloudWatchDaoHuu(); }, 700);
+    // KHÔNG gọi _cloudWatchDaoHuu ở đây — G.S chưa sẵn sàng. Sẽ gọi trong loadGame().
     localStorage.setItem("_tdcl_last_username", data.username);
     msgEl.textContent = "✅ Đăng nhập thành công!";
     msgEl.style.color = "#70e880";
@@ -1876,8 +1875,7 @@ window._cloudRegister = async function() {
     window._cloudUser = { username, userKey: key, playerUid };
     // Khởi realtime listener lời mời kết bạn
     setTimeout(() => { if (typeof _daoHuuLoadRequests === "function") _daoHuuLoadRequests(); }, 500);
-    // Lắng nghe realtime doc của mình để nhận daoHuu khi người khác accept lời mời
-    setTimeout(() => { if (typeof window._cloudWatchDaoHuu === "function") window._cloudWatchDaoHuu(); }, 700);
+    // KHÔNG gọi _cloudWatchDaoHuu ở đây — G.S chưa sẵn sàng. Sẽ gọi trong loadGame().
     localStorage.setItem("_tdcl_last_username", username);
     msgEl.textContent = "✅ Tạo tài khoản thành công! Save đã lên cloud.";
     msgEl.style.color = "#70e880";
@@ -7015,7 +7013,7 @@ function _buildCharStatsHTML(){
       ${statRow('💨','Tốc Chiến', S.agi,              bonusAgi,  null,       '#90e870')}
       ${statRow('❤','HP Tối Đa',  S.hpmax,            bonusHp,   null,       '#e87070')}
       ${statRow('🎯','Tỷ Lệ CM',  S.critRate||5,      bonusCritR,v=>v+'%',   '#ffd060')}
-      ${statRow('??','ST Chí Mạng',S.critDmg||50,     bonusCritD,v=>v+'%',   '#ff8040')}
+      ${statRow('💥','ST Chí Mạng',S.critDmg||50,     bonusCritD,v=>v+'%',   '#ff8040')}
       ${statRow('🌀','Kháng Hư',  S.khu||0,           bonusKhu,  v=>v+'%',   '#60d8c0')}
       ${statRow('✨','Tâm Hồn',   S.soul||0,          0,         null,       '#c0a0ff')}
       ${(()=>{ const tcd=S.tcd||0; const c=tcd>=80?'#e84545':tcd>=50?'#f0a030':'#b0a080'; const warn=tcd>=80?'⚠ Nguy hiểm!':tcd>=50?'⚠ Cảnh báo':''; return '<div style="display:flex;align-items:center;padding:3.5px 6px;"><div style="font-size:11px;width:18px;flex-shrink:0;">☠</div><div style="flex:1;font-size:9.5px;color:#7a6030;">Tạp Chất Đan</div><div style="display:flex;align-items:baseline;gap:3px;"><div style="font-size:11px;font-weight:700;color:'+c+';">'+tcd+'/100</div>'+(tcd>=50?'<div style="font-size:8px;color:'+c+';font-weight:600;">'+warn+'</div>':'')+'</div></div>'; })()}
