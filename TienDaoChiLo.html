@@ -679,10 +679,10 @@ body.hud-open #chat-daohuu-row{opacity:0;pointer-events:none;}
 #chat-popup{
   display:none;
   position:fixed;bottom:116px;right:10px;
-  width:310px;height:420px;
+  width:310px;height:420px;max-height:min(420px,calc(100vh - 180px));
   z-index:600;
   background:rgba(8,5,2,.97);
-  border:1px solid rgba(80,160,255,.25);
+  border:1px solid rgba(80,160,255,.4);
   border-radius:14px;
   box-shadow:0 4px 24px rgba(0,0,0,.7);
   flex-direction:column;
@@ -823,6 +823,9 @@ body.hud-open #chat-daohuu-row{opacity:0;pointer-events:none;}
 #chat-dm-input-box:focus{border-color:rgba(80,160,255,.45);}
 @media(max-width:540px){
   #chat-popup{width:calc(100vw - 20px);right:10px;left:10px;}
+}
+@media(max-height:600px){
+  #chat-popup{bottom:70px;max-height:calc(100vh - 90px);}
 }
 
 /* ===== ACHIEVEMENT BUTTON ===== */
@@ -2616,36 +2619,6 @@ window._fsServerTimestamp = serverTimestamp;
   </div>
 </div>
 
-<!-- Chat popup -->
-<div id="chat-popup">
-  <div class="chat-popup-hdr">
-    <div class="chat-tab-btn active" id="chat-tab-world" onclick="G._chatSwitchTab('world')">🌍 Thế Giới</div>
-    <div class="chat-tab-btn" id="chat-tab-friends" onclick="G._chatSwitchTab('friends')">🤝 Bạn Bè</div>
-    <div class="chat-popup-close" onclick="G.toggleChat()">✕</div>
-  </div>
-  <div id="chat-world-pane">
-    <div id="chat-world-msgs"><div style="text-align:center;color:#3a5060;font-size:10px;padding:20px 0;">Đang tải tin nhắn...</div></div>
-    <div class="chat-cooldown-bar"><div class="chat-cooldown-fill" id="chat-cooldown-fill"></div></div>
-    <div class="chat-world-input">
-      <input id="chat-world-input-box" type="text" maxlength="120" placeholder="Nhập tin nhắn thế giới..." onkeydown="if(event.key==='Enter')G._chatWorldSend()"/>
-      <div class="chat-send-btn" onclick="G._chatWorldSend()">➤</div>
-    </div>
-  </div>
-  <div id="chat-friends-pane" class="hidden">
-    <div id="chat-friends-list"></div>
-  </div>
-  <div id="chat-dm-pane" class="hidden">
-    <div class="chat-dm-hdr">
-      <span class="chat-dm-back" onclick="G._chatBackToFriends()">←</span>
-      <span class="chat-dm-title" id="chat-dm-title">—</span>
-    </div>
-    <div id="chat-dm-msgs"></div>
-    <div class="chat-dm-input">
-      <input id="chat-dm-input-box" type="text" maxlength="120" placeholder="Nhắn tin..." onkeydown="if(event.key==='Enter')G._chatDmSend()"/>
-      <div class="chat-send-btn" onclick="G._chatDmSend()">➤</div>
-    </div>
-  </div>
-</div>
 
   <div class="nav-btn" id="nav-character" onclick="G.openScreen('character')"><div class="nav-icon">🧍</div><div class="nav-label">Nhân Vật</div></div>
 
@@ -9006,7 +8979,15 @@ function _lkSwitchSect(sectId) {
 }
 
 /* ===== SCREENS ===== */
+let _currentScreenId = null;
+function _chatScreenCleanup(){
+  _chatCurrentTab = 'world';
+  _chatDmTarget = null;
+  if (_chatDmUnsub) { _chatDmUnsub(); _chatDmUnsub = null; }
+  _chatOpen = false;
+}
 function openScreen(id, tab){
+  if (_currentScreenId === 'chat' && id !== 'chat') _chatScreenCleanup();
   // Check locked
   if(id==="character" && !S.unlockHUD) return;
   if(id==="character_inv" && !S.unlockHUD) return;
@@ -9017,6 +8998,7 @@ function openScreen(id, tab){
   if(id==="skills" && !S.unlockInventory) return;
   if(id==="quest" && !S.unlockHUD) return;
   if(id==="map" && !S.unlockMap) return;
+  _currentScreenId = id;
 
   document.getElementById("screen-overlay").classList.add("active");
   const t = document.getElementById("screen-title");
@@ -9952,6 +9934,47 @@ function openScreen(id, tab){
         <div style="font-size:13px;font-weight:700;color:#d6b15f;margin-bottom:6px;">Sự Kiện Đặc Biệt</div>
         <div style="font-size:11px;color:#5a4020;line-height:1.7">Hiện chưa có sự kiện nào đang diễn ra.<br>Hãy quay lại sau!</div>
       </div>`; },
+    chat:()=>{
+      t.textContent="💬 Chat";
+      b.style.padding="0";
+      b.style.overflow="hidden";
+      b.style.display="flex";
+      b.style.flexDirection="column";
+      b.style.height="100%";
+      b.innerHTML = `
+        <div class="chat-popup-hdr">
+          <div class="chat-tab-btn active" id="chat-tab-world" onclick="G._chatSwitchTab('world')">🌍 Thế Giới</div>
+          <div class="chat-tab-btn" id="chat-tab-friends" onclick="G._chatSwitchTab('friends')">🤝 Bạn Bè</div>
+        </div>
+        <div id="chat-world-pane">
+          <div id="chat-world-msgs"><div style="text-align:center;color:#3a5060;font-size:10px;padding:20px 0;">Đang tải tin nhắn...</div></div>
+          <div class="chat-cooldown-bar"><div class="chat-cooldown-fill" id="chat-cooldown-fill"></div></div>
+          <div class="chat-world-input">
+            <input id="chat-world-input-box" type="text" maxlength="120" placeholder="Nhập tin nhắn thế giới..." onkeydown="if(event.key==='Enter')G._chatWorldSend()"/>
+            <div class="chat-send-btn" onclick="G._chatWorldSend()">➤</div>
+          </div>
+        </div>
+        <div id="chat-friends-pane" class="hidden">
+          <div id="chat-friends-list"></div>
+        </div>
+        <div id="chat-dm-pane" class="hidden">
+          <div class="chat-dm-hdr">
+            <span class="chat-dm-back" onclick="G._chatBackToFriends()">←</span>
+            <span class="chat-dm-title" id="chat-dm-title">—</span>
+          </div>
+          <div id="chat-dm-msgs"></div>
+          <div class="chat-dm-input">
+            <input id="chat-dm-input-box" type="text" maxlength="120" placeholder="Nhắn tin..." onkeydown="if(event.key==='Enter')G._chatDmSend()"/>
+            <div class="chat-send-btn" onclick="G._chatDmSend()">➤</div>
+          </div>
+        </div>
+      `;
+      _chatOpen = true;
+      _chatWorldListen();
+      _chatSwitchTab(_chatCurrentTab === 'friends' ? 'friends' : 'world');
+      const dot = document.getElementById('chat-notif-dot');
+      if (dot) dot.style.display = 'none';
+    },
     daohuu:()=>{
       t.textContent="🤝 Đạo Hữu";
       b.style.padding="0";
@@ -10055,6 +10078,8 @@ function openScreen(id, tab){
   if(screens[id]) screens[id]();
 }
 function closeScreen(){ 
+  if (_currentScreenId === 'chat') _chatScreenCleanup();
+  _currentScreenId = null;
   document.getElementById("screen-overlay").classList.remove("active");
   const b = document.getElementById("screen-body");
   b.style.padding = ""; b.style.overflow = ""; b.style.maxHeight = "";
@@ -10429,10 +10454,10 @@ async function _daoHuuRemove(index) {
 }
 
 function _daoHuuMsg(userKey) {
-  // Mở popup Chat → tab Bạn Bè → DM thẳng với người này
+  // Mở màn Chat → tab Bạn Bè → DM thẳng với người này
   const friend = (S.daoHuu || []).find(f => f.userKey === userKey);
   if (!friend) return;
-  _chatTogglePopup(true);
+  openScreen('chat');
   setTimeout(() => {
     _chatSwitchTab('friends');
     setTimeout(() => _chatOpenDm(friend), 100);
@@ -10523,6 +10548,11 @@ function _chatWorldListen() {
 }
 
 function _chatWorldRender(msgs) {
+  // Cập nhật chấm thông báo bất kể đang ở màn Chat hay không
+  if (!_chatOpen) {
+    const dot = document.getElementById('chat-notif-dot');
+    if (dot) dot.style.display = 'block';
+  }
   const el = document.getElementById('chat-world-msgs');
   if (!el) return;
   const myKey = window._cloudUser ? window._cloudUser.userKey : null;
@@ -10545,11 +10575,6 @@ function _chatWorldRender(msgs) {
     </div>`;
   }).join('');
   if (atBottom) el.scrollTop = el.scrollHeight;
-  // Nếu popup đóng mà có tin mới → hiện dot
-  if (!_chatOpen) {
-    const dot = document.getElementById('chat-notif-dot');
-    if (dot) dot.style.display = 'block';
-  }
 }
 
 async function _chatWorldSend() {
@@ -14163,7 +14188,7 @@ return {
   },
   _daoHuuSwitch, _daoHuuRemove, _daoHuuMsg, _daoHuuSearch, _daoHuuSendRequest, _updateDaoHuuBtnAvatar,
   _daoHuuLoadRequests, _daoHuuAcceptRequest, _daoHuuRejectRequest,
-  toggleChat: function(){ _chatTogglePopup(); },
+  toggleChat: function(){ openScreen('chat'); },
   _chatSwitchTab, _chatWorldSend, _chatDmSend, _chatBackToFriends, _chatOpenDm,
   startNewGame, confirmName, continueGame, openSettings, quitGame, _selectAvatar,
   _showAvatarScreen, _showWelcomePopup,
