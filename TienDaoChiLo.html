@@ -19,7 +19,7 @@
 
 <script>
 // ★ ĐỔI SỐ NÀY MỖI KHI DEPLOY BẢN MỚI (phải khớp với sw.js) ★
-const APP_VERSION = '1.1.4';
+const APP_VERSION = '1.1.5';
 
 // ── DEBUG PANEL: thêm ?debug=1 vào URL để xem chẩn đoán ngay trên màn hình ──
 // (không cần DevTools — hữu ích để chẩn đoán trên điện thoại)
@@ -668,6 +668,162 @@ body.hud-open #hud-btn{opacity:0;pointer-events:none;}
 }
 .qbtn:hover{border-color:#d6b15f;background:rgba(20,14,4,.95);}
 body.hud-open #quick-btns{opacity:0;pointer-events:none;}
+
+/* ===== CHAT BUTTON ===== */
+/* chat-btn styles handled inline in HTML */
+
+/* ===== CHAT+DAOHUU ROW ===== */
+body.hud-open #chat-daohuu-row{opacity:0;pointer-events:none;}
+
+/* ===== CHAT POPUP ===== */
+#chat-popup{
+  display:none;
+  position:fixed;bottom:116px;right:10px;
+  width:310px;height:420px;
+  z-index:600;
+  background:rgba(8,5,2,.97);
+  border:1px solid rgba(80,160,255,.25);
+  border-radius:14px;
+  box-shadow:0 4px 24px rgba(0,0,0,.7);
+  flex-direction:column;
+  overflow:hidden;
+}
+#chat-popup.open{display:flex;}
+.chat-popup-hdr{
+  display:flex;align-items:center;gap:0;
+  background:rgba(12,8,3,.98);
+  border-bottom:1px solid rgba(80,160,255,.15);
+  flex-shrink:0;
+}
+.chat-tab-btn{
+  flex:1;padding:9px 4px;
+  font-size:10.5px;font-weight:600;letter-spacing:.3px;
+  color:#5a6a80;text-align:center;cursor:pointer;
+  border-bottom:2px solid transparent;
+  transition:color .15s,border-color .15s;
+}
+.chat-tab-btn.active{color:#5ab0ff;border-bottom-color:#5ab0ff;}
+.chat-tab-btn:hover:not(.active){color:#8ab0d0;}
+.chat-popup-close{
+  width:32px;height:36px;display:flex;align-items:center;justify-content:center;
+  color:#4a5a70;font-size:14px;cursor:pointer;flex-shrink:0;
+  transition:color .15s;
+}
+.chat-popup-close:hover{color:#8ab0d0;}
+/* World chat pane */
+#chat-world-pane,#chat-friends-pane{
+  flex:1;min-height:0;display:flex;flex-direction:column;
+}
+#chat-world-pane.hidden,#chat-friends-pane.hidden{display:none;}
+#chat-world-msgs{
+  flex:1;overflow-y:auto;padding:8px 10px;
+  display:flex;flex-direction:column;gap:6px;
+}
+.chat-msg-row{display:flex;align-items:flex-start;gap:6px;}
+.chat-msg-ava{
+  width:28px;height:28px;border-radius:7px;
+  background:rgba(30,20,8,.9);border:1px solid rgba(201,168,76,.2);
+  flex-shrink:0;overflow:hidden;display:flex;align-items:center;justify-content:center;
+  font-size:14px;
+}
+.chat-msg-ava img{width:100%;height:100%;object-fit:cover;}
+.chat-msg-body{flex:1;min-width:0;}
+.chat-msg-name{font-size:9.5px;color:#7a8a9a;margin-bottom:2px;padding-left:2px;}
+.chat-msg-bubble{
+  display:inline-block;
+  background:rgba(20,30,50,.7);border:1px solid rgba(80,160,255,.15);
+  border-radius:4px 10px 10px 10px;
+  padding:5px 8px;font-size:11px;color:#c8d8e8;
+  line-height:1.4;max-width:220px;word-break:break-word;
+}
+.chat-msg-bubble.me{
+  background:rgba(20,50,80,.7);border-color:rgba(80,160,255,.3);
+  border-radius:10px 4px 10px 10px;color:#d8eeff;
+}
+.chat-msg-row.me{flex-direction:row-reverse;}
+.chat-msg-row.me .chat-msg-name{text-align:right;}
+.chat-world-input{
+  display:flex;gap:6px;padding:8px 10px;
+  border-top:1px solid rgba(80,160,255,.12);flex-shrink:0;
+}
+#chat-world-input-box{
+  flex:1;background:rgba(15,20,35,.8);
+  border:1px solid rgba(80,160,255,.2);border-radius:8px;
+  color:#c8d8e8;font-size:11px;padding:6px 9px;outline:none;
+  font-family:inherit;resize:none;height:34px;line-height:1.3;
+}
+#chat-world-input-box::placeholder{color:#3a5060;}
+#chat-world-input-box:focus{border-color:rgba(80,160,255,.45);}
+.chat-send-btn{
+  width:34px;height:34px;border-radius:8px;
+  background:rgba(40,100,180,.5);border:1px solid rgba(80,160,255,.35);
+  color:#5ab0ff;font-size:14px;cursor:pointer;flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;
+  transition:background .15s;
+}
+.chat-send-btn:hover{background:rgba(60,130,220,.6);}
+.chat-cooldown-bar{
+  height:2px;background:rgba(80,160,255,.15);flex-shrink:0;
+}
+.chat-cooldown-fill{
+  height:100%;background:rgba(80,160,255,.5);
+  transition:width .1s linear;width:0%;
+}
+/* Friends list pane */
+#chat-friends-list{
+  flex:1;overflow-y:auto;padding:8px 10px;
+  display:flex;flex-direction:column;gap:4px;
+}
+.chat-friend-row{
+  display:flex;align-items:center;gap:8px;padding:7px 8px;
+  background:rgba(15,20,35,.5);border:1px solid rgba(80,160,255,.1);
+  border-radius:8px;cursor:pointer;transition:background .15s;
+}
+.chat-friend-row:hover{background:rgba(20,40,80,.6);border-color:rgba(80,160,255,.25);}
+.chat-friend-ava{
+  width:32px;height:32px;border-radius:8px;
+  background:rgba(30,20,8,.9);border:1px solid rgba(201,168,76,.2);
+  overflow:hidden;display:flex;align-items:center;justify-content:center;
+  font-size:16px;flex-shrink:0;
+}
+.chat-friend-ava img{width:100%;height:100%;object-fit:cover;}
+.chat-friend-name{font-size:11px;color:#c8d8e8;font-weight:600;}
+.chat-friend-unread{
+  margin-left:auto;width:16px;height:16px;border-radius:50%;
+  background:#5ab0ff;font-size:9px;color:#fff;font-weight:700;
+  display:none;align-items:center;justify-content:center;flex-shrink:0;
+}
+/* DM pane */
+#chat-dm-pane{
+  flex:1;min-height:0;display:flex;flex-direction:column;
+}
+#chat-dm-pane.hidden{display:none;}
+.chat-dm-hdr{
+  display:flex;align-items:center;gap:7px;
+  padding:7px 10px;border-bottom:1px solid rgba(80,160,255,.12);
+  flex-shrink:0;
+}
+.chat-dm-back{color:#5ab0ff;font-size:16px;cursor:pointer;line-height:1;}
+.chat-dm-title{font-size:11px;font-weight:700;color:#c8d8e8;}
+#chat-dm-msgs{
+  flex:1;overflow-y:auto;padding:8px 10px;
+  display:flex;flex-direction:column;gap:6px;
+}
+.chat-dm-input{
+  display:flex;gap:6px;padding:8px 10px;
+  border-top:1px solid rgba(80,160,255,.12);flex-shrink:0;
+}
+#chat-dm-input-box{
+  flex:1;background:rgba(15,20,35,.8);
+  border:1px solid rgba(80,160,255,.2);border-radius:8px;
+  color:#c8d8e8;font-size:11px;padding:6px 9px;outline:none;
+  font-family:inherit;resize:none;height:34px;line-height:1.3;
+}
+#chat-dm-input-box::placeholder{color:#3a5060;}
+#chat-dm-input-box:focus{border-color:rgba(80,160,255,.45);}
+@media(max-width:540px){
+  #chat-popup{width:calc(100vw - 20px);right:10px;left:10px;}
+}
 
 /* ===== ACHIEVEMENT BUTTON ===== */
 #achievement-btn{
@@ -1564,7 +1720,7 @@ body.story-closed #main{
 <!-- ===== FIREBASE ===== -->
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-import { getFirestore, doc, setDoc, getDoc, getDocs, collection, query, orderBy, limit, where, deleteDoc, runTransaction, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { getFirestore, doc, setDoc, getDoc, getDocs, collection, query, orderBy, limit, where, deleteDoc, runTransaction, onSnapshot, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 import {
   getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword,
   onAuthStateChanged, signOut, deleteUser, EmailAuthProvider, reauthenticateWithCredential
@@ -2085,6 +2241,10 @@ window._fsSetDoc     = setDoc;
 window._fsDeleteDoc  = deleteDoc;
 window._fsRunTransaction = runTransaction;
 window._fsOnSnapshot     = onSnapshot;
+// Chat helpers
+window._fsAddDoc         = addDoc;
+window._fsOrderBy        = orderBy;
+window._fsServerTimestamp = serverTimestamp;
 </script>
 
 <!-- ===== CLOUD AUTH SCREEN (Đăng Nhập từ Title) ===== -->
@@ -2410,27 +2570,83 @@ window._fsOnSnapshot     = onSnapshot;
 <!-- Bottom nav -->
 <div id="bottom-nav">
 
-<!-- Đạo Hữu button — góc phải dưới, ngay trên bottom nav -->
-<div id="daohuu-btn" onclick="G.openScreen('daohuu')" style="
+<!-- Chat + Đạo Hữu button row — góc phải dưới, ngay trên bottom nav -->
+<div id="chat-daohuu-row" style="
   display:none;
   position:fixed;bottom:62px;right:10px;
-  width:46px;height:46px;
+  flex-direction:row;align-items:center;gap:6px;
   z-index:500;pointer-events:all;
-  background:rgba(10,7,2,.92);
-  border:1px solid rgba(201,168,76,.3);
-  border-radius:10px;
-  box-shadow:0 2px 12px rgba(0,0,0,.5);
-  cursor:pointer;
-  overflow:hidden;
-  transition:border-color .15s,box-shadow .15s;
-" title="Đạo Hữu"
-onmouseover="this.style.borderColor='rgba(201,168,76,.7)';this.style.boxShadow='0 0 14px rgba(201,168,76,.2)'"
-onmouseout="this.style.borderColor='rgba(201,168,76,.3)';this.style.boxShadow='0 2px 12px rgba(0,0,0,.5)'">
-  <div id="daohuu-btn-inner" style="width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;">
-    <span style="font-size:18px;line-height:1;">🤝</span>
-    <span style="font-size:7.5px;color:#8a6a28;letter-spacing:.3px;">Đạo Hữu</span>
+">
+  <!-- Chat button -->
+  <div id="chat-btn" onclick="G.toggleChat()" title="Chat" style="
+    display:flex;
+    width:46px;height:46px;
+    background:rgba(10,7,2,.92);
+    border:1px solid rgba(80,160,255,.3);
+    border-radius:10px;
+    box-shadow:0 2px 12px rgba(0,0,0,.5);
+    cursor:pointer;overflow:hidden;
+    flex-direction:column;align-items:center;justify-content:center;gap:2px;
+    position:relative;
+    transition:border-color .15s,box-shadow .15s;
+  "
+  onmouseover="this.style.borderColor='rgba(80,160,255,.7)';this.style.boxShadow='0 0 14px rgba(80,160,255,.2)'"
+  onmouseout="this.style.borderColor='rgba(80,160,255,.3)';this.style.boxShadow='0 2px 12px rgba(0,0,0,.5)'">
+    <span style="font-size:18px;line-height:1;">💬</span>
+    <span style="font-size:7.5px;color:#3a6a9a;letter-spacing:.3px;">Chat</span>
+    <div id="chat-notif-dot" style="position:absolute;top:6px;right:6px;width:8px;height:8px;border-radius:50%;background:#5ab0ff;display:none;box-shadow:0 0 6px rgba(90,176,255,.8);"></div>
+  </div>
+  <!-- Đạo Hữu button -->
+  <div id="daohuu-btn" onclick="G.openScreen('daohuu')" style="
+    display:flex;
+    width:46px;height:46px;
+    background:rgba(10,7,2,.92);
+    border:1px solid rgba(201,168,76,.3);
+    border-radius:10px;
+    box-shadow:0 2px 12px rgba(0,0,0,.5);
+    cursor:pointer;overflow:hidden;
+    transition:border-color .15s,box-shadow .15s;
+  " title="Đạo Hữu"
+  onmouseover="this.style.borderColor='rgba(201,168,76,.7)';this.style.boxShadow='0 0 14px rgba(201,168,76,.2)'"
+  onmouseout="this.style.borderColor='rgba(201,168,76,.3)';this.style.boxShadow='0 2px 12px rgba(0,0,0,.5)'">
+    <div id="daohuu-btn-inner" style="width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;">
+      <span style="font-size:18px;line-height:1;">🤝</span>
+      <span style="font-size:7.5px;color:#8a6a28;letter-spacing:.3px;">Đạo Hữu</span>
+    </div>
   </div>
 </div>
+
+<!-- Chat popup -->
+<div id="chat-popup">
+  <div class="chat-popup-hdr">
+    <div class="chat-tab-btn active" id="chat-tab-world" onclick="G._chatSwitchTab('world')">🌍 Thế Giới</div>
+    <div class="chat-tab-btn" id="chat-tab-friends" onclick="G._chatSwitchTab('friends')">🤝 Bạn Bè</div>
+    <div class="chat-popup-close" onclick="G.toggleChat()">✕</div>
+  </div>
+  <div id="chat-world-pane">
+    <div id="chat-world-msgs"><div style="text-align:center;color:#3a5060;font-size:10px;padding:20px 0;">Đang tải tin nhắn...</div></div>
+    <div class="chat-cooldown-bar"><div class="chat-cooldown-fill" id="chat-cooldown-fill"></div></div>
+    <div class="chat-world-input">
+      <input id="chat-world-input-box" type="text" maxlength="120" placeholder="Nhập tin nhắn thế giới..." onkeydown="if(event.key==='Enter')G._chatWorldSend()"/>
+      <div class="chat-send-btn" onclick="G._chatWorldSend()">➤</div>
+    </div>
+  </div>
+  <div id="chat-friends-pane" class="hidden">
+    <div id="chat-friends-list"></div>
+  </div>
+  <div id="chat-dm-pane" class="hidden">
+    <div class="chat-dm-hdr">
+      <span class="chat-dm-back" onclick="G._chatBackToFriends()">←</span>
+      <span class="chat-dm-title" id="chat-dm-title">—</span>
+    </div>
+    <div id="chat-dm-msgs"></div>
+    <div class="chat-dm-input">
+      <input id="chat-dm-input-box" type="text" maxlength="120" placeholder="Nhắn tin..." onkeydown="if(event.key==='Enter')G._chatDmSend()"/>
+      <div class="chat-send-btn" onclick="G._chatDmSend()">➤</div>
+    </div>
+  </div>
+</div>
+
   <div class="nav-btn" id="nav-character" onclick="G.openScreen('character')"><div class="nav-icon">🧍</div><div class="nav-label">Nhân Vật</div></div>
 
   <div class="nav-btn" id="nav-quest" onclick="G._showCotTruyenPopup()"><div class="nav-icon">📖</div><div class="nav-label">Cốt Truyện</div></div>
@@ -2586,7 +2802,9 @@ function checkUnlocks(){
     const es = document.getElementById("event-slider");
     if(es && !es.classList.contains("visible")){ es.classList.add("visible"); initEventSlider(); }
     const dhBtn = document.getElementById("daohuu-btn");
-    if(dhBtn) { dhBtn.style.display = "flex"; _updateDaoHuuBtnAvatar(); }
+    if(dhBtn) { _updateDaoHuuBtnAvatar(); }
+    const chatDaoHuuRow = document.getElementById("chat-daohuu-row");
+    if(chatDaoHuuRow) chatDaoHuuRow.style.display = "flex";
   }
   // Bản Đồ luôn mở khóa
   S.unlockMap = true;
@@ -10211,15 +10429,333 @@ async function _daoHuuRemove(index) {
 }
 
 function _daoHuuMsg(userKey) {
-  // Placeholder — tính năng Nhắn Tin làm sau
-  showNotif({
-    icon:"💬",
-    title:"Tính Năng Đang Phát Triển",
-    lines:["Nhắn Tin sẽ ra mắt sớm!"],
-    color:"#5ab0ff",
-    duration:2500
-  });
+  // Mở popup Chat → tab Bạn Bè → DM thẳng với người này
+  const friend = (S.daoHuu || []).find(f => f.userKey === userKey);
+  if (!friend) return;
+  _chatTogglePopup(true);
+  setTimeout(() => {
+    _chatSwitchTab('friends');
+    setTimeout(() => _chatOpenDm(friend), 100);
+  }, 50);
 }
+
+// ==================== HỆ THỐNG CHAT ====================
+// State
+let _chatOpen = false;
+let _chatCurrentTab = 'world'; // 'world' | 'friends' | 'dm'
+let _chatDmTarget = null; // { userKey, username, avatar }
+let _chatWorldUnsub = null;
+let _chatDmUnsub = null;
+let _chatWorldLastSend = 0; // timestamp ms
+const _CHAT_COOLDOWN = 15000; // 15 giây
+let _chatCooldownTimer = null;
+// Lưu unread DM per-userKey
+let _chatDmUnread = {}; // { userKey: count }
+
+function _chatTogglePopup(forceOpen) {
+  const popup = document.getElementById('chat-popup');
+  if (!popup) return;
+  if (forceOpen === true) {
+    _chatOpen = true;
+  } else {
+    _chatOpen = !_chatOpen;
+  }
+  if (_chatOpen) {
+    popup.classList.add('open');
+    // Bắt đầu lắng nghe world chat
+    _chatWorldListen();
+    if (_chatCurrentTab === 'world') _chatSwitchTab('world');
+    else if (_chatCurrentTab === 'friends') _chatSwitchTab('friends');
+    // Xóa notif dot
+    const dot = document.getElementById('chat-notif-dot');
+    if (dot) dot.style.display = 'none';
+  } else {
+    popup.classList.remove('open');
+    // Không stop listener — vẫn nhận thông báo nền
+    _chatCurrentTab = 'world';
+    _chatDmTarget = null;
+    // Reset panes
+    _chatShowPane('world');
+    const t1 = document.getElementById('chat-tab-world');
+    const t2 = document.getElementById('chat-tab-friends');
+    if(t1){t1.classList.add('active');}
+    if(t2){t2.classList.remove('active');}
+  }
+}
+
+function _chatShowPane(pane) {
+  // pane: 'world' | 'friends' | 'dm'
+  const w = document.getElementById('chat-world-pane');
+  const f = document.getElementById('chat-friends-pane');
+  const d = document.getElementById('chat-dm-pane');
+  if(w) w.classList.toggle('hidden', pane !== 'world');
+  if(f) f.classList.toggle('hidden', pane !== 'friends');
+  if(d) d.classList.toggle('hidden', pane !== 'dm');
+}
+
+function _chatSwitchTab(tab) {
+  _chatCurrentTab = tab;
+  const t1 = document.getElementById('chat-tab-world');
+  const t2 = document.getElementById('chat-tab-friends');
+  if(t1) t1.classList.toggle('active', tab === 'world');
+  if(t2) t2.classList.toggle('active', tab === 'friends');
+  if (tab === 'world') {
+    _chatShowPane('world');
+    _chatWorldListen();
+  } else {
+    _chatShowPane('friends');
+    _chatRenderFriends();
+  }
+}
+
+// ── World chat listener ──
+function _chatWorldListen() {
+  if (_chatWorldUnsub) return; // Đã listen
+  if (!window._fsDb || !window._fsCollection) return;
+  const col = window._fsCollection(window._fsDb, 'world_chat');
+  const q = window._fsQuery(col, window._fsOrderBy('ts', 'desc'), window._fsLimit(30));
+  _chatWorldUnsub = window._fsOnSnapshot(q, snap => {
+    const msgs = [];
+    snap.forEach(d => msgs.push({ id: d.id, ...d.data() }));
+    msgs.reverse();
+    _chatWorldRender(msgs);
+  }, () => {});
+}
+
+function _chatWorldRender(msgs) {
+  const el = document.getElementById('chat-world-msgs');
+  if (!el) return;
+  const myKey = window._cloudUser ? window._cloudUser.userKey : null;
+  if (!msgs.length) {
+    el.innerHTML = '<div style="text-align:center;color:#3a5060;font-size:10px;padding:20px 0;">Chưa có tin nhắn nào. Hãy bắt đầu trò chuyện!</div>';
+    return;
+  }
+  const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 40;
+  el.innerHTML = msgs.map(m => {
+    const isMe = myKey && m.userKey === myKey;
+    const ava = m.avatar
+      ? `<img src="${m.avatar}" alt="" onerror="this.style.display='none'">`
+      : '🧙';
+    return `<div class="chat-msg-row${isMe?' me':''}">
+      <div class="chat-msg-ava">${ava}</div>
+      <div class="chat-msg-body">
+        <div class="chat-msg-name">${_escHtml(m.name||'Ẩn danh')}</div>
+        <div class="chat-msg-bubble${isMe?' me':''}">${_escHtml(m.text)}</div>
+      </div>
+    </div>`;
+  }).join('');
+  if (atBottom) el.scrollTop = el.scrollHeight;
+  // Nếu popup đóng mà có tin mới → hiện dot
+  if (!_chatOpen) {
+    const dot = document.getElementById('chat-notif-dot');
+    if (dot) dot.style.display = 'block';
+  }
+}
+
+async function _chatWorldSend() {
+  if (!window._cloudUser) {
+    showNotif({icon:'⚠️',title:'Chưa Đăng Nhập',lines:['Cần đăng nhập Cloud để chat.'],color:'#ffaa60',duration:2500});
+    return;
+  }
+  const now = Date.now();
+  const remain = _CHAT_COOLDOWN - (now - _chatWorldLastSend);
+  if (remain > 0) {
+    showNotif({icon:'⏱',title:'Chờ Một Chút',lines:[`Còn ${Math.ceil(remain/1000)}s nữa mới được gửi.`],color:'#c8a84a',duration:1500});
+    return;
+  }
+  const inp = document.getElementById('chat-world-input-box');
+  if (!inp) return;
+  const text = (inp.value || '').trim();
+  if (!text) return;
+  inp.value = '';
+
+  const { addDoc: fadd, serverTimestamp: fsts, query: fq, orderBy: fob, limit: flim, getDocs: fgd, deleteDoc: fdel, doc: fdoc, collection: fcol } = {
+    addDoc: window._fsAddDoc, serverTimestamp: window._fsServerTimestamp,
+    query: window._fsQuery, orderBy: window._fsOrderBy, limit: window._fsLimit,
+    getDocs: window._fsGetDocs, deleteDoc: window._fsDeleteDoc,
+    doc: window._fsDoc, collection: window._fsCollection
+  };
+  if (!fadd) return;
+
+  try {
+    await fadd(fcol(window._fsDb, 'world_chat'), {
+      userKey: window._cloudUser.userKey,
+      name: S.name || window._cloudUser.username || 'Ẩn danh',
+      avatar: S.avatar || null,
+      text,
+      ts: fsts()
+    });
+    _chatWorldLastSend = Date.now();
+    _chatStartCooldown();
+    // Giữ chỉ 30 tin: xóa bớt nếu > 30
+    const colRef = fcol(window._fsDb, 'world_chat');
+    const qRef = fq(colRef, fob('ts', 'desc'), flim(35));
+    const snap = await fgd(qRef);
+    const all = [];
+    snap.forEach(d => all.push(d));
+    if (all.length > 30) {
+      const toDelete = all.slice(30);
+      for (const d of toDelete) {
+        fdel(fdoc(window._fsDb, 'world_chat', d.id)).catch(()=>{});
+      }
+    }
+  } catch(e) {
+    showNotif({icon:'❌',title:'Gửi Thất Bại',lines:[e.message||'Lỗi kết nối'],color:'#ff6060',duration:2500});
+  }
+}
+
+function _chatStartCooldown() {
+  const fill = document.getElementById('chat-cooldown-fill');
+  if (!fill) return;
+  clearInterval(_chatCooldownTimer);
+  const start = Date.now();
+  fill.style.width = '100%';
+  _chatCooldownTimer = setInterval(() => {
+    const elapsed = Date.now() - start;
+    const pct = Math.max(0, 100 - (elapsed / _CHAT_COOLDOWN) * 100);
+    fill.style.width = pct + '%';
+    if (elapsed >= _CHAT_COOLDOWN) {
+      clearInterval(_chatCooldownTimer);
+      fill.style.width = '0%';
+    }
+  }, 100);
+}
+
+// ── Friends list ──
+function _chatRenderFriends() {
+  const el = document.getElementById('chat-friends-list');
+  if (!el) return;
+  const friends = S.daoHuu || [];
+  if (!friends.length) {
+    el.innerHTML = '<div style="text-align:center;color:#3a5060;font-size:10px;padding:30px 10px;">Chưa có Đạo Hữu nào.<br>Kết bạn trong mục <b style="color:#c8a84a">Đạo Hữu</b>!</div>';
+    return;
+  }
+  el.innerHTML = friends.map((f, i) => {
+    const ava = f.avatar
+      ? `<img src="${f.avatar}" alt="" onerror="this.style.display='none'">`
+      : '🧙';
+    const unread = _chatDmUnread[f.userKey] || 0;
+    return `<div class="chat-friend-row" onclick="G._chatOpenDm(${JSON.stringify(f).replace(/"/g,'&quot;')})">
+      <div class="chat-friend-ava">${ava}</div>
+      <div class="chat-friend-name">${_escHtml(f.username||'Đạo Hữu')}</div>
+      <div class="chat-friend-unread" style="display:${unread?'flex':'none'}">${unread>9?'9+':unread}</div>
+    </div>`;
+  }).join('');
+}
+
+// ── DM ──
+function _chatOpenDm(friend) {
+  _chatDmTarget = friend;
+  _chatCurrentTab = 'dm';
+  _chatShowPane('dm');
+  const title = document.getElementById('chat-dm-title');
+  if (title) title.textContent = friend.username || 'Đạo Hữu';
+  // Clear unread
+  _chatDmUnread[friend.userKey] = 0;
+  _chatDmListen(friend.userKey);
+  const inp = document.getElementById('chat-dm-input-box');
+  if (inp) setTimeout(() => inp.focus(), 100);
+}
+
+function _chatDmListen(otherKey) {
+  if (_chatDmUnsub) { _chatDmUnsub(); _chatDmUnsub = null; }
+  if (!window._cloudUser || !window._fsDb || !window._fsCollection) return;
+  const myKey = window._cloudUser.userKey;
+  const roomId = _chatDmRoomId(myKey, otherKey);
+  const col = window._fsCollection(window._fsDb, 'dm_rooms', roomId, 'messages');
+  const q = window._fsQuery(col, window._fsOrderBy('ts', 'desc'), window._fsLimit(30));
+  _chatDmUnsub = window._fsOnSnapshot(q, snap => {
+    const msgs = [];
+    snap.forEach(d => msgs.push({ id: d.id, ...d.data() }));
+    msgs.reverse();
+    _chatDmRender(msgs, myKey);
+  }, () => {});
+}
+
+function _chatDmRoomId(k1, k2) {
+  return [k1, k2].sort().join('__');
+}
+
+function _chatDmRender(msgs, myKey) {
+  const el = document.getElementById('chat-dm-msgs');
+  if (!el) return;
+  const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 40;
+  if (!msgs.length) {
+    el.innerHTML = '<div style="text-align:center;color:#3a5060;font-size:10px;padding:20px 0;">Bắt đầu cuộc trò chuyện!</div>';
+    return;
+  }
+  el.innerHTML = msgs.map(m => {
+    const isMe = m.fromKey === myKey;
+    const ava = m.avatar
+      ? `<img src="${m.avatar}" alt="" onerror="this.style.display='none'">`
+      : '🧙';
+    return `<div class="chat-msg-row${isMe?' me':''}">
+      <div class="chat-msg-ava">${ava}</div>
+      <div class="chat-msg-body">
+        <div class="chat-msg-name">${_escHtml(m.name||'Ẩn danh')}</div>
+        <div class="chat-msg-bubble${isMe?' me':''}">${_escHtml(m.text)}</div>
+      </div>
+    </div>`;
+  }).join('');
+  if (atBottom) el.scrollTop = el.scrollHeight;
+}
+
+async function _chatDmSend() {
+  if (!window._cloudUser || !_chatDmTarget) return;
+  const inp = document.getElementById('chat-dm-input-box');
+  if (!inp) return;
+  const text = (inp.value || '').trim();
+  if (!text) return;
+  inp.value = '';
+
+  const myKey = window._cloudUser.userKey;
+  const otherKey = _chatDmTarget.userKey;
+  const roomId = _chatDmRoomId(myKey, otherKey);
+
+  const fadd = window._fsAddDoc, fsts = window._fsServerTimestamp,
+    fq = window._fsQuery, fob = window._fsOrderBy, flim = window._fsLimit,
+    fgd = window._fsGetDocs, fdel = window._fsDeleteDoc,
+    fdoc = window._fsDoc, fcol = window._fsCollection;
+  if (!fadd || !fcol) return;
+
+  try {
+    await fadd(fcol(window._fsDb, 'dm_rooms', roomId, 'messages'), {
+      fromKey: myKey,
+      name: S.name || window._cloudUser.username || 'Ẩn danh',
+      avatar: S.avatar || null,
+      text,
+      ts: fsts()
+    });
+    // Giữ 30 tin gần nhất
+    const colRef = fcol(window._fsDb, 'dm_rooms', roomId, 'messages');
+    const qRef = fq(colRef, fob('ts', 'desc'), flim(35));
+    const snap = await fgd(qRef);
+    const all = [];
+    snap.forEach(d => all.push(d));
+    if (all.length > 30) {
+      const toDelete = all.slice(30);
+      for (const d of toDelete) {
+        fdel(fdoc(window._fsDb, 'dm_rooms', roomId, 'messages', d.id)).catch(()=>{});
+      }
+    }
+  } catch(e) {
+    showNotif({icon:'❌',title:'Gửi Thất Bại',lines:[e.message||'Lỗi kết nối'],color:'#ff6060',duration:2000});
+  }
+}
+
+function _chatBackToFriends() {
+  if (_chatDmUnsub) { _chatDmUnsub(); _chatDmUnsub = null; }
+  _chatDmTarget = null;
+  _chatCurrentTab = 'friends';
+  _chatShowPane('friends');
+  _chatRenderFriends();
+}
+
+function _escHtml(s) {
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+
 
 async function _daoHuuSearch() {
   const input = document.getElementById("dh-search-input");
@@ -13627,6 +14163,8 @@ return {
   },
   _daoHuuSwitch, _daoHuuRemove, _daoHuuMsg, _daoHuuSearch, _daoHuuSendRequest, _updateDaoHuuBtnAvatar,
   _daoHuuLoadRequests, _daoHuuAcceptRequest, _daoHuuRejectRequest,
+  toggleChat: function(){ _chatTogglePopup(); },
+  _chatSwitchTab, _chatWorldSend, _chatDmSend, _chatBackToFriends, _chatOpenDm,
   startNewGame, confirmName, continueGame, openSettings, quitGame, _selectAvatar,
   _showAvatarScreen, _showWelcomePopup,
   _showThienDaoPopup, _showDeaPopup,
