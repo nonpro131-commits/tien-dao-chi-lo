@@ -19,7 +19,7 @@
 
 <script>
 // ★ ĐỔI SỐ NÀY MỖI KHI DEPLOY BẢN MỚI (phải khớp với sw.js) ★
-const APP_VERSION = '1.0.1';
+const APP_VERSION = '1.0.2';
 
 // ── DEBUG PANEL: thêm ?debug=1 vào URL để xem chẩn đoán ngay trên màn hình ──
 // (không cần DevTools — hữu ích để chẩn đoán trên điện thoại)
@@ -742,6 +742,7 @@ body.hud-open #chat-daohuu-row{opacity:0;pointer-events:none;}
 }
 .chat-msg-row.me{flex-direction:row-reverse;}
 .chat-msg-row.me .chat-msg-name{text-align:right;}
+.chat-msg-row.me .chat-msg-body{display:flex;flex-direction:column;align-items:flex-end;}
 .chat-world-input{
   display:flex;gap:6px;padding:8px 10px;
   border-top:1px solid rgba(80,160,255,.12);flex-shrink:0;
