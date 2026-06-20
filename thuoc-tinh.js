@@ -24,10 +24,10 @@
   // 4 cấp bậc — tỉ lệ giờ/% và buff mỗi 1%
   const TIER_ORDER = ["ha","trung","thuong","cuc"];
   const TIER_INFO = {
-    ha:      { name:"Hạ Phẩm",    hoursPerPct:1,  buffPct:3,  khuPct:0.25, next:"trung"  },
-    trung:   { name:"Trung Phẩm", hoursPerPct:2,  buffPct:5,  khuPct:0.5,  next:"thuong" },
-    thuong:  { name:"Thượng Phẩm",hoursPerPct:5,  buffPct:10, khuPct:1,    next:"cuc"    },
-    cuc:     { name:"Cực Phẩm",   hoursPerPct:10, buffPct:15, khuPct:1.5,  next:null     },
+    ha:      { name:"Hạ Phẩm",    hoursPerPct:1,  buffPct:3,  khuPct:0.25, mocPct:10, next:"trung"  },
+    trung:   { name:"Trung Phẩm", hoursPerPct:2,  buffPct:5,  khuPct:0.5,  mocPct:20, next:"thuong" },
+    thuong:  { name:"Thượng Phẩm",hoursPerPct:5,  buffPct:10, khuPct:1,    mocPct:25, next:"cuc"    },
+    cuc:     { name:"Cực Phẩm",   hoursPerPct:10, buffPct:15, khuPct:1.5,  mocPct:30, next:null     },
   };
 
   const QUEST_MAX_HOURS = 24;
@@ -163,6 +163,8 @@
     // Cộng buff tích lũy vĩnh viễn của cấp vừa hoàn thành (100% × tỉ lệ buff/1% của cấp đó)
     if(attr === "Băng"){
       st.accumulatedKhuPct = (st.accumulatedKhuPct||0) + (100 * tierInfo.khuPct);
+    } else if(attr === "Mộc"){
+      st.accumulatedBuffPct = (st.accumulatedBuffPct||0) + (100 * tierInfo.mocPct);
     } else {
       st.accumulatedBuffPct = (st.accumulatedBuffPct||0) + (100 * tierInfo.buffPct);
     }
@@ -208,7 +210,8 @@
         const totalKhu = (st.accumulatedKhuPct||0) + currentContribution;
         out.khu += totalKhu;
       } else {
-        const currentContribution = live ? live.percent * tierInfo.buffPct : 0;
+        const rate = (attr === "Mộc") ? tierInfo.mocPct : tierInfo.buffPct;
+        const currentContribution = live ? live.percent * rate : 0;
         const totalStatPct = (st.accumulatedBuffPct||0) + currentContribution;
         for(const key of info.statKey){
           out[key] = (out[key]||0) + totalStatPct;
