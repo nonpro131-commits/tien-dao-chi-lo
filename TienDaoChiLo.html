@@ -17,9 +17,12 @@
 <!-- Hiệu ứng Đột Phá (Tụ Khí → Bộc Phát) — file riêng, expose window.BreakthroughFX -->
 <script src="breakthrough-fx.js"></script>
 
+<!-- Hệ Thống Tu Luyện Thuộc Tính (8 quả cầu linh căn) — file riêng, expose window.ThuocTinh -->
+<script src="thuoc-tinh.js"></script>
+
 <script>
 // ★ ĐỔI SỐ NÀY MỖI KHI DEPLOY BẢN MỚI (phải khớp với sw.js) ★
-const APP_VERSION = '1.0.2';
+const APP_VERSION = '1.0.3';
 
 // ── DEBUG PANEL: thêm ?debug=1 vào URL để xem chẩn đoán ngay trên màn hình ──
 // (không cần DevTools — hữu ích để chẩn đoán trên điện thoại)
@@ -2626,7 +2629,7 @@ window._fsServerTimestamp = serverTimestamp;
   <div class="nav-btn" id="nav-quest" onclick="G._showCotTruyenPopup()"><div class="nav-icon">📖</div><div class="nav-label">Cốt Truyện</div></div>
   <div class="nav-btn" id="nav-cultivate" onclick="G.openScreen('cultivate')"><div class="nav-icon">🌀</div><div class="nav-label">Tu Luyện</div></div>
   <div class="nav-btn" id="nav-skills" onclick="G.openScreen('skills')"><div class="nav-icon">📖</div><div class="nav-label">Công Pháp</div></div>
-  <div class="nav-btn" id="nav-map" onclick="G.openScreen('map')"><div class="nav-icon">🗺️</div><div class="nav-label">Bản Đồ</div></div>
+  <div class="nav-btn unlocked" id="nav-thuoc-tinh" onclick="G.openScreen('thuoc_tinh')"><div class="nav-icon">✨</div><div class="nav-label">Thuộc Tính</div></div>
 </div>
 
 <!-- Screen overlay -->
@@ -2663,6 +2666,9 @@ const S = {
   str:0, def:0, agi:0,
   linhcan:"", linhcanCap:"",
   linhcanAttrs:[],            // VD: ["Kim","Hỏa","Thủy"]
+  thuocTinh:{},                // { Kim:{tier:"ha",percentSnapshot:0,accumulatedHours:0,finishTime:0,accumulatedBuff:0}, ... }
+  thuocTinhQuestHours: 24,     // Quỹ giờ tu luyện thuộc tính còn lại (0-24)
+  thuocTinhQuestExhaustedAt: 0,// Timestamp lúc quỹ về 0 (để tính reset sau 25h)
   ngoTinh:"",                 // Ngộ Tính: B / B+ / A / A+ / S / S+ / SS / SSS
   theChat:"",                 // Thể Chất: tên thể chất đã roll
   rollEasy:3, rollHard:1,
@@ -2727,7 +2733,6 @@ const S = {
   unlockHP: false,
   unlockInventory: false,
   unlockHUD: false,
-  unlockMap: false,
   gameStarted: false,
   danLoConfigs: {},      // Lưu cấu hình cho từng Đan Lò
   phapKhiShop: [],      // Shop pháp khí hiện tại (4 items ngẫu nhiên)
@@ -2780,9 +2785,7 @@ function checkUnlocks(){
     const chatDaoHuuRow = document.getElementById("chat-daohuu-row");
     if(chatDaoHuuRow) chatDaoHuuRow.style.display = "flex";
   }
-  // Bản Đồ luôn mở khóa
-  S.unlockMap = true;
-  document.getElementById("nav-map").classList.add("unlocked");
+  // Bản Đồ đã bị xóa
   // Craft buttons (Luyện Đan / Luyện Khí / Luyện Phù)
   if(typeof checkCraftUnlocks === "function") checkCraftUnlocks();
 }
@@ -3128,6 +3131,19 @@ function calcEquipmentBonuses(){
     if(setBonus.manaPct)   bonuses.manaPct   = (bonuses.manaPct||0)   + setBonus.manaPct;
   }
   S._activeSetBonus = setBonus; // lưu để UI hiển thị
+
+  // === BUFF TỪ THUỘC TÍNH (8 linh căn) ===
+  if(window.ThuocTinh){
+    const ttB = window.ThuocTinh.calcBonuses(S);
+    S._ttBonus = ttB; // lưu để UI màn Thuộc Tính đọc lại
+    bonuses.strPct  = (bonuses.strPct||0)  + (ttB.strPct||0);
+    bonuses.defPct  = (bonuses.defPct||0)  + (ttB.defPct||0);
+    bonuses.agiPct  = (bonuses.agiPct||0)  + (ttB.agiPct||0);
+    bonuses.hpPct   = (bonuses.hpPct||0)   + (ttB.hpPct||0);
+    bonuses.manaPct = (bonuses.manaPct||0) + (ttB.manaPct||0);
+    bonuses.khu     = (bonuses.khu||0)     + (ttB.khu||0);
+  }
+
   return bonuses;
 }
 
@@ -3949,11 +3965,6 @@ function doBreakthrough(){
     const breakthroughBonus = applyBreakthroughTheChatBonus();
     calcBuffs();
     let unlockMsg = "";
-    if(S.stage >= 3 && !S.unlockMap){
-      S.unlockMap = true;
-      const sc = document.getElementById("story-content");
-      if(sc) sc.insertAdjacentHTML("beforeend", `<div class="sys-msg success just-unlocked" style="margin-top:4px"><b>[Mở Khóa!]</b><br>✦ <b>Bản Đồ</b> đã được mở khóa — khám phá Đông Châu!</div>`);
-    }
     renderHUD();
     // Đóng screen cultivate và thông báo
     closeScreen();
@@ -4022,7 +4033,6 @@ function _execBreakthrough(type, rate, tamMaOnFail){
     if(type === "kimdan") S.kimDanPct = 0;
     const breakthroughBonus = applyBreakthroughTheChatBonus();
     calcBuffs();
-    if(S.stage >= 3 && !S.unlockMap){ S.unlockMap = true; }
     renderHUD();
     closeScreen();
     const _bigColor = type==="trucco"?"#70d870":"#f0c14b";
@@ -8998,7 +9008,6 @@ function openScreen(id, tab){
   if(id==="inventory" && !S.unlockInventory) return;
   if(id==="skills" && !S.unlockInventory) return;
   if(id==="quest" && !S.unlockHUD) return;
-  if(id==="map" && !S.unlockMap) return;
   _currentScreenId = id;
 
   document.getElementById("screen-overlay").classList.add("active");
@@ -9376,560 +9385,26 @@ function openScreen(id, tab){
       <div style="font-size:28px;margin-bottom:8px;opacity:.5">📜</div>
       <b style="color:#c8a84a">Luyện Phù</b><br>Chức năng đang được phát triển.<br><span style="font-size:10px">Sắp ra mắt!</span>
     </div>`; },
-    map:()=>{ t.textContent="🗺️ Bản Đồ · Tông Môn"; b.style.padding="0"; b.style.overflow="auto"; b.style.maxHeight="calc(100dvh - 100px)"; b.innerHTML=`
-<div style="position:relative;width:100%;overflow:hidden;border-radius:0 0 14px 14px;">
-<!-- SVG MAP TOP-DOWN -->
-<svg viewBox="0 0 520 420" xmlns="http://www.w3.org/2000/svg" style="width:100%;display:block;">
-  <defs>
-    <!-- Ground gradients -->
-    <radialGradient id="bgGrad" cx="50%" cy="50%" r="70%">
-      <stop offset="0%" stop-color="#0e1a0c"/>
-      <stop offset="100%" stop-color="#060c04"/>
-    </radialGradient>
-    <radialGradient id="mountainGrad" cx="50%" cy="30%" r="70%">
-      <stop offset="0%" stop-color="#1a2a18"/>
-      <stop offset="100%" stop-color="#0a120a"/>
-    </radialGradient>
-    <radialGradient id="lakeGrad" cx="50%" cy="50%" r="50%">
-      <stop offset="0%" stop-color="#1a4060"/>
-      <stop offset="100%" stop-color="#081828"/>
-    </radialGradient>
-    <radialGradient id="pathGlow" cx="50%" cy="50%" r="50%">
-      <stop offset="0%" stop-color="#c8a84a" stop-opacity="0.35"/>
-      <stop offset="100%" stop-color="#c8a84a" stop-opacity="0"/>
-    </radialGradient>
-    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
-      <feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="#000" flood-opacity="0.5"/>
-    </filter>
-    <filter id="glow" x="-30%" y="-30%" width="160%" height="160%">
-      <feGaussianBlur stdDeviation="3" result="blur"/>
-      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
-    </filter>
-    <filter id="softBlur"><feGaussianBlur stdDeviation="2"/></filter>
-    <filter id="blur5"><feGaussianBlur stdDeviation="5"/></filter>
-    <!-- Wall pattern -->
-    <pattern id="wallPat" x="0" y="0" width="10" height="10" patternUnits="userSpaceOnUse">
-      <rect width="10" height="10" fill="#1a1408"/>
-      <rect width="5" height="5" fill="#1e1608" opacity="0.5"/>
-      <rect x="5" y="5" width="5" height="5" fill="#1e1608" opacity="0.5"/>
-    </pattern>
-  </defs>
-
-  <!-- ===== BACKGROUND ===== -->
-  <rect width="520" height="420" fill="url(#bgGrad)"/>
-
-  <!-- Outer wilderness / forest ring -->
-  <ellipse cx="260" cy="210" rx="245" ry="195" fill="#0c1a08" opacity="0.6"/>
-
-  <!-- ===== OUTER WALL (tông môn perimeter) ===== -->
-  <!-- Wall shadow -->
-  <rect x="55" y="65" width="410" height="300" rx="18" fill="#000" opacity="0.35" filter="url(#softBlur)"/>
-  <!-- Outer wall fill -->
-  <rect x="52" y="62" width="416" height="304" rx="18" fill="url(#wallPat)" stroke="#c8a84a" stroke-width="2.5" opacity="0.9"/>
-  <!-- Wall inner highlight -->
-  <rect x="58" y="68" width="404" height="292" rx="14" fill="none" stroke="rgba(201,168,76,0.15)" stroke-width="1"/>
-
-  <!-- ===== INNER COURTYARD / GROUND ===== -->
-  <rect x="80" y="90" width="360" height="250" rx="10" fill="#0e1a0a" opacity="0.95"/>
-  <!-- Ground texture bands -->
-  <path d="M80,130 Q260,120 440,130" stroke="#0f1e0b" stroke-width="8" fill="none" opacity="0.5"/>
-  <path d="M80,180 Q260,170 440,180" stroke="#0f1e0b" stroke-width="8" fill="none" opacity="0.5"/>
-  <path d="M80,230 Q260,220 440,230" stroke="#0f1e0b" stroke-width="8" fill="none" opacity="0.5"/>
-  <path d="M80,280 Q260,270 440,280" stroke="#0f1e0b" stroke-width="8" fill="none" opacity="0.5"/>
-
-  <!-- ===== MOUNTAIN RANGE (north, top) ===== -->
-  <!-- Mountains as top-down silhouettes / ridges -->
-  <ellipse cx="130" cy="78" rx="55" ry="28" fill="#151f12" opacity="0.85"/>
-  <ellipse cx="200" cy="72" rx="48" ry="25" fill="#182214" opacity="0.85"/>
-  <ellipse cx="270" cy="68" rx="52" ry="30" fill="#1a2416" opacity="0.9"/>
-  <ellipse cx="340" cy="72" rx="46" ry="26" fill="#182214" opacity="0.85"/>
-  <ellipse cx="400" cy="78" rx="50" ry="27" fill="#151f12" opacity="0.85"/>
-  <!-- Mountain snow/peak dots -->
-  <ellipse cx="130" cy="76" rx="18" ry="9" fill="#c8dce0" opacity="0.18"/>
-  <ellipse cx="270" cy="66" rx="22" ry="11" fill="#d0e4ea" opacity="0.22"/>
-  <ellipse cx="400" cy="76" rx="16" ry="8" fill="#c8dce0" opacity="0.16"/>
-
-  <!-- ===== FOREST CLUSTERS ===== -->
-  <!-- Top-left forest -->
-  <g opacity="0.85">
-    <circle cx="72" cy="115" r="10" fill="#0e2208"/>
-    <circle cx="85" cy="108" r="8" fill="#102606"/>
-    <circle cx="65" cy="128" r="9" fill="#0c1e06"/>
-    <circle cx="78" cy="135" r="7" fill="#0e2008"/>
-    <!-- Tree tops (darker center) -->
-    <circle cx="72" cy="115" r="5" fill="#0a1a05" opacity="0.6"/>
-    <circle cx="85" cy="108" r="4" fill="#0a1a05" opacity="0.6"/>
-    <circle cx="65" cy="128" r="4.5" fill="#0a1a05" opacity="0.6"/>
-  </g>
-  <!-- Top-right forest -->
-  <g opacity="0.85">
-    <circle cx="448" cy="115" r="10" fill="#0e2208"/>
-    <circle cx="461" cy="110" r="8" fill="#102606"/>
-    <circle cx="455" cy="128" r="9" fill="#0c1e06"/>
-    <circle cx="440" cy="122" r="7" fill="#0e2008"/>
-    <circle cx="448" cy="115" r="5" fill="#0a1a05" opacity="0.6"/>
-    <circle cx="461" cy="110" r="4" fill="#0a1a05" opacity="0.6"/>
-    <circle cx="455" cy="128" r="4.5" fill="#0a1a05" opacity="0.6"/>
-  </g>
-  <!-- Bottom-left forest -->
-  <g opacity="0.85">
-    <circle cx="70" cy="310" r="9" fill="#0e2208"/>
-    <circle cx="82" cy="320" r="8" fill="#102606"/>
-    <circle cx="68" cy="328" r="10" fill="#0c1e06"/>
-    <circle cx="83" cy="303" r="7" fill="#0e2008"/>
-    <circle cx="70" cy="310" r="4.5" fill="#0a1a05" opacity="0.6"/>
-    <circle cx="68" cy="328" r="5" fill="#0a1a05" opacity="0.6"/>
-  </g>
-  <!-- Bottom-right forest -->
-  <g opacity="0.85">
-    <circle cx="450" cy="310" r="9" fill="#0e2208"/>
-    <circle cx="462" cy="320" r="8" fill="#102606"/>
-    <circle cx="455" cy="328" r="10" fill="#0c1e06"/>
-    <circle cx="440" cy="305" r="7" fill="#0e2208"/>
-    <circle cx="450" cy="310" r="4.5" fill="#0a1a05" opacity="0.6"/>
-    <circle cx="455" cy="328" r="5" fill="#0a1a05" opacity="0.6"/>
-  </g>
-
-  <!-- ===== PATHS (stone roads, top-down) ===== -->
-  <!-- Main north-south road (center vertical) -->
-  <path d="M260,360 L260,300 L260,230 L260,160 L260,100" stroke="#2a2010" stroke-width="12" fill="none" stroke-linecap="round"/>
-  <path d="M260,360 L260,100" stroke="#c8a84a" stroke-width="2" fill="none" stroke-dasharray="7,5" opacity="0.3"/>
-  <!-- East-west road (center horizontal) -->
-  <path d="M90,240 L160,240 L260,240 L360,240 L430,240" stroke="#2a2010" stroke-width="12" fill="none" stroke-linecap="round"/>
-  <path d="M90,240 L430,240" stroke="#c8a84a" stroke-width="2" fill="none" stroke-dasharray="7,5" opacity="0.3"/>
-  <!-- Path to NE (Tàng Kinh Các) -->
-  <path d="M260,180 Q320,170 370,150" stroke="#241c0c" stroke-width="8" fill="none"/>
-  <path d="M260,180 Q320,170 370,150" stroke="#c8a84a" stroke-width="1.5" fill="none" stroke-dasharray="5,4" opacity="0.25"/>
-  <!-- Path to NW (Luyện Đan Các) -->
-  <path d="M260,180 Q200,170 148,152" stroke="#241c0c" stroke-width="8" fill="none"/>
-  <path d="M260,180 Q200,170 148,152" stroke="#c8a84a" stroke-width="1.5" fill="none" stroke-dasharray="5,4" opacity="0.25"/>
-  <!-- Path to SE (Phường Tu) -->
-  <path d="M310,240 Q360,270 390,295" stroke="#241c0c" stroke-width="8" fill="none"/>
-  <path d="M310,240 Q360,270 390,295" stroke="#c8a84a" stroke-width="1.5" fill="none" stroke-dasharray="5,4" opacity="0.2"/>
-
-  <!-- Road intersection glow -->
-  <circle cx="260" cy="240" r="14" fill="rgba(201,168,76,0.06)" filter="url(#softBlur)"/>
-  <circle cx="260" cy="240" r="5" fill="none" stroke="rgba(201,168,76,0.25)" stroke-width="1"/>
-
-  <!-- ===== WALL TOWERS (corner watchtowers) ===== -->
-  <g fill="#201a08" stroke="#c8a84a" stroke-width="1">
-    <rect x="52" y="62" width="18" height="18" rx="3"/>
-    <rect x="450" y="62" width="18" height="18" rx="3"/>
-    <rect x="52" y="346" width="18" height="18" rx="3"/>
-    <rect x="450" y="346" width="18" height="18" rx="3"/>
-  </g>
-  <!-- Tower rooftops (top-down: diamond) -->
-  <polygon points="61,63 70,66 61,71 52,66" fill="#2a2008" stroke="#d6b15f" stroke-width="0.8" opacity="0.9"/>
-  <polygon points="459,63 468,66 459,71 450,66" fill="#2a2008" stroke="#d6b15f" stroke-width="0.8" opacity="0.9"/>
-  <polygon points="61,347 70,350 61,355 52,350" fill="#2a2008" stroke="#d6b15f" stroke-width="0.8" opacity="0.9"/>
-  <polygon points="459,347 468,350 459,355 450,350" fill="#2a2008" stroke="#d6b15f" stroke-width="0.8" opacity="0.9"/>
-
-  <!-- ===== MAIN GATE (south, center) ===== -->
-  <g id="gate" filter="url(#shadow)">
-    <!-- Gate platform -->
-    <rect x="228" y="352" width="64" height="18" rx="3" fill="#221a08" stroke="#c8a84a" stroke-width="1.5"/>
-    <!-- Gate opening -->
-    <rect x="246" y="352" width="28" height="18" fill="#0e0a04" stroke="#8a6a20" stroke-width="0.8"/>
-    <!-- Pillars top-down -->
-    <rect x="230" y="352" width="7" height="18" fill="#2e2410" stroke="#c8a84a" stroke-width="0.7"/>
-    <rect x="283" y="352" width="7" height="18" fill="#2e2410" stroke="#c8a84a" stroke-width="0.7"/>
-    <!-- Lanterns -->
-    <ellipse cx="234" cy="358" rx="4" ry="4" fill="#c84010" opacity="0.85" filter="url(#glow)"/>
-    <ellipse cx="286" cy="358" rx="4" ry="4" fill="#c84010" opacity="0.85" filter="url(#glow)"/>
-    <!-- Gate glow -->
-    <rect x="228" y="352" width="64" height="18" rx="3" fill="none" stroke="#f0c14b" stroke-width="0.5" opacity="0.4"/>
-  </g>
-
-  <!-- Rời Khỏi label below outer gate -->
-  <rect x="212" y="373" width="96" height="14" rx="4" fill="rgba(6,4,1,0.82)" stroke="rgba(201,168,76,0.3)" stroke-width="0.8"/>
-  <text x="260" y="383.5" text-anchor="middle" font-size="8.5" fill="#c8a84a" font-family="Be Vietnam Pro,sans-serif" font-weight="700" letter-spacing="0.5">← Rời Khỏi Tông Môn</text>
-
-  <!-- ===== CỔNG TÔNG MÔN (inner gate, center-south) ===== -->
-  <g id="inner-gate" filter="url(#shadow)">
-    <rect x="232" y="288" width="56" height="24" rx="4" fill="#1e1608" stroke="#c8a84a" stroke-width="1.8"/>
-    <!-- Inner courtyard entrance -->
-    <rect x="248" y="288" width="24" height="24" fill="#140e04" stroke="#9a7a20" stroke-width="0.8"/>
-    <!-- Roof top-down (ridge lines) -->
-    <line x1="232" y1="296" x2="288" y2="296" stroke="#c8a84a" stroke-width="0.8" opacity="0.5"/>
-    <line x1="260" y1="288" x2="260" y2="312" stroke="#c8a84a" stroke-width="0.6" opacity="0.4"/>
-    <!-- Pillars -->
-    <rect x="234" y="288" width="6" height="24" fill="#2a1e08"/>
-    <rect x="280" y="288" width="6" height="24" fill="#2a1e08"/>
-    <!-- Lanterns -->
-    <ellipse cx="237" cy="295" rx="4.5" ry="4.5" fill="#e04010" opacity="0.8" filter="url(#glow)"/>
-    <ellipse cx="283" cy="295" rx="4.5" ry="4.5" fill="#e04010" opacity="0.8" filter="url(#glow)"/>
-    <!-- Flag -->
-    <circle cx="260" cy="291" r="3" fill="#c84010" stroke="#f0a040" stroke-width="0.7"/>
-  </g>
-
-  <!-- ===== NƠI Ở ĐỆ TỬ NỘI MÔN (north, above main hall) ===== -->
-  <g id="noimom-quarters" filter="url(#shadow)">
-    <!-- Compound wall -->
-    <rect x="148" y="88" width="224" height="58" rx="6" fill="#16120a" stroke="#d6b15f" stroke-width="1.8"/>
-    <rect x="156" y="95" width="208" height="44" rx="4" fill="#1a1608" stroke="rgba(214,177,95,0.2)" stroke-width="0.8"/>
-    <!-- Row of individual quarters (top-down rooftops) -->
-    <!-- Quarter 1 -->
-    <rect x="164" y="100" width="30" height="30" rx="3" fill="#221a08" stroke="#c8a84a" stroke-width="0.9"/>
-    <rect x="168" y="104" width="22" height="22" rx="2" fill="#2a2008" stroke="#c8a84a" stroke-width="0.6" opacity="0.7"/>
-    <line x1="164" y1="115" x2="194" y2="115" stroke="#c8a84a" stroke-width="0.5" opacity="0.3"/>
-    <line x1="179" y1="100" x2="179" y2="130" stroke="#c8a84a" stroke-width="0.5" opacity="0.3"/>
-    <!-- Quarter 2 -->
-    <rect x="202" y="100" width="30" height="30" rx="3" fill="#221a08" stroke="#c8a84a" stroke-width="0.9"/>
-    <rect x="206" y="104" width="22" height="22" rx="2" fill="#2a2008" stroke="#c8a84a" stroke-width="0.6" opacity="0.7"/>
-    <line x1="202" y1="115" x2="232" y2="115" stroke="#c8a84a" stroke-width="0.5" opacity="0.3"/>
-    <line x1="217" y1="100" x2="217" y2="130" stroke="#c8a84a" stroke-width="0.5" opacity="0.3"/>
-    <!-- Quarter 3 (center, slightly larger) -->
-    <rect x="240" y="97" width="40" height="36" rx="3" fill="#261e0a" stroke="#f0c14b" stroke-width="1.1"/>
-    <rect x="245" y="102" width="30" height="26" rx="2" fill="#302408" stroke="#d6b15f" stroke-width="0.7" opacity="0.8"/>
-    <ellipse cx="260" cy="115" rx="8" ry="6" fill="#3a2c10" stroke="#f0c14b" stroke-width="0.6" opacity="0.8"/>
-    <ellipse cx="260" cy="115" rx="3" ry="2.5" fill="#f0c14b" opacity="0.12" filter="url(#softBlur)"/>
-    <!-- Quarter 4 -->
-    <rect x="288" y="100" width="30" height="30" rx="3" fill="#221a08" stroke="#c8a84a" stroke-width="0.9"/>
-    <rect x="292" y="104" width="22" height="22" rx="2" fill="#2a2008" stroke="#c8a84a" stroke-width="0.6" opacity="0.7"/>
-    <line x1="288" y1="115" x2="318" y2="115" stroke="#c8a84a" stroke-width="0.5" opacity="0.3"/>
-    <line x1="303" y1="100" x2="303" y2="130" stroke="#c8a84a" stroke-width="0.5" opacity="0.3"/>
-    <!-- Quarter 5 -->
-    <rect x="326" y="100" width="30" height="30" rx="3" fill="#221a08" stroke="#c8a84a" stroke-width="0.9"/>
-    <rect x="330" y="104" width="22" height="22" rx="2" fill="#2a2008" stroke="#c8a84a" stroke-width="0.6" opacity="0.7"/>
-    <line x1="326" y1="115" x2="356" y2="115" stroke="#c8a84a" stroke-width="0.5" opacity="0.3"/>
-    <line x1="341" y1="100" x2="341" y2="130" stroke="#c8a84a" stroke-width="0.5" opacity="0.3"/>
-    <!-- Corridor between quarters -->
-    <line x1="194" y1="115" x2="202" y2="115" stroke="#c8a84a" stroke-width="1" opacity="0.2"/>
-    <line x1="232" y1="115" x2="240" y2="115" stroke="#c8a84a" stroke-width="1" opacity="0.2"/>
-    <line x1="280" y1="115" x2="288" y2="115" stroke="#c8a84a" stroke-width="1" opacity="0.2"/>
-    <line x1="318" y1="115" x2="326" y2="115" stroke="#c8a84a" stroke-width="1" opacity="0.2"/>
-    <!-- Lanterns at gate of compound -->
-    <ellipse cx="156" cy="115" rx="3.5" ry="3.5" fill="#d6b15f" opacity="0.55" filter="url(#glow)"/>
-    <ellipse cx="364" cy="115" rx="3.5" ry="3.5" fill="#d6b15f" opacity="0.55" filter="url(#glow)"/>
-    <!-- Subtle gold aura -->
-    <ellipse cx="260" cy="115" rx="100" ry="22" fill="#f0c14b" opacity="0.025" filter="url(#blur5)"/>
-  </g>
-
-  <!-- ===== NƠI Ở ĐỆ TỬ NGOẠI MÔN (SW, left of inner gate) ===== -->
-  <g id="ngoaimom-quarters" filter="url(#shadow)">
-    <!-- Compound wall -->
-    <rect x="88" y="288" width="130" height="62" rx="5" fill="#101408" stroke="#80c870" stroke-width="1.5"/>
-    <rect x="95" y="295" width="116" height="48" rx="3" fill="#141808" stroke="rgba(128,200,112,0.18)" stroke-width="0.8"/>
-    <!-- Row of smaller quarters -->
-    <!-- Q1 -->
-    <rect x="102" y="301" width="24" height="22" rx="2" fill="#181e08" stroke="#70b860" stroke-width="0.8"/>
-    <rect x="106" y="305" width="16" height="14" rx="1" fill="#1c2208" stroke="#70b860" stroke-width="0.5" opacity="0.7"/>
-    <line x1="114" y1="301" x2="114" y2="323" stroke="#70b860" stroke-width="0.4" opacity="0.3"/>
-    <!-- Q2 -->
-    <rect x="132" y="301" width="24" height="22" rx="2" fill="#181e08" stroke="#70b860" stroke-width="0.8"/>
-    <rect x="136" y="305" width="16" height="14" rx="1" fill="#1c2208" stroke="#70b860" stroke-width="0.5" opacity="0.7"/>
-    <line x1="144" y1="301" x2="144" y2="323" stroke="#70b860" stroke-width="0.4" opacity="0.3"/>
-    <!-- Q3 -->
-    <rect x="162" y="301" width="24" height="22" rx="2" fill="#181e08" stroke="#70b860" stroke-width="0.8"/>
-    <rect x="166" y="305" width="16" height="14" rx="1" fill="#1c2208" stroke="#70b860" stroke-width="0.5" opacity="0.7"/>
-    <line x1="174" y1="301" x2="174" y2="323" stroke="#70b860" stroke-width="0.4" opacity="0.3"/>
-    <!-- Q4 (bottom row) -->
-    <rect x="102" y="328" width="24" height="14" rx="2" fill="#181e08" stroke="#70b860" stroke-width="0.7" opacity="0.85"/>
-    <rect x="132" y="328" width="24" height="14" rx="2" fill="#181e08" stroke="#70b860" stroke-width="0.7" opacity="0.85"/>
-    <rect x="162" y="328" width="24" height="14" rx="2" fill="#181e08" stroke="#70b860" stroke-width="0.7" opacity="0.85"/>
-    <!-- Corridor lines -->
-    <line x1="126" y1="312" x2="132" y2="312" stroke="#70b860" stroke-width="0.8" opacity="0.2"/>
-    <line x1="156" y1="312" x2="162" y2="312" stroke="#70b860" stroke-width="0.8" opacity="0.2"/>
-    <!-- Green energy glow (cultivation atmosphere) -->
-    <ellipse cx="153" cy="319" rx="52" ry="24" fill="#40a030" opacity="0.03" filter="url(#blur5)"/>
-    <!-- Entrance lanterns -->
-    <ellipse cx="95" cy="319" rx="3" ry="3" fill="#60c040" opacity="0.5" filter="url(#glow)"/>
-    <ellipse cx="205" cy="319" rx="3" ry="3" fill="#60c040" opacity="0.5" filter="url(#glow)"/>
-  </g>
-
-  <!-- ===== ĐIỆN CHÍNH / MAIN HALL (center, grand) ===== -->
-  <g id="main-hall" filter="url(#shadow)">
-    <!-- Foundation platform -->
-    <rect x="218" y="148" width="84" height="68" rx="5" fill="#1e1808" stroke="#f0c14b" stroke-width="2"/>
-    <!-- Inner hall -->
-    <rect x="226" y="156" width="68" height="52" rx="3" fill="#281e0a" stroke="#d6b15f" stroke-width="1.2"/>
-    <!-- Roof ridge lines (top-down hip roof) -->
-    <rect x="234" y="164" width="52" height="36" rx="2" fill="#2e2410" stroke="#c8a84a" stroke-width="0.8" opacity="0.8"/>
-    <!-- Center roof peak -->
-    <ellipse cx="260" cy="182" rx="12" ry="8" fill="#3a2e14" stroke="#f0c14b" stroke-width="0.7" opacity="0.9"/>
-    <!-- Ridge decoration -->
-    <line x1="218" y1="182" x2="302" y2="182" stroke="#c8a84a" stroke-width="0.8" opacity="0.4"/>
-    <line x1="260" y1="148" x2="260" y2="216" stroke="#c8a84a" stroke-width="0.8" opacity="0.4"/>
-    <!-- Corner pillars -->
-    <circle cx="226" cy="156" r="4" fill="#302210" stroke="#c8a84a" stroke-width="0.8"/>
-    <circle cx="294" cy="156" r="4" fill="#302210" stroke="#c8a84a" stroke-width="0.8"/>
-    <circle cx="226" cy="208" r="4" fill="#302210" stroke="#c8a84a" stroke-width="0.8"/>
-    <circle cx="294" cy="208" r="4" fill="#302210" stroke="#c8a84a" stroke-width="0.8"/>
-    <!-- Steps (top-down) -->
-    <rect x="248" y="214" width="24" height="5" rx="1" fill="#241c0c" stroke="#9a7a20" stroke-width="0.6"/>
-    <rect x="244" y="218" width="32" height="4" rx="1" fill="#201808" stroke="#9a7a20" stroke-width="0.5"/>
-    <!-- Gold aura -->
-    <ellipse cx="260" cy="182" rx="36" ry="28" fill="#f0c14b" opacity="0.04" filter="url(#blur5)"/>
-  </g>
-
-  <!-- ===== LUYỆN ĐAN CÁC (NW building) ===== -->
-  <g id="ldac" filter="url(#shadow)">
-    <rect x="112" y="130" width="54" height="44" rx="4" fill="#180e06" stroke="#c87020" stroke-width="1.5"/>
-    <rect x="120" y="138" width="38" height="28" rx="2" fill="#201408" stroke="#c87020" stroke-width="0.8"/>
-    <!-- Roof (octagon top-down) -->
-    <polygon points="139,142 149,138 159,142 163,152 159,162 149,166 139,162 135,152" fill="#281a08" stroke="#d68020" stroke-width="0.7" opacity="0.9"/>
-    <circle cx="149" cy="152" r="7" fill="#2e1e08" stroke="#f09030" stroke-width="0.8"/>
-    <!-- Furnace glow -->
-    <circle cx="149" cy="152" r="4" fill="#ff6010" opacity="0.3" filter="url(#glow)"/>
-    <!-- Smoke rings top-down -->
-    <circle cx="149" cy="138" r="5" fill="none" stroke="#808880" stroke-width="1" opacity="0.2"/>
-    <circle cx="149" cy="134" r="7" fill="none" stroke="#808880" stroke-width="0.8" opacity="0.12"/>
-    <!-- Steps -->
-    <rect x="136" y="172" width="26" height="4" rx="1" fill="#1e1408" stroke="#806020" stroke-width="0.5"/>
-  </g>
-
-  <!-- ===== TÀNG KINH CÁC (NE building) ===== -->
-  <g id="tkac" filter="url(#shadow)">
-    <rect x="354" y="130" width="54" height="44" rx="4" fill="#0e1218" stroke="#6090d0" stroke-width="1.5"/>
-    <rect x="362" y="138" width="38" height="28" rx="2" fill="#101828" stroke="#6090d0" stroke-width="0.8"/>
-    <!-- Roof (rectangular hip) -->
-    <rect x="366" y="142" width="30" height="20" rx="2" fill="#141e2c" stroke="#80b0e0" stroke-width="0.7"/>
-    <rect x="372" y="147" width="18" height="10" rx="1" fill="#1a2838" stroke="#80b0e0" stroke-width="0.5" opacity="0.8"/>
-    <!-- Book glow (blue) -->
-    <ellipse cx="381" cy="152" rx="12" ry="8" fill="#4080c0" opacity="0.1" filter="url(#softBlur)"/>
-    <!-- Windows glow -->
-    <rect x="364" y="143" width="7" height="5" rx="1" fill="#5090d0" opacity="0.2"/>
-    <rect x="389" y="143" width="7" height="5" rx="1" fill="#5090d0" opacity="0.2"/>
-    <!-- Steps -->
-    <rect x="368" y="172" width="26" height="4" rx="1" fill="#141828" stroke="#4060a0" stroke-width="0.5"/>
-  </g>
-
-  <!-- ===== LUYỆN KHÍ CÁC (west, training) ===== -->
-  <g id="lkac" filter="url(#shadow)">
-    <rect x="98" y="210" width="50" height="40" rx="4" fill="#0e1408" stroke="#60c060" stroke-width="1.4"/>
-    <rect x="106" y="218" width="34" height="24" rx="2" fill="#121c08" stroke="#60c060" stroke-width="0.7"/>
-    <!-- Roof -->
-    <rect x="110" y="222" width="26" height="16" rx="2" fill="#182008" stroke="#70d070" stroke-width="0.6"/>
-    <!-- Energy glow -->
-    <ellipse cx="123" cy="230" rx="10" ry="7" fill="#40c040" opacity="0.08" filter="url(#softBlur)"/>
-    <!-- Training circles (top-down dummies) -->
-    <circle cx="112" cy="229" r="3" fill="#204018" stroke="#50a040" stroke-width="0.6" opacity="0.7"/>
-    <circle cx="123" cy="229" r="3" fill="#204018" stroke="#50a040" stroke-width="0.6" opacity="0.7"/>
-    <circle cx="134" cy="229" r="3" fill="#204018" stroke="#50a040" stroke-width="0.6" opacity="0.7"/>
-    <!-- Steps -->
-    <rect x="110" y="249" width="26" height="4" rx="1" fill="#141c08" stroke="#406030" stroke-width="0.5"/>
-  </g>
-
-  <!-- ===== PHƯỜNG TU LUYỆN (SE, training ground) ===== -->
-  <g id="phuong" filter="url(#shadow)">
-    <rect x="372" y="295" width="52" height="38" rx="4" fill="#0c1208" stroke="#60a040" stroke-width="1.2"/>
-    <!-- Training arena circle -->
-    <circle cx="398" cy="314" rx="18" fill="none" stroke="#50a030" stroke-width="1.2" opacity="0.5"/>
-    <circle cx="398" cy="314" r="18" fill="#101808" stroke="#50a030" stroke-width="1.2" opacity="0.5"/>
-    <circle cx="398" cy="314" r="10" fill="none" stroke="#60c040" stroke-width="0.7" opacity="0.4"/>
-    <!-- Training dummies top-down -->
-    <circle cx="390" cy="310" r="3" fill="#283818" stroke="#60a040" stroke-width="0.7"/>
-    <circle cx="398" cy="305" r="3" fill="#283818" stroke="#60a040" stroke-width="0.7"/>
-    <circle cx="406" cy="310" r="3" fill="#283818" stroke="#60a040" stroke-width="0.7"/>
-    <circle cx="398" cy="320" r="3" fill="#283818" stroke="#60a040" stroke-width="0.7"/>
-    <!-- Energy glow -->
-    <circle cx="398" cy="314" r="18" fill="#40c020" opacity="0.03" filter="url(#softBlur)"/>
-  </g>
-
-  <!-- ===== MIST / FOG LAYERS ===== -->
-  <ellipse cx="260" cy="105" rx="200" ry="20" fill="#0e1a0c" opacity="0.35" filter="url(#blur5)"/>
-  <ellipse cx="260" cy="380" rx="220" ry="20" fill="#060e04" opacity="0.4" filter="url(#blur5)"/>
-
-  <!-- ===== MARKERS ===== -->
-  <!-- Nơi ở Nội Môn marker -->
-  <g filter="url(#glow)">
-    <circle cx="260" cy="85" r="6.5" fill="#d6b15f" opacity="0.95"/>
-    <circle cx="260" cy="85" r="3.5" fill="#fff5c0"/>
-  </g>
-  <rect x="196" y="71" width="128" height="13" rx="4" fill="rgba(6,4,1,0.88)" stroke="rgba(214,177,95,0.55)" stroke-width="0.8"/>
-  <text x="260" y="81" text-anchor="middle" font-size="8.5" fill="#f0d878" font-family="Be Vietnam Pro,sans-serif" font-weight="700">🏠 Nơi Ở Đệ Tử Nội Môn</text>
-
-  <!-- Nơi ở Ngoại Môn marker -->
-  <g filter="url(#glow)">
-    <circle cx="153" cy="285" r="6" fill="#60c040" opacity="0.95"/>
-    <circle cx="153" cy="285" r="3.5" fill="#a0f070"/>
-  </g>
-  <rect x="88" y="271" width="130" height="13" rx="4" fill="rgba(6,4,1,0.88)" stroke="rgba(96,192,64,0.5)" stroke-width="0.8"/>
-  <text x="153" y="281" text-anchor="middle" font-size="8.5" fill="#80d860" font-family="Be Vietnam Pro,sans-serif" font-weight="700">🏘 Nơi Ở Đệ Tử Ngoại Môn</text>
-
-  <!-- Điện Chính marker -->
-  <g filter="url(#glow)">
-    <circle cx="260" cy="145" r="7" fill="#f0c14b" opacity="0.95"/>
-    <circle cx="260" cy="145" r="4" fill="#fff8d0"/>
-  </g>
-  <rect x="222" y="130" width="76" height="13" rx="4" fill="rgba(6,4,1,0.86)" stroke="rgba(240,193,75,0.5)" stroke-width="0.8"/>
-  <text x="260" y="140" text-anchor="middle" font-size="8.5" fill="#f0d060" font-family="Be Vietnam Pro,sans-serif" font-weight="700">🏛 Điện Chính Môn</text>
-
-  <!-- Cổng Tông Môn marker -->
-  <g filter="url(#glow)">
-    <circle cx="260" cy="284" r="6.5" fill="#c84010" opacity="0.95"/>
-    <circle cx="260" cy="284" r="3.5" fill="#ff8060"/>
-  </g>
-  <rect x="222" y="269" width="76" height="13" rx="4" fill="rgba(6,4,1,0.86)" stroke="rgba(200,64,16,0.5)" stroke-width="0.8"/>
-  <text x="260" y="279" text-anchor="middle" font-size="8.5" fill="#ff9060" font-family="Be Vietnam Pro,sans-serif" font-weight="700">⛩ Rời Khỏi Tông Môn</text>
-  <!-- Nút bấm Rời Khỏi Tông Môn -->
-  <g style="cursor:pointer" onclick="G.openScreen('leave_sect')">
-    <rect x="210" y="290" width="100" height="18" rx="5" fill="rgba(180,50,20,0.18)" stroke="rgba(200,64,16,0.55)" stroke-width="1"/>
-    <text x="260" y="303" text-anchor="middle" font-size="8" fill="#ff9060" font-family="Be Vietnam Pro,sans-serif" font-weight="700" letter-spacing="0.3">☞ Rời Khỏi Tông Môn</text>
-  </g>
-
-  <!-- Luyện Đan Các marker -->
-  <g filter="url(#glow)">
-    <circle cx="139" cy="127" r="6" fill="#c87020" opacity="0.95"/>
-    <circle cx="139" cy="127" r="3.5" fill="#ffa040"/>
-  </g>
-  <rect x="100" y="112" width="78" height="13" rx="4" fill="rgba(6,4,1,0.86)" stroke="rgba(200,112,32,0.5)" stroke-width="0.8"/>
-  <text x="139" y="122" text-anchor="middle" font-size="8.5" fill="#ffa040" font-family="Be Vietnam Pro,sans-serif" font-weight="700">🔥 Luyện Đan Các</text>
-
-  <!-- Tàng Kinh Các marker -->
-  <g filter="url(#glow)">
-    <circle cx="381" cy="127" r="6" fill="#2060c0" opacity="0.95"/>
-    <circle cx="381" cy="127" r="3.5" fill="#60a0ff"/>
-  </g>
-  <rect x="342" y="112" width="80" height="13" rx="4" fill="rgba(6,4,1,0.86)" stroke="rgba(32,96,192,0.5)" stroke-width="0.8"/>
-  <text x="382" y="122" text-anchor="middle" font-size="8.5" fill="#80b8ff" font-family="Be Vietnam Pro,sans-serif" font-weight="700">📖 Tàng Kinh Các</text>
-
-
-  <!-- Luyện Khí Các marker -->
-  <g filter="url(#glow)">
-    <circle cx="98" cy="207" r="6" fill="#30a050" opacity="0.95"/>
-    <circle cx="98" cy="207" r="3.5" fill="#60d880"/>
-  </g>
-  <rect x="58" y="192" width="80" height="13" rx="4" fill="rgba(6,4,1,0.86)" stroke="rgba(48,160,80,0.5)" stroke-width="0.8"/>
-  <text x="98" y="202" text-anchor="middle" font-size="8.5" fill="#60d880" font-family="Be Vietnam Pro,sans-serif" font-weight="700">🌿 Luyện Khí Các</text>
-
-
-
-  <!-- Phường Tu Luyện marker -->
-  <g filter="url(#glow)">
-    <circle cx="422" cy="292" r="6" fill="#508830" opacity="0.95"/>
-    <circle cx="422" cy="292" r="3.5" fill="#80c050"/>
-  </g>
-  <rect x="375" y="277" width="94" height="13" rx="4" fill="rgba(6,4,1,0.86)" stroke="rgba(80,136,48,0.5)" stroke-width="0.8"/>
-  <text x="422" y="287" text-anchor="middle" font-size="8.5" fill="#90d060" font-family="Be Vietnam Pro,sans-serif" font-weight="700">⚔ Phường Tu Luyện</text>
-
-  <!-- ===== COMPASS ROSE (bottom right) ===== -->
-  <g transform="translate(478,385)" opacity="0.55">
-    <circle r="12" fill="rgba(6,4,1,0.7)" stroke="rgba(201,168,76,0.3)" stroke-width="0.8"/>
-    <polygon points="0,-10 2,-3 0,-5 -2,-3" fill="#d6b15f"/>
-    <polygon points="0,10 2,3 0,5 -2,3" fill="#6a5028"/>
-    <polygon points="-10,0 -3,-2 -5,0 -3,2" fill="#6a5028"/>
-    <polygon points="10,0 3,-2 5,0 3,2" fill="#6a5028"/>
-    <text x="0" y="-13" text-anchor="middle" font-size="6" fill="#d6b15f" font-family="Be Vietnam Pro,sans-serif" font-weight="700">B</text>
-  </g>
-
-  <!-- ===== BORDER ===== -->
-  <rect x="0" y="0" width="520" height="420" fill="none" stroke="rgba(201,168,76,0.25)" stroke-width="2"/>
-  <!-- Corner ornaments -->
-  <path d="M0,0 L20,0 L20,3 L3,3 L3,20 L0,20Z" fill="#c8a84a" opacity="0.35"/>
-  <path d="M520,0 L500,0 L500,3 L517,3 L517,20 L520,20Z" fill="#c8a84a" opacity="0.35"/>
-  <path d="M0,420 L20,420 L20,417 L3,417 L3,400 L0,400Z" fill="#c8a84a" opacity="0.35"/>
-  <path d="M520,420 L500,420 L500,417 L517,417 L517,400 L520,400Z" fill="#c8a84a" opacity="0.35"/>
-
-  <!-- Title bar -->
-  <rect x="150" y="4" width="220" height="18" rx="5" fill="rgba(6,4,1,0.75)" stroke="rgba(201,168,76,0.35)" stroke-width="0.8"/>
-  <text x="260" y="16.5" text-anchor="middle" font-size="9.5" fill="#d6b15f" font-family="Be Vietnam Pro,sans-serif" font-weight="700" letter-spacing="1">✦ TÔNG MÔN · TOÀN ĐỒ ✦</text>
-</svg>
-</div>`; },
-    leave_sect:()=>{
-      t.textContent="🌏 Rời Khỏi Tông Môn";
-      b.style.padding="12px 14px 14px";
-      b.innerHTML=`
-        <div style="font-size:11px;color:#7a6030;line-height:1.7;margin-bottom:14px;">
-          Chọn địa điểm bên ngoài Tông Môn để khám phá. Một số nơi chưa mở cửa.
-        </div>
-
-        <div style="font-size:9.5px;font-weight:700;color:#7a5a20;letter-spacing:.7px;text-transform:uppercase;margin-bottom:8px;">
-          ✦ ĐỊA DANH · ĐÔNG CHÂU
-        </div>
-
-        <!-- Rừng Vạn Yêu -->
-        ${(()=>{
-          const rvyUnlocked = (S.stage||0) >= 3;
-          if(rvyUnlocked){
-            return `<div onclick="G._leaveSectVisit('rung_van_yeu')" style="
-              display:flex;align-items:center;gap:10px;padding:11px 13px;margin-bottom:7px;
-              background:rgba(30,80,20,.1);border:1px solid rgba(60,160,60,.3);border-radius:10px;
-              cursor:pointer;transition:all .15s;"
-              onmouseover="this.style.background='rgba(30,80,20,.2)'"
-              onmouseout="this.style.background='rgba(30,80,20,.1)'">
-              <div style="font-size:24px;line-height:1;">🌲</div>
-              <div style="flex:1;">
-                <div style="font-size:12px;font-weight:700;color:#80d870;">Rừng Vạn Yêu</div>
-                <div style="font-size:9.5px;color:#5a8040;margin-top:1px;">Nơi trú ẩn của yêu thú các loại · Nguy hiểm tăng theo độ sâu</div>
-              </div>
-              <div style="font-size:10px;color:#60b850;font-weight:700;">→</div>
-            </div>`;
-          } else {
-            return `<div onclick="G._leaveSectVisit('rung_van_yeu')" style="
-              display:flex;align-items:center;gap:10px;padding:11px 13px;margin-bottom:7px;
-              background:rgba(20,20,10,.15);border:1px solid rgba(80,80,40,.2);border-radius:10px;
-              opacity:.65;cursor:pointer;transition:all .15s;">
-              <div style="font-size:24px;line-height:1;filter:grayscale(0.7);">🌲</div>
-              <div style="flex:1;">
-                <div style="font-size:12px;font-weight:700;color:#7a7050;">Rừng Vạn Yêu</div>
-                <div style="font-size:9.5px;color:#5a5030;margin-top:1px;">Nơi trú ẩn của yêu thú các loại · Nguy hiểm tăng theo độ sâu</div>
-              </div>
-              <div style="font-size:9px;padding:2px 7px;background:rgba(80,60,20,.2);border:1px solid rgba(150,120,40,.3);border-radius:5px;color:#9a8040;">🔒 Luyện Khí Hậu Kỳ</div>
-            </div>`;
-          }
-        })()}
-
-        <!-- Phong Lang Thành -->
-        <div style="
-          display:flex;align-items:center;gap:10px;padding:11px 13px;margin-bottom:7px;
-          background:rgba(20,20,30,.15);border:1px solid rgba(80,80,120,.2);border-radius:10px;
-          opacity:.5;cursor:not-allowed;">
-          <div style="font-size:24px;line-height:1;filter:grayscale(1);">🏯</div>
-          <div style="flex:1;">
-            <div style="font-size:12px;font-weight:700;color:#8888aa;">Phong Lang Thành</div>
-            <div style="font-size:9.5px;color:#5a5a70;margin-top:1px;">Thành trấn lớn nhất Đông Châu · Chưa mở</div>
-          </div>
-          <div style="font-size:9px;padding:2px 7px;background:rgba(80,80,120,.15);border:1px solid rgba(80,80,120,.3);border-radius:5px;color:#6666aa;">🔒 Chưa mở</div>
-        </div>
-
-        <div style="font-size:9.5px;font-weight:700;color:#5a4018;letter-spacing:.7px;text-transform:uppercase;margin:14px 0 8px;">
-          ✦ ĐỊA DANH ẨN
-        </div>
-
-        <div style="display:flex;align-items:center;gap:10px;padding:10px 13px;margin-bottom:6px;background:rgba(10,8,4,.4);border:1px solid rgba(201,168,76,.08);border-radius:10px;opacity:.4;cursor:not-allowed;">
-          <div style="font-size:20px;line-height:1;filter:blur(3px) grayscale(1);">❓</div>
-          <div style="flex:1;">
-            <div style="font-size:12px;font-weight:700;color:#4a3818;filter:blur(4px);user-select:none;">████████</div>
-            <div style="font-size:9.5px;color:#3a2810;margin-top:1px;">??? · Chưa khám phá</div>
-          </div>
-          <div style="font-size:9px;padding:2px 7px;background:rgba(0,0,0,.3);border:1px solid rgba(201,168,76,.1);border-radius:5px;color:#3a2810;">🔒 Ẩn</div>
-        </div>
-        <div style="display:flex;align-items:center;gap:10px;padding:10px 13px;margin-bottom:6px;background:rgba(10,8,4,.4);border:1px solid rgba(201,168,76,.08);border-radius:10px;opacity:.4;cursor:not-allowed;">
-          <div style="font-size:20px;line-height:1;filter:blur(3px) grayscale(1);">❓</div>
-          <div style="flex:1;">
-            <div style="font-size:12px;font-weight:700;color:#4a3818;filter:blur(4px);user-select:none;">████████</div>
-            <div style="font-size:9.5px;color:#3a2810;margin-top:1px;">??? · Chưa khám phá</div>
-          </div>
-          <div style="font-size:9px;padding:2px 7px;background:rgba(0,0,0,.3);border:1px solid rgba(201,168,76,.1);border-radius:5px;color:#3a2810;">🔒 Ẩn</div>
-        </div>
-        <div style="display:flex;align-items:center;gap:10px;padding:10px 13px;margin-bottom:6px;background:rgba(10,8,4,.4);border:1px solid rgba(201,168,76,.08);border-radius:10px;opacity:.4;cursor:not-allowed;">
-          <div style="font-size:20px;line-height:1;filter:blur(3px) grayscale(1);">❓</div>
-          <div style="flex:1;">
-            <div style="font-size:12px;font-weight:700;color:#4a3818;filter:blur(4px);user-select:none;">████████</div>
-            <div style="font-size:9.5px;color:#3a2810;margin-top:1px;">??? · Chưa khám phá</div>
-          </div>
-          <div style="font-size:9px;padding:2px 7px;background:rgba(0,0,0,.3);border:1px solid rgba(201,168,76,.1);border-radius:5px;color:#3a2810;">🔒 Ẩn</div>
-        </div>
-        <div style="display:flex;align-items:center;gap:10px;padding:10px 13px;margin-bottom:6px;background:rgba(10,8,4,.4);border:1px solid rgba(201,168,76,.08);border-radius:10px;opacity:.4;cursor:not-allowed;">
-          <div style="font-size:20px;line-height:1;filter:blur(3px) grayscale(1);">❓</div>
-          <div style="flex:1;">
-            <div style="font-size:12px;font-weight:700;color:#4a3818;filter:blur(4px);user-select:none;">████████</div>
-            <div style="font-size:9.5px;color:#3a2810;margin-top:1px;">??? · Chưa khám phá</div>
-          </div>
-          <div style="font-size:9px;padding:2px 7px;background:rgba(0,0,0,.3);border:1px solid rgba(201,168,76,.1);border-radius:5px;color:#3a2810;">🔒 Ẩn</div>
-        </div>
-        <div style="display:flex;align-items:center;gap:10px;padding:10px 13px;margin-bottom:6px;background:rgba(10,8,4,.4);border:1px solid rgba(201,168,76,.08);border-radius:10px;opacity:.4;cursor:not-allowed;">
-          <div style="font-size:20px;line-height:1;filter:blur(3px) grayscale(1);">❓</div>
-          <div style="flex:1;">
-            <div style="font-size:12px;font-weight:700;color:#4a3818;filter:blur(4px);user-select:none;">████████</div>
-            <div style="font-size:9.5px;color:#3a2810;margin-top:1px;">??? · Chưa khám phá</div>
-          </div>
-          <div style="font-size:9px;padding:2px 7px;background:rgba(0,0,0,.3);border:1px solid rgba(201,168,76,.1);border-radius:5px;color:#3a2810;">🔒 Ẩn</div>
-        </div>
-      `;
+    thuoc_tinh:()=>{
+      t.textContent="✨ Thuộc Tính";
+      b.style.padding="4px 14px 16px";
+      b.style.overflow="auto";
+      if(!S.linhcanAttrs || S.linhcanAttrs.length===0){
+        b.innerHTML=`<div style="text-align:center;padding:30px 0;color:#7a6030;font-size:12px;">Chưa có Linh Căn Thuộc Tính nào.</div>`;
+        return;
+      }
+      if(!window.ThuocTinh){
+        b.innerHTML=`<div style="text-align:center;padding:30px 0;color:#7a6030;font-size:12px;">Đang tải hệ thống Thuộc Tính...</div>`;
+        return;
+      }
+      window.ThuocTinh.ensureState(S);
+      b.innerHTML = window.ThuocTinh.renderRing(S, {
+        onSphereClick: "G._ttOpenPopup",
+        onCenterClick: "",
+      });
+      _ttStartTicker();
     },
-    event:()=>{ t.textContent="🎉 Sự Kiện"; b.innerHTML=`
+        event:()=>{ t.textContent="🎉 Sự Kiện"; b.innerHTML=`
       <div style="text-align:center;padding:30px 0 10px;">
         <div style="font-size:28px;margin-bottom:10px;">🎉</div>
         <div style="font-size:13px;font-weight:700;color:#d6b15f;margin-bottom:6px;">Sự Kiện Đặc Biệt</div>
@@ -10080,12 +9555,98 @@ function openScreen(id, tab){
 }
 function closeScreen(){ 
   if (_currentScreenId === 'chat') _chatScreenCleanup();
+  if (_currentScreenId === 'thuoc_tinh') { _ttStopTicker(); _ttClosePopup(); }
   _currentScreenId = null;
   document.getElementById("screen-overlay").classList.remove("active");
   const b = document.getElementById("screen-body");
   b.style.padding = ""; b.style.overflow = ""; b.style.maxHeight = "";
   b.style.display = ""; b.style.flexDirection = "";
 }
+
+/* ===== THUỘC TÍNH — handlers UI (logic thuần ở thuoc-tinh.js) ===== */
+let _ttTickerInterval = null;
+let _ttPopupAttr = null;
+
+function _ttStartTicker(){
+  _ttStopTicker();
+  _ttTickerInterval = setInterval(()=>{
+    if(_currentScreenId !== 'thuoc_tinh') { _ttStopTicker(); return; }
+    if(!window.ThuocTinh) return;
+    // Cập nhật lại vòng tròn (chỉ khi popup đang đóng, để không giật UI popup)
+    if(!_ttPopupAttr){
+      const b = document.getElementById("screen-body");
+      if(b) b.innerHTML = window.ThuocTinh.renderRing(S, { onSphereClick:"G._ttOpenPopup", onCenterClick:"" });
+    } else {
+      _ttRefreshPopup();
+    }
+  }, 1000);
+}
+function _ttStopTicker(){
+  if(_ttTickerInterval){ clearInterval(_ttTickerInterval); _ttTickerInterval = null; }
+}
+
+function _ttOpenPopup(attr){
+  if(!window.ThuocTinh) return;
+  _ttPopupAttr = attr;
+  let overlay = document.getElementById("tt-popup-overlay");
+  if(!overlay){
+    overlay = document.createElement("div");
+    overlay.id = "tt-popup-overlay";
+    overlay.className = "tt-popup-overlay";
+    document.body.appendChild(overlay);
+  }
+  overlay.style.display = "flex";
+  _ttRefreshPopup();
+}
+function _ttRefreshPopup(){
+  if(!_ttPopupAttr || !window.ThuocTinh) return;
+  const overlay = document.getElementById("tt-popup-overlay");
+  if(!overlay) return;
+  overlay.innerHTML = `<div class="tt-popup-box">` +
+    window.ThuocTinh.renderPopupContent(S, _ttPopupAttr, {
+      onPickHour: "G._ttPickHour",
+      onBreakthrough: "G._ttBreakthrough()",
+      onClose: "G._ttClosePopup()",
+    }) +
+  `</div>`;
+}
+function _ttClosePopup(){
+  _ttPopupAttr = null;
+  const overlay = document.getElementById("tt-popup-overlay");
+  if(overlay) overlay.style.display = "none";
+}
+function _ttPickHour(hours){
+  if(!_ttPopupAttr || !window.ThuocTinh) return;
+  const res = window.ThuocTinh.addTrainingHours(S, _ttPopupAttr, hours);
+  if(!res.ok){
+    showNotif({ icon:"⚠️", title:"Không thể tu luyện", lines:[res.reason], color:"#ff9090", duration:2200 });
+    return;
+  }
+  _ttRefreshPopup();
+  calcBuffMana();
+  renderHUD();
+  saveGame && saveGame();
+}
+function _ttBreakthrough(){
+  if(!_ttPopupAttr || !window.ThuocTinh) return;
+  const attr = _ttPopupAttr;
+  const res = window.ThuocTinh.breakthrough(S, attr);
+  if(!res.ok){
+    showNotif({ icon:"⚠️", title:"Chưa thể đột phá", lines:[res.reason], color:"#ff9090", duration:2200 });
+    return;
+  }
+  calcBuffMana();
+  renderHUD();
+  saveGame && saveGame();
+  if(res.maxed){
+    showNotif({ icon:"👑", title:"Viên Mãn Cực Phẩm!", lines:[`${attr} đã đạt cấp tối đa.`], color:"#ffd86b", duration:3000 });
+  } else {
+    const tierName = window.ThuocTinh.TIER_INFO[res.newTier].name;
+    showNotif({ icon:"⚡", title:"Đột Phá Thành Công!", lines:[`${attr} thăng cấp: <b>${tierName}</b>`], color:"#80ffb0", duration:2800 });
+  }
+  _ttRefreshPopup();
+}
+
 
 /* ===== ACHIEVEMENT SYSTEM ===== */
 
@@ -12398,7 +11959,7 @@ defP("chon_tong_mon","Chọn Tông Môn · Bái Sư",function(c){
 // Sect choice handler
 function chooseSect(type){
   const sects = {
-    kiem: { name:"Thanh Vân Tông",  job:"Đệ Tử Thanh Vân Tông", mind:"Tâm Kiếm-Trung", next:"ngoai_mon_kiem_phat_tui" },
+    kiem: { name:"Thanh Vân Tông",  job:"Đệ Tử Thanh Vân Tông", mind:"Tâm Kiếm-Trung", next:"ngoai_mon_kham_pha" },
     dao:  { name:"Nhất Đao Tông",  job:"Đệ Tử Nhất Đao Tông", mind:"Tâm Đao-Trung",  next:"nhat_dao_tong" },
     the:  { name:"Thể Cực Tông",   job:"Đệ Tử Thể Cực Tông",  mind:"Tâm Thể-Trung",  next:"the_cuc_tong" },
     phap: { name:"Vạn Pháp Tông",  job:"Đệ Tử Vạn Pháp Tông", mind:"Tâm Pháp-Trung", next:"van_phap_tong" },
@@ -12882,73 +12443,28 @@ defP("nhat_dao_tong","Nhất Đao Tông · Ngoại Môn",function(c){
   c.addText(`<p>Cổng Nhất Đao Tông khắc một chữ <b>斬</b> lớn, màu đỏ như máu. Không có hoa văn trang trí, không có cờ phướn — chỉ là sức nặng thuần túy của đao ý.</p>`);
   c.addNPC("⚔️","Trưởng Lão Nhất Đao","Đao đạo không cần hoa mỹ — một đao phá vạn pháp. Nếu ngươi muốn sức mạnh tuyệt đối, hãy ở lại. Nếu muốn kỹ thuật tinh tế, hãy đi nơi khác.");
   c.addSys("<b>[Hệ Thống]</b><br>Gia nhập Nhất Đao Tông!","success");
-  c.addChoice(1,"Con chọn sức mạnh!","→",()=>goto("ngoai_mon_kiem_phat_tui"));
+  c.addChoice(1,"Con chọn sức mạnh!","→",()=>goto("ngoai_mon_kham_pha"));
 });
 
 defP("van_phap_tong","Vạn Pháp Tông · Ngoại Môn",function(c){
   c.addText(`<p>Vạn Pháp Tông nằm giữa một khu rừng cổ thụ yên tĩnh. Đệ tử ở đây người tu kiếm, kẻ luyện pháp, người rèn thể — trăm hoa đua nở.</p>`);
   c.addNPC("📚","Tông Chủ Vạn Pháp","Vạn pháp nhất pháp — mọi con đường đều dẫn đến đỉnh. Ta không ép ngươi chọn một hướng, nhưng ngươi phải tự tìm ra con đường của mình.");
   c.addSys("<b>[Hệ Thống]</b><br>Gia nhập Vạn Pháp Tông!","success");
-  c.addChoice(1,"Con sẽ tìm ra con đường của mình!","→",()=>goto("ngoai_mon_kiem_phat_tui"));
+  c.addChoice(1,"Con sẽ tìm ra con đường của mình!","→",()=>goto("ngoai_mon_kham_pha"));
 });
 
 defP("the_cuc_tong","Thể Cực Tông · Ngoại Môn",function(c){
   c.addText(`<p>Thể Cực Tông không có điện đường tráng lệ — chỉ có bãi tập rộng lớn và những đệ tử đang luyện công dưới nắng, mồ hôi đổ như mưa.</p>`);
   c.addNPC("💪","Môn Chủ Thể Cực","Thể đạo lấy thân làm nền tảng. Khi thân thể ngươi đủ mạnh, vạn pháp của địch đều vô dụng. Bắt đầu từ mai — ba nghìn cú đấm mỗi buổi sáng.");
   c.addSys("<b>[Hệ Thống]</b><br>Gia nhập Thể Cực Tông!","success");
-  c.addChoice(1,"...Con hiểu rồi, bắt đầu thôi.","→",()=>goto("ngoai_mon_kiem_phat_tui"));
+  c.addChoice(1,"...Con hiểu rồi, bắt đầu thôi.","→",()=>goto("ngoai_mon_kham_pha"));
 });
 
 defP("tan_tu","Tán Tu · Tự Do Chi Đạo",function(c){
   c.addText(`<p>Ngươi không chọn bất kỳ tông môn nào. Con đường tán tu — cô độc nhưng tự do tuyệt đối.</p><p>Không có sư phụ, không có sư huynh, không có nguồn tài nguyên tông môn. Nhưng ngươi cũng không bị ràng buộc bởi bất kỳ quy tắc nào.</p>`);
   c.addSys("<b>[Hệ Thống]</b><br>Trạng thái: Tán Tu<br>Đã nhận: <b>💎 200 Linh Thạch Hạ Phẩm</b> · Không có tông môn hỗ trợ.<br>⚠️ Con đường khó khăn hơn, nhưng tiềm năng không giới hạn.","warn");
   S.lsHa = (S.lsHa||0) + 200;
-  c.addChoice(1,"Con đường ta, ta đi.","→",()=>goto("ngoai_mon_kiem_phat_tui"));
-});
-
-/* Cảnh phát túi trữ vật — chung cho mọi tông môn */
-defP("ngoai_mon_kiem_phat_tui","Sư Huynh Giám Khảo · Phát Trang Bị",function(c){
-  // Determine tâm pháp name based on sect
-  const tamPhapMap = {
-    "Tâm Kiếm-Trung":"Tâm Kiếm Quyết",
-    "Tâm Đao-Trung":"Tâm Đao Quyết",
-    "Tâm Thể-Trung":"Tâm Thể Quyết",
-    "Tâm Pháp-Trung":"Vạn Pháp Tâm Kinh",
-  };
-  const tamPhapName = tamPhapMap[S.mindMethod] || "Tâm Pháp căn bản";
-  // Give 10 contribution points on first visit
-  if(!S._phatTuiDone){
-    S._phatTuiDone = true;
-    S.diemCongHien = (S.diemCongHien||0) + 10;
-    renderHUD();
-  }
-  c.addText(`<p>Một sư huynh giám khảo tiến lại, tay cầm một chiếc nhẫn ngọc nhỏ bé phát ra ánh sáng mờ nhạt.</p>`);
-  c.addNPC("🧑","Sư Huynh Giám Khảo","Đây là <b style='color:#d6b15f'>Nhẫn Trữ Vật</b> cấp bậc thấp — đệ tử mới nhận phát. Bên trong có dung lượng 10 thước khối, đủ để cất giữ những thứ cơ bản. Còn đây là Tâm Pháp căn bản của tông môn. Hãy giữ gìn cẩn thận.");
-  c.addSys(`<b>[Hệ Thống]</b><br>Đã nhận: 💍 <b>Nhẫn Trữ Vật · Hạ Phẩm</b><br>Đã nhận: 📖 <b>Tâm Pháp: ${tamPhapName}</b><br>Đã nhận: 🏅 <b>+10 Điểm Cống Hiến</b><br>✦ Đã mở khóa: Nhẫn Trữ Vật · Công Pháp`,"success");
-  // Unlock inventory & skills
-  S.unlockInventory = true;
-  renderHUD();
-  // HUD thông báo nhận đồ
-  showNotif({
-    icon:"💍",
-    title:"Nhận Vật Phẩm!",
-    lines:[
-      `<b style="color:#d6b15f">Nhẫn Trữ Vật · Hạ Phẩm</b>`,
-      `<b style="color:#c8a84a">📖 ${tamPhapName}</b>`,
-      `<b style="color:#a0d8ff">🏅 +10 Điểm Cống Hiến</b>`
-    ],
-    color:"#d6b15f",
-    duration:3500
-  });
-  c.addChoice(1,"Cảm ơn sư huynh!","→",()=>goto("ngoai_mon_kham_pha"));
-  c.addChoice(2,"Điểm cống hiến là gì vậy?","Hỏi",()=>goto("hoi_diem_cong_hien"));
-});
-
-defP("hoi_diem_cong_hien","Điểm Cống Hiến · Tông Môn",function(c){
-  c.addNPC("🧑","Sư Huynh Giám Khảo","Điểm Cống Hiến là tiền tệ nội bộ của tông môn — chỉ đệ tử trong môn mới có. Dùng để mua công pháp, đan dược, pháp khí tại Cống Hiến Các, tương tự linh thạch nhưng dùng trong tông môn.");
-  c.addNPC("🧑","Sư Huynh Giám Khảo","Muốn đổi điểm cống hiến từ linh thạch cũng được: 10 viên Linh Thạch Hạ Phẩm → 1 điểm, 1 viên Trung Phẩm → 100 điểm, 1 viên Thượng Phẩm → 1.000 điểm, 1 viên Cực Phẩm → 10.000 điểm. Tổng cộng ngươi có 4 loại tiền tệ: Linh Thạch Hạ/Trung/Thượng/Cực Phẩm và Điểm Cống Hiến.");
-  c.addSys("<b>[Tiền Tệ Tông Môn]</b><br>💎 Linh Thạch Hạ Phẩm · Trung Phẩm · Thượng Phẩm · Cực Phẩm<br>🏅 Điểm Cống Hiến — mua đồ tông môn, đổi từ linh thạch");
-  c.addChoice(1,"Hiểu rồi, cảm ơn!","→",()=>goto("ngoai_mon_kham_pha"));
+  c.addChoice(1,"Con đường ta, ta đi.","→",()=>goto("ngoai_mon_kham_pha"));
 });
 
 defP("ngoai_mon_kham_pha","Ngoại Môn · Khám Phá",function(c){
@@ -14278,6 +13794,7 @@ return {
   checkDie, _showDiePopup, _dieRevivePrompt, _dieDoRevive, _dieAccept,
   openInvSimpleDetail,
   openCharStatsPopup,
+  _ttOpenPopup, _ttClosePopup, _ttPickHour, _ttBreakthrough,
   S: S,
   defP: defP,
   init: init
