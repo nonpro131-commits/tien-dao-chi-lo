@@ -22,7 +22,7 @@
 
 <script>
 // ★ ĐỔI SỐ NÀY MỖI KHI DEPLOY BẢN MỚI (phải khớp với sw.js) ★
-const APP_VERSION = '1.0.5';
+const APP_VERSION = '1.0.6';
 
 // ── DEBUG PANEL: thêm ?debug=1 vào URL để xem chẩn đoán ngay trên màn hình ──
 // (không cần DevTools — hữu ích để chẩn đoán trên điện thoại)
@@ -1143,6 +1143,35 @@ body.story-closed #story-toggle-btn{
 .sect-name{font-size:13px;font-weight:700;color:#d6b15f;margin-bottom:3px;}
 .sect-type{font-size:10px;color:#6a5028;margin-bottom:5px;letter-spacing:.5px;}
 .sect-desc{font-size:11.5px;color:#9a8860;line-height:1.5;}
+
+/* Công Pháp — sơ đồ liên kết */
+.cp-hint{font-size:10px;color:#8a7040;text-align:center;margin-bottom:12px;padding:6px 8px;background:rgba(240,193,75,.06);border-radius:8px;border:1px solid rgba(240,193,75,.14);line-height:1.5;}
+.cp-tree{display:flex;align-items:stretch;}
+.cp-root-col{flex:0 0 56px;display:flex;align-items:center;justify-content:center;position:relative;}
+.cp-root-box{
+  width:48px;height:48px;border-radius:10px;cursor:pointer;z-index:2;
+  background:rgba(240,193,75,.10);border:1.5px solid rgba(240,193,75,.4);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;
+  font-size:8.5px;color:#f0c14b;text-align:center;line-height:1.2;transition:background .15s;
+}
+.cp-root-box:hover{background:rgba(240,193,75,.18);}
+.cp-root-box .cp-root-icon{font-size:16px;}
+.cp-trunk{position:absolute;right:0;top:9%;bottom:9%;width:2px;background:rgba(240,193,75,.22);}
+.cp-rows{flex:1;display:flex;flex-direction:column;gap:9px;padding-left:14px;min-width:0;}
+.cp-row{display:flex;align-items:center;position:relative;min-height:32px;}
+.cp-branch{position:absolute;left:-14px;top:50%;width:14px;height:2px;margin-top:-1px;}
+.cp-row-label{flex:0 0 42px;font-size:8.5px;text-align:center;line-height:1.3;flex-shrink:0;}
+.cp-row-label .cp-row-icon{font-size:13px;display:block;}
+.cp-track{flex:1;display:flex;align-items:center;overflow-x:auto;padding:3px 2px;min-width:0;-webkit-overflow-scrolling:touch;}
+.cp-box{
+  flex-shrink:0;width:28px;height:28px;border-radius:7px;margin:0 1px;
+  background:rgba(255,255,255,.03);border:1.5px solid rgba(120,120,120,.18);
+  display:flex;align-items:center;justify-content:center;font-size:12px;
+  cursor:pointer;color:#4a4030;transition:transform .12s;
+}
+.cp-box:active{transform:scale(.92);}
+.cp-box.unlocked{font-weight:700;}
+.cp-arrow{flex-shrink:0;width:9px;text-align:center;font-size:11px;color:#3a3a3a;}
 
 /* Portrait */
 @media(orientation:portrait){
@@ -2946,6 +2975,7 @@ function getMindExpMaxFromExp(e){
 
 function calcMindSystem(){
   S.mindStr = 0; S.mindDef = 0; S.mindHP = 0; S.mindMana = 0;
+  S.mindCritRate = 0; S.mindCritDmg = 0; S.mindKhu = 0;
   if(!S.mindMethod){ S.mindLevel = "Chưa học"; return; }
 
   const m = S.mindMethod;
@@ -2958,27 +2988,27 @@ function calcMindSystem(){
 
   if(S.mindLevel === "Chưa học") return; // Chưa học => không có buff
 
-  // === Tâm Kiếm (STR + Mana) ===
+  // === Tâm Kiếm (STR + Mana + TLCM) ===
   const kiemTbl = {
-    "Tâm Kiếm-Trung":  {ts:{str:150,mana:300},tc:{str:300,mana:600},ds:{str:900,mana:1800},vm:{str:1800,mana:3600}},
+    "Tâm Kiếm-Trung":  {ts:{str:300,mana:1200,critRate:5},tc:{str:600,mana:3000,critRate:10},ds:{str:1800,mana:9000,critRate:20},vm:{str:3600,mana:18000,critRate:40}},
     "Tâm Kiếm-Thượng": {ts:{str:300,mana:600},tc:{str:600,mana:1200},ds:{str:1800,mana:3600},vm:{str:2600,mana:7200}},
     "Tâm Kiếm-Cực":    {ts:{str:450,mana:900},tc:{str:800,mana:1800},ds:{str:2400,mana:5400},vm:{str:4800,mana:10800}},
   };
-  // === Tâm Đao (STR mạnh + ít Mana) ===
+  // === Tâm Đao (STR mạnh + Mana + STCM) ===
   const daoTbl = {
-    "Tâm Đao-Trung":  {ts:{str:175,mana:250},tc:{str:525,mana:750},ds:{str:1575,mana:2250},vm:{str:3150,mana:4500}},
+    "Tâm Đao-Trung":  {ts:{str:500,mana:1000,critDmg:10},tc:{str:700,mana:2900,critDmg:20},ds:{str:2100,mana:8700,critDmg:40},vm:{str:4200,mana:17400,critDmg:80}},
     "Tâm Đao-Thượng": {ts:{str:350,mana:500},tc:{str:700,mana:1000},ds:{str:2100,mana:3000},vm:{str:4200,mana:6000}},
     "Tâm Đao-Cực":    {ts:{str:425,mana:750},tc:{str:850,mana:1500},ds:{str:2550,mana:4500},vm:{str:5100,mana:9000}},
   };
-  // === Tâm Pháp (chỉ Mana, rất cao) ===
+  // === Tâm Pháp (Mana rất cao + TLCM + STCM) ===
   const phapTbl = {
-    "Tâm Pháp-Trung":  {ts:{mana:600},tc:{mana:1200},ds:{mana:3600},vm:{mana:7200}},
+    "Tâm Pháp-Trung":  {ts:{mana:1500,critRate:5,critDmg:10},tc:{mana:4500,critRate:10,critDmg:20},ds:{mana:13500,critRate:20,critDmg:40},vm:{mana:27000,critRate:40,critDmg:80}},
     "Tâm Pháp-Thượng": {ts:{mana:1200},tc:{mana:2400},ds:{mana:7200},vm:{mana:14400}},
     "Tâm Pháp-Cực":    {ts:{mana:2400},tc:{mana:4800},ds:{mana:14400},vm:{mana:28800}},
   };
-  // === Tâm Thể (HP + DEF + ít Mana) ===
+  // === Tâm Thể (HP + Mana + KHU) ===
   const theTbl = {
-    "Tâm Thể-Trung":  {ts:{hp:600,def:100,mana:100},tc:{hp:1200,def:200,mana:200},ds:{hp:3600,def:600,mana:600},vm:{hp:7200,def:1200,mana:1200}},
+    "Tâm Thể-Trung":  {ts:{hp:4000,mana:1000,khu:5},tc:{hp:8000,mana:2700,khu:10},ds:{hp:24000,mana:8100,khu:20},vm:{hp:48000,mana:16200,khu:40}},
     "Tâm Thể-Thượng": {ts:{hp:1200,def:200,mana:200},tc:{hp:2400,def:400,mana:400},ds:{hp:7200,def:1200,mana:1200},vm:{hp:14400,def:2400,mana:2400}},
     "Tâm Thể-Cực":    {ts:{hp:2400,def:400,mana:400},tc:{hp:4800,def:800,mana:800},ds:{hp:14400,def:2400,mana:2400},vm:{hp:28800,def:4800,mana:4800}},
   };
@@ -2989,10 +3019,13 @@ function calcMindSystem(){
   const row = allTbl[m];
   if(!row) return;
   const vals = row[lvKey] || {};
-  S.mindStr  = vals.str  || 0;
-  S.mindMana = vals.mana || 0;
-  S.mindHP   = vals.hp   || 0;
-  S.mindDef  = vals.def  || 0;
+  S.mindStr      = vals.str      || 0;
+  S.mindMana     = vals.mana     || 0;
+  S.mindHP       = vals.hp       || 0;
+  S.mindDef      = vals.def      || 0;
+  S.mindCritRate = vals.critRate || 0;
+  S.mindCritDmg  = vals.critDmg  || 0;
+  S.mindKhu      = vals.khu      || 0;
 }
 
 // Combo buff bộ 4 (trâm+áo+quần+giày cùng con đường tu luyện)
@@ -3094,9 +3127,9 @@ function calcBuffMana(){
   const baseHp = 100 + S.bonusHP + (S.mindHP||0) + (S.theChatHpBonus||0) + (S.bonusHpBase||0) + ytHp;
   S.hpmax = Math.floor(baseHp * (1 + (eqB.hpPct||0)/100)) + (eqB.hpMax||0);
 
-  S.critRate = 5 + (eqB.critRate||0);
-  S.critDmg  = 50 + (eqB.critDmg||0);
-  S.khu      = (eqB.khu||0); // equipment bonus only (base khu is 0 unless other system sets it)
+  S.critRate = 5 + (eqB.critRate||0) + (S.mindCritRate||0);
+  S.critDmg  = 50 + (eqB.critDmg||0) + (S.mindCritDmg||0);
+  S.khu      = (eqB.khu||0) + (S.mindKhu||0);
   S._eqKhuBonus = eqB.khu||0;
 
   if(S.hp > S.hpmax) S.hp = S.hpmax;
@@ -3311,7 +3344,7 @@ function startCultivate(durationSec){
     const t = document.getElementById("screen-title");
     if(t && t.textContent.includes("Tu Luyện")) openScreen("cultivate");
   }
-  goto("tu_luyen_hoan_tat");
+  openScreen("cultivate");
 }
 
 // Tu luyện bình thường — ngẫu nhiên 10~30 phút, không cần thẻ, không giới hạn
@@ -3322,7 +3355,7 @@ function startNormalCultivate(){
   S.normalCultCount = 0;
   S.normalCultIntervalMin = 30; // cố định 30 phút
   S.normalCultNextMin = totalMin + S.normalCultIntervalMin;
-  goto("tu_luyen_binh_thuong");
+  openScreen("cultivate");
 }
 
 function startNormalCultivateOverlay(){
@@ -3338,7 +3371,7 @@ function startNormalCultivateOverlay(){
 function stopNormalCultivate(){
   S.normalCult = false;
   clearInterval(window._cultivateOverlayTimer);
-  goto("luyen_khi");
+  openScreen("cultivate");
 }
 
 function stopNormalCultivateOverlay(){
@@ -3399,7 +3432,7 @@ function openCardCultivatePopup(){
 // Compat (không còn dùng nhưng giữ để không lỗi nếu có nơi gọi)
 function checkFreeReset(){}
 function checkCultivationDone(){ return false; }
-function collectCultivation(){ goto("tu_luyen_hoan_tat"); }
+function collectCultivation(){ openScreen("cultivate"); }
 
 
 function renderHUD(){
@@ -9841,6 +9874,228 @@ const LUYEN_KHI_SECT_META = {
   "van_phap":  { name:"Pháp Tu", color:"#c060e0", theme:"rgba(120,40,180,.15)", border:"rgba(150,60,220,.35)", desc:"Con đường pháp tu. Trang bị thiên về Linh Lực và Mana." },
 };
 
+// ===== CÔNG PHÁP — sơ đồ liên kết (Tâm Pháp → 4 con đường, mỗi đường 15 ô) =====
+const CONG_PHAP_ROW_ORDER = ["thanh_van","nhat_dao","the_cuc","van_phap"]; // Kiếm Tu, Đao Tu, Thể Tu, Pháp Tu
+const CONG_PHAP_SLOTS = 15; // mỗi con đường tu tối đa 15 công pháp
+
+// Số ô đã mở khóa trên 1 con đường, dựa theo tu vi (ô i mở khi S.stage >= i)
+function _cpUnlockedCount(){
+  return Math.max(0, Math.min(CONG_PHAP_SLOTS, S.stage||0));
+}
+
+function buildCongPhapTreeHTML(){
+  const isKimDan = S.stage >= 9; // Kim Đan Sơ Kỳ trở lên mới song tu được nhiều con đường
+  const sectInfo = getPlayerSectInfo();
+  const activeSectId = sectInfo ? sectInfo.sectId : null;
+  const unlockedCount = _cpUnlockedCount();
+
+  const rootLearned = !!(S.mindMethod && S.mindLevel && S.mindLevel !== "Chưa học");
+  const rootHTML = `
+    <div class="cp-root-box" onclick="G.showCongPhapRootInfo()">
+      <div class="cp-root-icon">${rootLearned?"📖":"🔒"}</div>
+      <div>Tâm Pháp</div>
+    </div>`;
+
+  let rowsHTML = "";
+  CONG_PHAP_ROW_ORDER.forEach(sectId=>{
+    const meta = LUYEN_KHI_SECT_META[sectId];
+    const isActive = activeSectId === sectId;
+    const rowEnabled = isActive || isKimDan;
+    const rowUnlockedCount = rowEnabled ? unlockedCount : 0;
+    const branchColor = isActive ? meta.color : "rgba(120,120,120,.22)";
+    let boxesHTML = "";
+    for(let i=1;i<=CONG_PHAP_SLOTS;i++){
+      const unlocked = i<=rowUnlockedCount;
+      const status = unlocked ? "open" : (rowEnabled ? "stage" : "path");
+      const boxStyle = unlocked
+        ? `background:${meta.theme};border-color:${meta.color};color:${meta.color};box-shadow:0 0 5px ${meta.color}55;`
+        : "";
+      if(i>1) boxesHTML += `<div class="cp-arrow" style="color:${unlocked?meta.color:'#3a3a3a'}">→</div>`;
+      boxesHTML += `<div class="cp-box ${unlocked?'unlocked':'locked'}" style="${boxStyle}" onclick="G.onCongPhapBoxClick('${sectId}',${i},'${status}')">${unlocked?'+':'🔒'}</div>`;
+    }
+    rowsHTML += `
+      <div class="cp-row">
+        <div class="cp-branch" style="background:${branchColor};${isActive?`box-shadow:0 0 5px ${meta.color};`:""}"></div>
+        <div class="cp-row-label" style="color:${isActive?meta.color:'#5a5040'};${isActive?'font-weight:700;':''}">
+          <span class="cp-row-icon">${meta.icon||""}</span>${meta.name}
+        </div>
+        <div class="cp-track">${boxesHTML}</div>
+      </div>`;
+  });
+
+  // Hàng thứ 5 — chờ cập nhật, luôn khóa
+  let lockedRowHTML = "";
+  for(let i=1;i<=CONG_PHAP_SLOTS;i++){
+    if(i>1) lockedRowHTML += `<div class="cp-arrow">→</div>`;
+    lockedRowHTML += `<div class="cp-box locked" onclick="G.onCongPhapComingSoon()">🔒</div>`;
+  }
+  rowsHTML += `
+    <div class="cp-row">
+      <div class="cp-branch" style="background:rgba(120,120,120,.18);"></div>
+      <div class="cp-row-label" style="color:#4a4030;">
+        <span class="cp-row-icon">⏳</span>(Chờ Cập Nhật)
+      </div>
+      <div class="cp-track">${lockedRowHTML}</div>
+    </div>`;
+
+  return `
+    <div class="cp-hint">${isKimDan
+      ? "✦ Đã đạt Kim Đan — có thể khai mở thêm con đường khác để song tu."
+      : `Con đường hiện tại: <b style="color:${activeSectId?LUYEN_KHI_SECT_META[activeSectId].color:'#f0c14b'}">${S.sect||"—"}</b>. Chưa đạt Kim Đan, chưa thể song tu con đường khác.`}</div>
+    <div class="cp-tree">
+      <div class="cp-root-col">${rootHTML}<div class="cp-trunk"></div></div>
+      <div class="cp-rows">${rowsHTML}</div>
+    </div>`;
+}
+
+function onCongPhapBoxClick(sectId, idx, status){
+  const meta = LUYEN_KHI_SECT_META[sectId];
+  if(status === "open"){
+    showNotif({icon:"📖", title:`${meta.name} · Ô ${idx}`, lines:["Tính năng học Công Pháp tại đây đang được phát triển.","Đón chờ cập nhật!"], color:meta.color, duration:2600});
+  } else if(status === "stage"){
+    const need = STAGE_DATA[idx] ? STAGE_DATA[idx].n : "???";
+    showNotif({icon:"🔒", title:"Chưa Mở Khóa", lines:[`Cần đạt tu vi <b>${need}</b> để mở khóa ô này.`], color:"#a08840", duration:2400});
+  } else {
+    showNotif({icon:"⛔", title:"Chưa Thể Song Tu", lines:["Chưa đạt Kim Đan, ngươi chỉ có thể chuyên tâm con đường tu luyện đã chọn."], color:"#e87060", duration:2600});
+  }
+}
+
+function onCongPhapComingSoon(){
+  showNotif({icon:"⏳", title:"Chờ Cập Nhật", lines:["Con đường này chưa được mở ra.","Đón chờ cập nhật trong tương lai!"], color:"#9a8860", duration:2400});
+}
+
+function showCongPhapRootInfo(){
+  const learned = S.mindMethod && S.mindLevel && S.mindLevel !== "Chưa học";
+  if(learned){ openTamPhapPopup(); return; }
+  showNotif({
+    icon:"📖", title:"Tâm Pháp",
+    lines:["Chưa học Tâm Pháp.","Tìm sách Tâm Pháp trong Nhẫn Trữ Vật để học!"],
+    color:"#f0c14b", duration:2600
+  });
+}
+
+// Popup chi tiết Tâm Pháp (mở khi đã học) — giống style popup pháp khí trong Nhẫn Trữ Vật
+function openTamPhapPopup(){
+  const e = getMindExp();
+  const lvl = S.mindLevel || "Chưa học";
+  const TIERS = [
+    { name:"Tiểu Thành",  min:0,   max:100  },
+    { name:"Trung Thành", min:100, max:300  },
+    { name:"Đại Thành",   min:300, max:900  },
+    { name:"Viên Mãn",    min:900, max:1800 },
+  ];
+  function segPct(seg){
+    if(e <= seg.min) return 0;
+    if(e >= seg.max) return 100;
+    return (e - seg.min) / (seg.max - seg.min) * 100;
+  }
+  const segsHTML = TIERS.map(seg=>{
+    const pct = segPct(seg);
+    const isCurrent = lvl === seg.name;
+    const reached = pct >= 100;
+    const labelColor = isCurrent ? "#f0c14b" : (reached ? "#a08840" : "#4a3818");
+    return `<div style="flex:1;min-width:0;">
+      <div style="height:7px;border-radius:99px;background:rgba(255,255,255,.06);overflow:hidden;">
+        <div style="height:100%;width:${pct}%;background:linear-gradient(90deg,#7a5a12,#f0c14b);border-radius:99px;transition:width .4s;"></div>
+      </div>
+      <div style="font-size:7.3px;text-align:center;margin-top:3px;color:${labelColor};font-weight:${isCurrent?700:400};white-space:nowrap;">${seg.name}</div>
+    </div>`;
+  }).join('<div style="width:4px;flex-shrink:0;"></div>');
+
+  const pop = document.createElement("div");
+  pop.id = "tamphap-status-popup";
+  pop.style.cssText = "position:fixed;inset:0;z-index:3000;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.82);backdrop-filter:blur(4px);padding:16px;";
+  pop.innerHTML = `
+    <div style="width:100%;max-width:300px;background:rgba(8,6,2,.99);border:1px solid rgba(201,168,76,.35);border-radius:14px;overflow:hidden;box-shadow:0 0 50px rgba(0,0,0,.8);">
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 13px;border-bottom:1px solid rgba(201,168,76,.12);">
+        <div style="font-size:12px;font-weight:700;color:#f0c14b;">📖 ${S.mindMethod || "Tâm Pháp"}</div>
+        <div onclick="document.getElementById('tamphap-status-popup').remove()" style="width:20px;height:20px;display:flex;align-items:center;justify-content:center;border:1px solid rgba(201,168,76,.2);border-radius:4px;color:#9a7a30;cursor:pointer;font-size:11px;">✕</div>
+      </div>
+      <div style="padding:14px 14px 12px;">
+        <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px;">
+          <span style="font-size:13px;font-weight:700;color:#f0d98c;">${lvl}</span>
+          <span style="font-size:9.5px;color:#5a4018;">${fmt(e)} / ${fmt(TIERS[TIERS.length-1].max)}</span>
+        </div>
+        <div style="display:flex;align-items:flex-start;margin-bottom:16px;">${segsHTML}</div>
+        <div style="display:flex;justify-content:flex-end;gap:8px;">
+          <div onclick="document.getElementById('tamphap-status-popup').remove();G.openTamPhapTuLuyenPopup();" style="
+            padding:8px 14px;background:rgba(201,168,76,.1);border:1px solid rgba(201,168,76,.4);
+            border-radius:8px;font-size:11.5px;font-weight:700;color:#f0d98c;cursor:pointer;transition:background .15s;"
+            onmouseover="this.style.background='rgba(201,168,76,.2)'"
+            onmouseout="this.style.background='rgba(201,168,76,.1)'">Tu Luyện</div>
+          <div onclick="G.openTamPhapComingSoon('Thay Đổi')" style="
+            padding:8px 14px;background:rgba(255,255,255,.04);border:1px solid rgba(201,168,76,.2);
+            border-radius:8px;font-size:11.5px;font-weight:700;color:#c0b080;cursor:pointer;transition:background .15s;"
+            onmouseover="this.style.background='rgba(255,255,255,.08)'"
+            onmouseout="this.style.background='rgba(255,255,255,.04)'">Thay Đổi</div>
+        </div>
+      </div>
+    </div>`;
+  pop.onclick = ev => { if(ev.target===pop) pop.remove(); };
+  document.body.appendChild(pop);
+}
+
+// Popup "chưa cập nhật" cho Tu Luyện / Thay Đổi — z-index cao hơn popup Tâm Pháp để không bị đè
+function openTamPhapComingSoon(label){
+  const pop = document.createElement("div");
+  pop.id = "tamphap-comingsoon-popup";
+  pop.style.cssText = "position:fixed;inset:0;z-index:3100;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.55);padding:16px;";
+  pop.innerHTML = `
+    <div style="width:100%;max-width:260px;background:rgba(8,6,2,.99);border:1px solid rgba(201,168,76,.35);border-radius:14px;overflow:hidden;box-shadow:0 0 40px rgba(0,0,0,.85);">
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 13px;border-bottom:1px solid rgba(201,168,76,.12);">
+        <div style="font-size:11.5px;font-weight:700;color:#f0c14b;">${label}</div>
+        <div onclick="document.getElementById('tamphap-comingsoon-popup').remove()" style="width:20px;height:20px;display:flex;align-items:center;justify-content:center;border:1px solid rgba(201,168,76,.2);border-radius:4px;color:#9a7a30;cursor:pointer;font-size:11px;">✕</div>
+      </div>
+      <div style="padding:20px 14px;text-align:center;">
+        <div style="font-size:24px;margin-bottom:6px;opacity:.5;">⏳</div>
+        <div style="font-size:11.5px;color:#c0b080;line-height:1.6;">Tính năng đang được phát triển.<br>Đón chờ cập nhật!</div>
+      </div>
+    </div>`;
+  pop.onclick = ev => { if(ev.target===pop) pop.remove(); };
+  document.body.appendChild(pop);
+}
+
+// Popup Tu Luyện Tâm Pháp — chọn phương thức tu luyện
+function openTamPhapTuLuyenPopup(){
+  const old = document.getElementById("tamphap-status-popup");
+  if(old) old.remove();
+
+  const pop = document.createElement("div");
+  pop.id = "tamphap-tuluyen-popup";
+  pop.style.cssText = "position:fixed;inset:0;z-index:3100;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.82);backdrop-filter:blur(4px);padding:16px;";
+
+  const normalActive = !!S.normalCult;
+  const btnNormalLabel = normalActive ? "⏸ Dừng Tu Luyện" : "▶ Tu Luyện Bình Thường";
+  const btnNormalAction = normalActive
+    ? `G.stopNormalCultivateOverlay();document.getElementById('tamphap-tuluyen-popup').remove();`
+    : `G.startNormalCultivateOverlay();document.getElementById('tamphap-tuluyen-popup').remove();`;
+
+  pop.innerHTML = `
+    <div style="width:100%;max-width:290px;background:rgba(8,6,2,.99);border:1px solid rgba(201,168,76,.35);border-radius:14px;overflow:hidden;box-shadow:0 0 50px rgba(0,0,0,.85);">
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 13px;border-bottom:1px solid rgba(201,168,76,.12);">
+        <div style="font-size:12px;font-weight:700;color:#f0c14b;">⚡ Tu Luyện Tâm Pháp</div>
+        <div onclick="document.getElementById('tamphap-tuluyen-popup').remove()" style="width:20px;height:20px;display:flex;align-items:center;justify-content:center;border:1px solid rgba(201,168,76,.2);border-radius:4px;color:#9a7a30;cursor:pointer;font-size:11px;">✕</div>
+      </div>
+      <div style="padding:14px;">
+        <div style="font-size:10px;color:#7a6030;line-height:1.6;margin-bottom:14px;">Chọn phương thức tu luyện để nâng cao cảnh giới Tâm Pháp.</div>
+        <div style="display:flex;flex-direction:column;gap:8px;">
+          <div onclick="${btnNormalAction}" style="padding:10px 14px;background:rgba(201,168,76,.1);border:1px solid rgba(201,168,76,.4);border-radius:9px;cursor:pointer;transition:background .15s;"
+            onmouseover="this.style.background='rgba(201,168,76,.2)'" onmouseout="this.style.background='rgba(201,168,76,.1)'">
+            <div style="font-size:11.5px;font-weight:700;color:#f0d98c;">${btnNormalLabel}</div>
+            <div style="font-size:9px;color:#7a6030;margin-top:2px;">Tự động nhận tu vi mỗi 30 phút (không cần thẻ)</div>
+          </div>
+          <div onclick="document.getElementById('tamphap-tuluyen-popup').remove();G.openCardCultivatePopup();" style="padding:10px 14px;background:rgba(100,160,255,.07);border:1px solid rgba(100,160,255,.3);border-radius:9px;cursor:pointer;transition:background .15s;"
+            onmouseover="this.style.background='rgba(100,160,255,.15)'" onmouseout="this.style.background='rgba(100,160,255,.07)'">
+            <div style="font-size:11.5px;font-weight:700;color:#a8c8f8;">📜 Dùng Thẻ Tu Luyện</div>
+            <div style="font-size:9px;color:#5a6880;margin-top:2px;">Tu luyện tức thì — tiêu thẻ, nhận tu vi ngay</div>
+          </div>
+        </div>
+      </div>
+    </div>`;
+  pop.onclick = ev => { if(ev.target===pop) pop.remove(); };
+  document.body.appendChild(pop);
+}
+
 // Vũ khí theo tông
 const LUYEN_KHI_WEAP_SLOT = {
   "thanh_van": "van_kiem",
@@ -10277,32 +10532,10 @@ function openScreen(id, tab){
       t.textContent="💍 Nhẫn Trữ Vật";
       b.innerHTML = buildInventoryHTML();
     },
-    skills:()=>{ t.textContent="📖 Công Pháp & Tâm Pháp"; 
-      const e = getMindExp(); const emax = getMindExpMax();
-      const pct = emax>0 ? Math.min(100, e/emax*100) : 0;
-      const lv = S.mindLevel||"Chưa học";
-      const lvColor = lv==="Viên Mãn"?"#f0c14b":lv==="Đại Thành"?"#80d8ff":lv==="Trung Thành"?"#a0e8a0":"#c8a84a";
-      const canBreakMind = (lv==="Tiểu Thành"||lv==="Trung Thành"||lv==="Đại Thành") && e>=emax;
-      const isLearned = S.mindMethod && lv !== "Chưa học";
-      // Tìm sách tâm pháp chưa học trong nhẫn trữ vật
-      const tpBook = (S.tamPhapBooks||[]).find(b=>b.method===S.mindMethod && !b.learned && lv==="Chưa học");
+    skills:()=>{ t.textContent="📖 Công Pháp";
       b.innerHTML=`
-      <div class="hs" style="margin-bottom:6px">Tâm Pháp</div>
-      <div class="hl" style="margin-bottom:${isLearned?"4px":"8px"}"><span class="hll">Tâm Pháp:</span><span class="hlv">${isLearned ? S.mindMethod : "Chưa có"}</span></div>
-      ${S.mindMethod && isLearned ? `
-      <div style="display:flex;justify-content:space-between;font-size:9.5px;margin-bottom:2px;">
-        <span style="color:${lvColor};font-weight:700">${lv}</span>
-        <span style="color:#5a4018">${fmt(e)} / ${fmt(emax)} (${pct.toFixed(1)}%)</span>
-      </div>
-      <div class="tuvi-track" style="margin-bottom:6px;"><div class="tuvi-fill" style="width:${pct}%;background:linear-gradient(90deg,#3a5a8a,${lvColor});"></div></div>
-      ${canBreakMind?`<div class="tuvi-btn" style="margin-bottom:8px" onclick="G.doMindBreakthrough();G.closeScreen()">✦ Đột Phá Tâm Pháp → ${lv==="Tiểu Thành"?"Trung Thành":lv==="Trung Thành"?"Đại Thành":"Viên Mãn"}</div>`:""}
-      <div style="font-size:10px;color:#7ab870;line-height:1.7">
-        ${S.mindStr>0?`STR +${fmt(S.mindStr)}<br>`:""}${S.mindDef>0?`DEF +${fmt(S.mindDef)}<br>`:""}${S.mindHP>0?`HP +${fmt(S.mindHP)}<br>`:""}${S.mindMana>0?`Linh Khí +${fmt(S.mindMana)}`:""}
-      </div>` : ""}
-      <div class="hd" style="margin:10px 0"></div>
-      <div class="hs" style="margin-bottom:6px">Công Pháp</div>
-      <div class="hl"><span class="hll">Công Pháp:</span><span class="hlv">${S.congphap||"Chưa có"}${S.congphapLevel?" · "+S.congphapLevel:""}</span></div>
-      <div class="hd" style="margin:10px 0"></div>
+      ${buildCongPhapTreeHTML()}
+      <div class="hd" style="margin:14px 0"></div>
       <div class="hs" style="margin-bottom:6px">Chức Nghiệp</div>
       ${PROF_LIST.map(prof=>{
         const star = S[prof.starKey]||0;
@@ -12727,289 +12960,10 @@ function chooseDuong(type){
   S.unlockHP = true;
   renderHUD();
   checkUnlocks();
-  goto("ngoai_mon_kham_pha");
+  closeSetupScreen();
+  openScreen("cultivate");
 }
 
-defP("ngoai_mon_kham_pha","Tiên Lộ Khởi Đầu",function(c){
-  c.addText(`<p>✦ Chào mừng đến với <b style="color:#f0c14b">Huyền Minh Giới</b>, ${S.name||"đạo hữu"}. Con đường <b style="color:#d6b15f">${S.sect||""}</b> đã rộng mở trước mắt ngươi.</p>`);
-  c.addSys("<b>[Gợi ý]</b><br>Vào <b>Tu Luyện</b> để cảm nhận linh khí và chính thức bước vào Luyện Khí Sơ Kỳ.");
-  c.addChoice(1,"Bắt đầu tu luyện","Tu luyện",()=>goto("luyen_khi"));
-});
-
-defP("luyen_khi","Tu Luyện · Luyện Khí",function(c){
-  if(S.stage === 0){ S.stage = 1; calcStage();
-    if(!S.unlockHUD){
-      S.unlockHUD = true;
-      checkUnlocks();
-      renderHUD();
-      document.getElementById("story-content").insertAdjacentHTML("beforeend",
-        `<div class="sys-msg success just-unlocked"><b>[Mở Khóa!]</b><br>✦ Nút <b>☰ HUD</b> đã được mở — xem thông tin nhân vật chi tiết!<br>✦ <b>Nhiệm Vụ</b> đã được mở khóa!</div>`);
-      showNotif({
-        icon:"⚡",
-        title:"Luyện Khí Sơ Kỳ!",
-        lines:[
-          `<b style="color:#80d8ff">Luyện Khí Sơ Kỳ</b>`,
-          "HUD & Nhiệm Vụ đã mở khóa!",
-          `<span style="color:#5a7040">Hành trình tu tiên chính thức bắt đầu!</span>`
-        ],
-        color:"#80d8ff",
-        duration:3500
-      });
-    }
-  }
-
-  const canBreak = S.exp >= S.expmax && S.stage > 0;
-  if(canBreak){
-    c.addText(`<p>Linh khí trong kinh mạch đã đạt đến cực hạn, ngươi cảm nhận rõ ràng ngưỡng cửa đột phá đang chờ phía trước...</p>`);
-    c.addSys(`<b>[Tu Vi Đã Đầy!]</b><br>Tu vi: <b>${S.stageName}</b> — ${fmt(S.exp)}/${fmt(S.expmax)}<br>✦ Sẵn sàng Đột Phá — hãy vào <b>Tu Luyện</b> để đột phá!`,"success");
-  } else {
-    c.addText(`<p>Ngươi ngồi xuống tĩnh tọa tại phòng tu luyện. Linh khí thiên địa chầm chậm tụ về, chờ một lệnh để thấm vào kinh mạch...</p>`);
-    const lc = S.linhcan || "Chưa rõ";
-    const cap = S.linhcanCap || "";
-    const dayGain = calcCultExp(86400);
-    c.addSys(`<b>[Tu Luyện · Chuẩn Bị]</b><br>Linh Căn: ${lc}${cap?" ("+cap+")":""}<br>Dự kiến tu vi / ngày: <b>${fmt(dayGain)}</b><br>Tu vi hiện tại: ${fmt(S.exp)}/${fmt(S.expmax)}`);
-  }
-  renderHUD();
-
-  c.addChoice(1,"Luyện Công Pháp","Luyện",()=>goto("luyen_kiem"));
-  if(S.mindMethod) c.addChoice(2,"Tu luyện Tâm Pháp","Tâm Pháp",()=>goto("luyen_tamphap"));
-  c.addChoice(S.mindMethod?3:2,"Nghỉ ngơi","←",()=>goto("ngoai_mon_kham_pha"));
-});
-
-defP("tu_luyen_chon_thoi_gian","Tu Luyện · Chọn Thời Gian",function(c){
-  const stage = S.stage;
-
-  c.addText(`<p>Ngươi chọn thời gian nhập định. Tu luyện hoàn tất tức thì, thời gian game sẽ trôi tương ứng. Mỗi loại tu luyện cần thẻ tương ứng — mua thẻ tại Shop.</p>`);
-
-  // ===== Tu Luyện Bình Thường (không cần thẻ) =====
-  const normGainSample = calcCultExp(20 * 60); // ước tính ~20 phút
-  document.getElementById("story-content").insertAdjacentHTML("beforeend", `
-    <div onclick="G.startNormalCultivate()" style="
-      margin:10px 0 6px 0;padding:12px 14px;border-radius:10px;cursor:pointer;
-      background:rgba(60,160,70,.1);border:1px solid rgba(60,160,70,.35);
-      transition:all .2s;display:flex;justify-content:space-between;align-items:center;
-    " onmouseover="this.style.background='rgba(60,160,70,.2)';this.style.borderColor='rgba(60,160,70,.6)'"
-       onmouseout="this.style.background='rgba(60,160,70,.1)';this.style.borderColor='rgba(60,160,70,.35)'">
-      <div>
-        <div style="font-size:14px;font-weight:700;color:#80e880;margin-bottom:2px;">🌿 Tu Luyện Bình Thường</div>
-        <div style="font-size:10px;color:#5a8050;">Ngồi tĩnh tọa · Nhận tu vi mỗi 10~30 phút game · Vô hạn</div>
-      </div>
-      <div style="text-align:right;flex-shrink:0;margin-left:10px;">
-        <div style="font-size:11px;font-weight:700;color:#60d860;">~${fmt(normGainSample)}</div>
-        <div style="font-size:9px;color:#4a7040;">/lần (~20p)</div>
-      </div>
-    </div>`);
-
-  // ===== Hiển thị số lượng thẻ =====
-  const CARD_DEFS = [
-    { key:"card1h",  label:"Thẻ 1h"    },
-    { key:"card5h",  label:"Thẻ 5h"    },
-    { key:"card10h", label:"Thẻ 10h"   },
-    { key:"card1d",  label:"Thẻ 1 ngày"},
-    { key:"card5d",  label:"Thẻ 5 ngày"},
-    { key:"card15d", label:"Thẻ 15 ngày"},
-    { key:"card1mo", label:"Thẻ 1 tháng"},
-    { key:"card5mo", label:"Thẻ 5 tháng"},
-    { key:"card1y",  label:"Thẻ 1 năm" },
-    { key:"card5y",  label:"Thẻ 5 năm" },
-    { key:"card10y", label:"Thẻ 10 năm"},
-  ];
-
-  // Chia thành các hàng 3 thẻ mỗi hàng
-  let cardHtml = `<div style="margin:10px 0 14px 0;">
-    <div style="font-size:10px;font-weight:700;color:#7a5a20;letter-spacing:.7px;text-transform:uppercase;margin-bottom:7px;">📜 Thẻ Tu Luyện</div>
-    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:5px;">`;
-  for(const cd of CARD_DEFS){
-    const qty = S[cd.key] || 0;
-    const hasCard = qty > 0;
-    cardHtml += `<div style="
-      padding:5px 4px;border-radius:7px;text-align:center;
-      background:${hasCard?"rgba(201,168,76,.1)":"rgba(255,255,255,.03)"};
-      border:1px solid ${hasCard?"rgba(201,168,76,.35)":"rgba(255,255,255,.07)"};
-    ">
-      <div style="font-size:9px;color:${hasCard?"#c8a84a":"#4a3818"};margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${cd.label}</div>
-      <div style="font-size:13px;font-weight:700;color:${hasCard?"#f0d98c":"#5a4820"};">${qty}</div>
-    </div>`;
-  }
-  cardHtml += `</div></div>`;
-  document.getElementById("story-content").insertAdjacentHTML("beforeend", cardHtml);
-
-  // ===== Lưới chọn thời gian =====
-  let html = `<div class="cult-grid">`;
-
-  for(const opt of CULT_OPTIONS){
-    let locked = false, lockReason = "";
-    if(opt.stageMin > stage){
-      locked = true;
-      const lockStage = STAGE_DATA[opt.stageMin];
-      lockReason = lockStage ? "🔒 "+lockStage.n : "🔒 Chưa mở khóa";
-    }
-
-    const gain = calcCultExp(opt.sec);
-    const qty  = S[opt.cardKey] || 0;
-    const hasCard = qty > 0;
-    const canAct  = !locked && hasCard;
-
-    const lockedClass = (!canAct) ? "locked" : "";
-    const onclickAttr = canAct ? `onclick="G.startCultivate(${opt.sec})"` : "";
-
-    let subText = "";
-    if(locked) subText = `<div class="cult-opt-lock">${lockReason}</div>`;
-    else if(!hasCard) subText = `<div class="cult-opt-lock" style="color:#c06060">Không có thẻ</div>`;
-    else subText = `<div class="cult-opt-lock" style="color:#70d870">Còn ${qty} thẻ</div>`;
-
-    html += `<div class="cult-opt ${lockedClass}" ${onclickAttr}>
-      <div class="cult-opt-label">${opt.label}</div>
-      <div class="cult-opt-gain">+${fmt(gain)} tu vi</div>
-      ${subText}
-    </div>`;
-  }
-  html += `</div>`;
-
-  document.getElementById("story-content").insertAdjacentHTML("beforeend", html);
-  c.addChoice(1,"← Quay lại","←",()=>goto("luyen_khi"));
-});
-
-defP("tu_luyen_binh_thuong","Tu Luyện · Nhập Định",function(c){
-  const interval = S.normalCultIntervalMin;
-  const gainPerCycle = calcCultExp(interval * 60);
-  const canBreak = S.exp >= S.expmax && S.stage > 0;
-
-  c.addText(`<p>Ngươi ngồi xuống tĩnh tọa, điều hòa hơi thở, để linh khí thiên địa chầm chậm thấm vào kinh mạch theo từng nhịp...</p>`);
-  c.addSys(`<b>[Đang Nhập Định]</b><br>Linh khí tự động tụ về · Cứ mỗi <b>${interval} phút</b> sẽ nhận tu vi một lần<br>Dự kiến mỗi lần: <b>+${fmt(gainPerCycle)}</b> tu vi${canBreak?"<br><span style='color:#70d870'>✦ Tu vi đã đầy — vào <b>Tu Luyện</b> để Đột Phá!</span>":""}`);
-
-  // Giao diện theo dõi
-  document.getElementById("story-content").insertAdjacentHTML("beforeend", `
-    <div style="margin:12px 0;padding:14px 16px;background:rgba(16,44,20,.4);border:1px solid rgba(60,160,70,.25);border-radius:10px;">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
-        <div style="font-size:11px;font-weight:700;color:#70d880;">🌿 Tĩnh Tọa Tu Luyện</div>
-        <div id="normal-cult-flash" style="font-size:11px;color:#f0c14b;font-weight:700;opacity:0;transition:opacity .4s;"></div>
-      </div>
-      <div style="font-size:10px;color:#5a8050;margin-bottom:6px;">Tiến độ đến lần nhận tiếp theo</div>
-      <div style="width:100%;height:7px;background:rgba(255,255,255,.07);border-radius:99px;overflow:hidden;margin-bottom:6px;">
-        <div id="normal-cult-progress" style="height:100%;border-radius:99px;background:linear-gradient(90deg,#2a6a30,#60d870);box-shadow:0 0 6px rgba(90,200,90,.4);width:0%;transition:width .8s ease;"></div>
-      </div>
-      <div style="display:flex;justify-content:space-between;font-size:10px;color:#4a7040;">
-        <span>Còn: <b id="normal-cult-next" style="color:#70d870;">${interval} phút</b></span>
-        <span>Đã nhận: <b id="normal-cult-count" style="color:#c8a84a;">0</b> lần · <b id="normal-cult-gain" style="color:#f0d98c;">0</b> tu vi</span>
-      </div>
-    </div>`);
-
-  c.addChoice(1,"⬆ Xuất Định","Xuất",()=>stopNormalCultivate());
-});
-
-defP("tu_luyen_dang_chay","Tu Luyện · Đang Nhập Định",function(c){
-  // Tu luyện nay là tức thời — passage này chỉ còn để compat
-  goto("luyen_khi");
-});
-
-defP("tu_luyen_hoan_tat","Tu Luyện · Hoàn Thành",function(c){
-  const gain = S.cultivateExpGain || 0;
-  const dur  = S.cultivateDuration || 0;
-  const durStr = dur > 0 ? fmtDuration(dur) : "một lúc";
-  c.addText(`<p>Ngươi xuất định sau ${durStr} nhập định. Linh khí tràn ngập kinh mạch, tinh thần sảng khoái, thân thể nhẹ nhàng...</p>`);
-  const canBreak = S.exp >= S.expmax && S.stage > 0;
-  const dateStr = pad(S.day)+"/"+pad(S.month)+"/"+S.year+" "+pad(S.hour)+":"+pad(S.minute);
-  c.addSys(`<b>[Tu Luyện Hoàn Thành!]</b><br>✦ Tu vi nhận được: <b>+${fmt(gain)}</b><br>Tu vi hiện tại: ${fmt(S.exp)}/${fmt(S.expmax)}<br>Ngày game: ${dateStr}${canBreak?"<br><span style='color:#70d870'>✦ Đã đạt đỉnh cảnh giới — vào <b>Tu Luyện</b> để Đột Phá!</span>":""}`, canBreak?"success":"");
-  renderHUD();
-  c.addChoice(1,"Tu luyện tiếp","Tu luyện",()=>goto("luyen_khi"));
-  c.addChoice(2,"Nghỉ ngơi","←",()=>goto("ngoai_mon_kham_pha"));
-});
-
-
-
-defP("luyen_tamphap","Tu Luyện · Tâm Pháp",function(c){
-  const [ek, emk] = getMindExpKey();
-
-  // Chỉ cộng exp nếu chưa đạt đỉnh cấp hiện tại (và chưa Viên Mãn)
-  const lvBefore = getMindLevelFromExp(getMindExp());
-  const atMaxBefore = (getMindExp() >= getMindExpMax()) && lvBefore !== "Viên Mãn";
-
-  if(!atMaxBefore){
-    const mindGain = Math.max(5, Math.floor(10 * S.expRate));
-    if(ek) S[ek] = Math.min(S[emk], (S[ek]||0) + mindGain);
-  }
-  calcMindSystem();
-
-  const e    = getMindExp();
-  const emax = getMindExpMax();
-  const lv   = S.mindLevel;
-  const pct  = emax>0 ? Math.min(100, e/emax*100) : 0;
-  const atMax = (e >= emax) && lv !== "Viên Mãn";
-  const lvColor = lv==="Viên Mãn"?"#f0c14b":lv==="Đại Thành"?"#80d8ff":lv==="Trung Thành"?"#a0e8a0":"#c8a84a";
-
-  const texts = {
-    "Tâm Kiếm": "Ngươi ngồi tĩnh tọa, trong tâm hình thành ý kiếm — khinh bạc, bén nhọn, thuần khiết như trăng thu...",
-    "Tâm Đao":  "Ngươi vận khí theo tâm pháp đao đạo, cảm nhận lực chém mạnh mẽ đang dần ngưng tụ trong kinh mạch...",
-    "Tâm Pháp": "Ngươi điều hoà nguyên lực, linh ý lan toa, các huyệt đạo mở rộng thu nạp linh khí thiên địa...",
-    "Tâm Thể":  "Ngươi vận chuyển thể công, linh khí thấm vào cơ bắp và xương cốt, thân thể dần trở nên cứng rắn như kim cang...",
-  };
-  const prefix = (S.mindMethod||"").split("-")[0];
-
-  if(atMax){
-    c.addText(`<p>Tâm pháp đã đạt cực hạn cấp này, linh lực ngưng tụ căng tràn — ngươi cảm nhận rõ ngưỡng đột phá đang chờ phía trước...</p>`);
-    c.addSys(`<b>[Tâm Pháp Đã Đầy!]</b><br>${S.mindMethod} · <span style="color:${lvColor}">${lv}</span><br>${fmt(e)}/${fmt(emax)} (${pct.toFixed(1)}%)<br>✦ Sẵn sàng Đột Phá Tâm Pháp!`,"success");
-  } else {
-    c.addText(`<p>${texts[prefix]||"Ngươi vận chuyển tâm pháp, tinh thần dần trở nên thanh tịnh..."}</p>`);
-    let sysText = `<b>[Tu Luyện Tâm Pháp]</b><br>${S.mindMethod} · <span style="color:${lvColor}">${lv}</span><br>Tiến độ: ${fmt(e)}/${fmt(emax)} (${pct.toFixed(1)}%)`;
-    if(S.mindStr>0)  sysText += `<br>STR +${fmt(S.mindStr)}`;
-    if(S.mindDef>0)  sysText += ` · DEF +${fmt(S.mindDef)}`;
-    if(S.mindHP>0)   sysText += ` · HP +${fmt(S.mindHP)}`;
-    if(S.mindMana>0) sysText += ` · Linh Khí +${fmt(S.mindMana)}`;
-    c.addSys(sysText);
-  }
-  renderHUD();
-
-  if(atMax){
-    c.addChoice(1,"✦ Đột Phá Tâm Pháp","Đột Phá",()=>goto("dot_pha_tamphap"));
-  } else {
-    c.addChoice(1,"Tiếp tục tu luyện Tâm Pháp","Tâm Pháp",()=>goto("luyen_tamphap"));
-  }
-  c.addChoice(2,"Chuyển sang tĩnh tọa","Tu luyện",()=>goto("luyen_khi"));
-  c.addChoice(3,"Nghỉ ngơi","←",()=>goto("ngoai_mon_kham_pha"));
-});
-
-defP("dot_pha_tamphap","Đột Phá · Tâm Pháp",function(c){
-  const lvBefore = S.mindLevel;
-  doMindBreakthrough();
-  const lvAfter = S.mindLevel;
-  const lvColor = lvAfter==="Viên Mãn"?"#f0c14b":lvAfter==="Đại Thành"?"#80d8ff":lvAfter==="Trung Thành"?"#a0e8a0":"#c8a84a";
-  c.addText(`<p>Ngươi dồn toàn bộ tâm lực, ý chí bùng lên như lửa — rào cản trong nội tâm tan vỡ, tâm pháp thăng hoa lên tầng cao mới!</p>`);
-  c.addSys(`<b>[Tâm Pháp Đột Phá!]</b><br>${S.mindMethod}: <b style="color:${lvColor}">${lvAfter}</b><br>${S.mindStr>0?"STR +"+fmt(S.mindStr)+"<br>":""}${S.mindDef>0?"DEF +"+fmt(S.mindDef)+"<br>":""}${S.mindHP>0?"HP +"+fmt(S.mindHP)+"<br>":""}${S.mindMana>0?"Linh Khí +"+fmt(S.mindMana):""}`,"success");
-  showNotif({
-    icon:"📖",
-    title:"Tâm Pháp Đột Phá!",
-    lines:[
-      `${S.mindMethod}: <b style="color:${lvColor}">${lvAfter}</b>`,
-      [S.mindStr>0?`STR +${fmt(S.mindStr)}`:"",S.mindDef>0?`DEF +${fmt(S.mindDef)}`:"",S.mindHP>0?`HP +${fmt(S.mindHP)}`:"",S.mindMana>0?`Linh Khí +${fmt(S.mindMana)}`:""].filter(Boolean).join(" · ") || ""
-    ].filter(s=>s),
-    color:lvColor,
-    duration:3500
-  });
-  renderHUD();
-  c.addChoice(1,"Tiếp tục tu luyện Tâm Pháp","Tâm Pháp",()=>goto("luyen_tamphap"));
-  c.addChoice(2,"Tĩnh tọa tu vi","Tu luyện",()=>goto("luyen_khi"));
-  c.addChoice(3,"Nghỉ ngơi","←",()=>goto("ngoai_mon_kham_pha"));
-});
-
-defP("luyen_kiem","Tu Luyện · Công Pháp",function(c){
-  const cpName = S.congphap || "Công Pháp";
-  const isSword = cpName.includes("Kiếm");
-  // Kiếm Tâm Thể: +30% EXP nếu công pháp có chữ Kiếm
-  const swordExpMult = (S.theChat === "Kiếm Tâm Thể" && isSword)
-    ? (1 + (getTheChatInfo("Kiếm Tâm Thể").effects.swordExpPct || 0) / 100)
-    : 1;
-  const gain = Math.max(1, Math.floor(8 * S.expRate * swordExpMult));
-  S.exp += gain;
-  S.str = (S.str||0) + 1;
-  const bonusNote = (swordExpMult > 1) ? ` <span style="color:#f0c14b">(+30% Kiếm Tâm Thể)</span>` : "";
-  c.addText(`<p>Ngươi rút vũ khí ra, luyện tập ${cpName} theo công pháp đã nhận. Mỗi đường đánh đều mang theo linh khí...</p>`);
-  c.addSys(`<b>[Luyện Công Pháp]</b><br>Tu vi +${fmt(gain)}${bonusNote} · STR +1<br>${cpName}: ${S.congphapLevel||"Tiểu Thành"}`);
-  renderHUD();
-  c.addChoice(1,"Tiếp tục luyện","Luyện",()=>goto("luyen_kiem"));
-  c.addChoice(2,"Chuyển sang tĩnh tọa","Tu luyện",()=>goto("luyen_khi"));
-  c.addChoice(3,"Nghỉ ngơi","←",()=>goto("ngoai_mon_kham_pha"));
-});
 
 /* ===== YÊU THÚ SYSTEM ===== */
 // Dữ liệu yêu thú: id, tên, icon, tier (1-5), slotStage (stage tối thiểu để roll)
@@ -13913,6 +13867,8 @@ async function _dieAccept(){
 
 return { 
   openTamPhapBookPopup, _learnTamPhapBook,
+  buildCongPhapTreeHTML, onCongPhapBoxClick, onCongPhapComingSoon, showCongPhapRootInfo,
+  openTamPhapPopup, openTamPhapComingSoon, openTamPhapTuLuyenPopup,
   doCamNhanLinhKhi, doNghiNgoi, _showAnisHudTutorial,
   _leaveSectVisit, __rungVanYeuEnter,
   toggleHUD, toggleFS, toggleStory, doBreakthrough, _execBreakthrough, doMindBreakthrough, openScreen, closeScreen, goto,
