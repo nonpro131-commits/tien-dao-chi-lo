@@ -22,7 +22,7 @@
 
 <script>
 // ★ ĐỔI SỐ NÀY MỖI KHI DEPLOY BẢN MỚI (phải khớp với sw.js) ★
-const APP_VERSION = '1.0.1';
+const APP_VERSION = '1.0.2';
 
 // ── DEBUG PANEL: thêm ?debug=1 vào URL để xem chẩn đoán ngay trên màn hình ──
 // (không cần DevTools — hữu ích để chẩn đoán trên điện thoại)
@@ -2556,6 +2556,94 @@ window._fsServerTimestamp = serverTimestamp;
   <div class="nav-btn" id="nav-cultivate" onclick="G.openScreen('cultivate')"><div class="nav-icon">🌀</div><div class="nav-label">Tu Luyện</div></div>
   <div class="nav-btn" id="nav-skills" onclick="G.openScreen('skills')"><div class="nav-icon">📖</div><div class="nav-label">Công Pháp</div></div>
   <div class="nav-btn" id="nav-thuoc-tinh" onclick="G.openScreen('thuoc_tinh')"><div class="nav-icon">✨</div><div class="nav-label">Thuộc Tính</div></div>
+  <div class="nav-btn" id="nav-tower" onclick="G.openTower()" style="opacity:.35;"><div class="nav-icon">🗼</div><div class="nav-label">Phong Thần Tháp</div></div>
+</div>
+
+<!-- ===== PHONG THẦN THÁP POPUP ===== -->
+<div id="tower-popup" style="display:none;position:fixed;inset:0;z-index:2800;background:#06080e;flex-direction:column;overflow:hidden;">
+  <!-- Header -->
+  <div id="tower-hdr" style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-bottom:1px solid rgba(201,168,76,.15);background:rgba(4,6,12,.98);flex-shrink:0;">
+    <div style="display:flex;align-items:center;gap:8px;">
+      <span style="font-size:18px;">🗼</span>
+      <div>
+        <div style="font-size:12px;font-weight:700;color:#f0d98c;letter-spacing:1px;">PHONG THẦN THÁP</div>
+        <div id="tower-floor-label" style="font-size:9.5px;color:#7a6030;margin-top:1px;">Tầng 1</div>
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px;">
+      <div id="tower-best-label" style="font-size:9px;color:#5a4020;">Kỷ lục: tầng <span id="tower-best-num" style="color:#f0c14b;font-weight:700;">0</span></div>
+      <div onclick="G.closeTower()" style="width:26px;height:26px;display:flex;align-items:center;justify-content:center;border:1px solid rgba(201,168,76,.25);border-radius:6px;color:#9a7a30;font-size:12px;cursor:pointer;">✕</div>
+    </div>
+  </div>
+
+  <!-- Combat area -->
+  <div id="tower-combat-area" style="flex:1;display:flex;flex-direction:column;overflow:hidden;min-height:0;">
+
+    <!-- Enemy zone -->
+    <div id="tower-enemy-zone" style="flex:0 0 auto;padding:14px 16px 10px;text-align:center;background:linear-gradient(180deg,rgba(30,10,10,.6) 0%,transparent 100%);">
+      <div id="tower-enemy-name" style="font-size:11px;font-weight:700;color:#e08080;letter-spacing:.8px;margin-bottom:6px;">—</div>
+      <div id="tower-enemy-rank" style="font-size:9px;color:#7a4030;margin-bottom:8px;">—</div>
+      <!-- Enemy HP bar -->
+      <div style="max-width:260px;margin:0 auto;">
+        <div style="display:flex;justify-content:space-between;font-size:9px;color:#7a4030;margin-bottom:3px;">
+          <span>HP</span><span id="tower-enemy-hp-txt">0 / 0</span>
+        </div>
+        <div style="height:7px;background:rgba(180,40,40,.15);border-radius:4px;overflow:hidden;border:1px solid rgba(180,40,40,.2);">
+          <div id="tower-enemy-hp-bar" style="height:100%;width:100%;background:linear-gradient(90deg,#7a1e1e,#e84545);border-radius:4px;transition:width .3s ease;"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Battle log -->
+    <div id="tower-log" style="flex:1;overflow-y:auto;padding:6px 14px;font-size:10.5px;line-height:1.8;color:#7a6840;min-height:0;"></div>
+
+    <!-- Player status -->
+    <div style="flex:0 0 auto;padding:8px 14px;border-top:1px solid rgba(201,168,76,.1);background:rgba(4,6,12,.7);">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+        <div style="font-size:10px;color:#6a5028;">${S&&S.name?S.name:'Tu Sĩ'} · <span id="tower-player-stage" style="color:#c8a84a;">—</span></div>
+        <div style="font-size:9.5px;color:#7a6030;">HP: <span id="tower-player-hp-txt" style="color:#e84545;font-weight:700;">—</span></div>
+      </div>
+      <div style="height:6px;background:rgba(232,69,69,.12);border-radius:3px;overflow:hidden;border:1px solid rgba(232,69,69,.15);margin-bottom:8px;">
+        <div id="tower-player-hp-bar" style="height:100%;width:100%;background:linear-gradient(90deg,#7a1e1e,#e84545);border-radius:3px;transition:width .4s ease;"></div>
+      </div>
+
+      <!-- Action buttons -->
+      <div style="display:flex;gap:6px;">
+        <div id="tower-btn-auto" onclick="G._towerToggleAuto()" style="
+          flex:1;padding:8px 6px;border-radius:8px;text-align:center;font-size:11px;font-weight:700;
+          cursor:pointer;transition:all .15s;letter-spacing:.3px;
+          background:rgba(60,160,80,.12);border:1px solid rgba(60,160,80,.35);color:#70e880;">
+          ▶ Auto
+        </div>
+        <div id="tower-btn-attack" onclick="G._towerManualAttack()" style="
+          flex:1;padding:8px 6px;border-radius:8px;text-align:center;font-size:11px;font-weight:700;
+          cursor:pointer;transition:all .15s;letter-spacing:.3px;
+          background:rgba(201,168,76,.08);border:1px solid rgba(201,168,76,.3);color:#f0d98c;">
+          ⚔ Tấn Công
+        </div>
+        <div onclick="G._towerOpenDan()" style="
+          flex:1;padding:8px 6px;border-radius:8px;text-align:center;font-size:11px;font-weight:700;
+          cursor:pointer;transition:all .15s;letter-spacing:.3px;
+          background:rgba(80,160,220,.08);border:1px solid rgba(80,160,220,.25);color:#80c8ff;">
+          💊 Đan Dược
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Result overlay (thắng/thua) -->
+  <div id="tower-result" style="display:none;position:absolute;inset:0;z-index:10;background:rgba(0,0,0,.85);backdrop-filter:blur(4px);align-items:center;justify-content:center;padding:20px;">
+    <div id="tower-result-box" style="width:100%;max-width:280px;background:rgba(8,6,2,.99);border-radius:14px;padding:24px 20px;text-align:center;"></div>
+  </div>
+
+  <!-- Dan duoc quick panel -->
+  <div id="tower-dan-panel" style="display:none;position:absolute;bottom:0;left:0;right:0;z-index:9;background:rgba(4,6,12,.97);border-top:1px solid rgba(201,168,76,.2);padding:12px 14px;max-height:55%;overflow-y:auto;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+      <div style="font-size:11px;font-weight:700;color:#d6b15f;">💊 Sử Dụng Đan Dược</div>
+      <div onclick="G._towerCloseDan()" style="font-size:11px;color:#5a4020;cursor:pointer;padding:2px 6px;">✕</div>
+    </div>
+    <div id="tower-dan-list"></div>
+  </div>
 </div>
 
 <!-- Screen overlay -->
@@ -2630,6 +2718,8 @@ const S = {
   ageKimDan:-1,   // tuổi khi đạt Kim Đan Sơ Kỳ (stage 9)
   ageNguyenAnh:-1,// tuổi khi đạt Nguyên Anh Sơ Kỳ (stage 13)
   lsHa:0, lsTrung:0, lsThuong:0, lsCuc:0,
+  tienDaoTe:0,
+  tower:{ floor:0, bestFloor:0 },
   binhTuoiLinhKhi:0,
   baseExpRate:1, baseManaRate:1, expRate:1, manaRate:1,
   bonusManaMax:0,
@@ -2689,6 +2779,8 @@ function checkUnlocks(){
   //   (trước đây mỗi lần renderHUD() gọi hàm này — tức mỗi phút game — đều
   //   query lại ~15 element và add class dù chúng đã unlock từ lâu).
   if(S._allUnlockedCache && S.stage >= 3){
+    const towerBtn = document.getElementById("nav-tower");
+    if(towerBtn) towerBtn.classList.add("unlocked");
     if(typeof checkCraftUnlocks === "function") checkCraftUnlocks();
     return;
   }
@@ -2732,7 +2824,7 @@ function checkUnlocks(){
     const questBtn = document.getElementById("quick-quest-btn");
     if(questBtn){ questBtn.style.opacity = "1"; questBtn.style.pointerEvents = "all"; }
   }
-  // Tông Môn + Thuộc Tính + Dược Viên từ Luyện Khí Hậu Kỳ (stage >= 3)
+  // Tông Môn + Thuộc Tính + Dược Viên + Phong Thần Tháp từ Luyện Khí Hậu Kỳ (stage >= 3)
   if(S.stage >= 3){
     const tongmonBtn = document.getElementById("tongmon-btn");
     if(tongmonBtn) tongmonBtn.style.display = "flex";
@@ -2740,6 +2832,8 @@ function checkUnlocks(){
     if(duocvienBtn) duocvienBtn.style.display = "flex";
     const ttBtn = document.getElementById("nav-thuoc-tinh");
     if(ttBtn) ttBtn.classList.add("unlocked");
+    const towerBtn = document.getElementById("nav-tower");
+    if(towerBtn){ towerBtn.style.opacity="1"; towerBtn.style.pointerEvents="all"; towerBtn.classList.add("unlocked"); }
   }
   // chat-daohuu-row (chứa Chat/Tông Môn/Dược Viên) chỉ cần hiện hàng khi có ít nhất 1 nút con mở
   if(S.stage >= 2){
@@ -10525,7 +10619,7 @@ function openScreen(id, tab){
       const progressPct = isActive ? Math.min(100, Math.max(0, (interval - remainMin) / interval * 100)) : 0;
 
       // Tâm Pháp data
-      const hasMind = !!(S.mindMethod && S.mindLevel && S.mindLevel !== "Chưa Học");
+      const hasMind = !!S.mindMethod;
       const mindE = getMindExp(); const mindEmax = getMindExpMax();
       const mindPct = mindEmax>0 ? Math.min(100, mindE/mindEmax*100) : 0;
       const mindLv = S.mindLevel||"Chưa Học";
@@ -10677,12 +10771,13 @@ function openScreen(id, tab){
             <div style="margin-bottom:16px;">
               <div style="display:flex;justify-content:space-between;font-size:10.5px;margin-bottom:3px;">
                 <span style="color:#a8c8f8;font-weight:700">${S.mindMethod}</span>
-                <span style="color:#3a5070;font-size:9.5px;">${mindLv}</span>
+                <span style="color:${mindLv==="Chưa Học"?"#5a7090":"#3a5070"};font-size:9.5px;">${mindLv==="Chưa Học"?"📖 Chưa Học → Tiểu Thành":mindLv}</span>
               </div>
               <div style="width:100%;height:8px;background:rgba(255,255,255,.07);border-radius:99px;overflow:hidden;margin-bottom:4px;">
-                <div style="height:100%;border-radius:99px;width:${mindPct}%;background:linear-gradient(90deg,#3a5a8a,${mindLvColor});box-shadow:0 0 6px rgba(100,180,255,.3);transition:width .4s;"></div>
+                <div style="height:100%;border-radius:99px;width:${mindPct}%;background:linear-gradient(90deg,#3a5a8a,${mindLv==="Chưa Học"?"#5a7aaa":mindLvColor});box-shadow:0 0 6px rgba(100,180,255,.3);transition:width .4s;"></div>
               </div>
               <div style="font-size:9px;color:#3a5070;text-align:right;">${fmt(mindE)} / ${fmt(mindEmax)} exp (${mindPct.toFixed(1)}%)</div>
+              ${mindLv==="Chưa Học"?`<div style="font-size:9px;color:#3a5060;text-align:center;margin-top:4px;">Tu luyện để đạt <b style="color:#70a8e0;">100 exp</b> — nhập môn Tiểu Thành</div>`:""}
             </div>
 
             ${mindCanBreak ? `
@@ -13166,7 +13261,7 @@ function startClock(){
         }
       }
       // Tu luyện Tâm Pháp bình thường: kiểm tra mỗi phút game
-      if(S.normalMindCult && S.mindMethod && S.mindLevel !== "Chưa Học"){
+      if(S.normalMindCult && S.mindMethod){
         const totalMin = S.minute + S.hour*60 + S.day*1440 + (S.month-1)*43200 + (S.year-1035)*518400;
         if(totalMin >= S.normalMindCultNextMin){
           const gain = calcMindCultExp(S.normalMindCultIntervalMin * 60);
@@ -14201,6 +14296,442 @@ async function _dieAccept(){
   location.reload();
 }
 
+/* ===== PHONG THẦN THÁP (moved inside IIFE) ===== */
+/* =====================================================================
+   PHONG THẦN THÁP — Tower Combat Engine
+   ===================================================================== */
+
+// ── Dữ liệu quái theo nhóm tầng ──
+const TOWER_MOB_TIERS = [
+  // tier 0: tầng 1–29 · Yêu Thú Luyện Khí Sơ Kỳ
+  {
+    label:"Luyện Khí Sơ Kỳ", minFloor:1, maxFloor:29,
+    names:["Thổ Lang","Hỏa Thử","Linh Hồ","Mộc Kê","Thủy Xà","Phong Ưng","Nham Trư","Băng Miêu","Lôi Khuyển","Huyết Dơi"],
+    hpBase:120, hpPerFloor:18, strBase:18, strPerFloor:3, defBase:8, defPerFloor:1.2, count:1
+  },
+  // tier 0 boss: tầng 30
+  {
+    label:"Luyện Khí Sơ Kỳ — BOSS", minFloor:30, maxFloor:30, isBoss:true,
+    names:["Thương Lang Vương","Linh Hỏa Thú Vương","Huyết Dực Ma Thú"],
+    hpBase:1800, hpPerFloor:0, strBase:55, strPerFloor:0, defBase:28, defPerFloor:0, count:1
+  },
+  // tier 1: tầng 31–59 · Luyện Khí Trung Kỳ
+  {
+    label:"Luyện Khí Trung Kỳ", minFloor:31, maxFloor:59,
+    names:["Thiết Giáp Thú","Ngân Mao Lang","Xích Hỏa Hổ","Lam Lân Xà","Hắc Phong Ưng","Thúy Giác Lộc","Tử Linh Miêu","Kim Vảy Cá","Cốt Diêu Ma","Ám Dực Bức"],
+    hpBase:500, hpPerFloor:30, strBase:70, strPerFloor:4, defBase:30, defPerFloor:1.5, count:1
+  },
+  // tier 1 boss: tầng 60
+  {
+    label:"Luyện Khí Trung Kỳ — BOSS", minFloor:60, maxFloor:60, isBoss:true,
+    names:["Thiên Hỏa Linh Hổ","Vạn Độc Ma Xà Vương","Ngân Vũ Điểu Hoàng"],
+    hpBase:7000, hpPerFloor:0, strBase:160, strPerFloor:0, defBase:70, defPerFloor:0, count:1
+  },
+  // tier 2: tầng 61–89 · Luyện Khí Hậu Kỳ
+  {
+    label:"Luyện Khí Hậu Kỳ", minFloor:61, maxFloor:89,
+    names:["Linh Nha Tượng","Thiên Lôi Bức","Huyết Nguyệt Lang","Hắc Diêm Hổ","Băng Linh Gấu","Kim Cương Rùa","Tử Độc Bọ Cạp","Huyền Linh Rắn","Thương Vân Chim","Xích Ma Heo Lợn"],
+    hpBase:1800, hpPerFloor:60, strBase:220, strPerFloor:7, defBase:100, defPerFloor:3, count:1
+  },
+  // tier 2 boss: tầng 90
+  {
+    label:"Luyện Khí Hậu Kỳ — BOSS", minFloor:90, maxFloor:90, isBoss:true,
+    names:["Cửu Vĩ Linh Hồ","Thiên Ma Hắc Hổ","Hỗn Nguyên Thú Tổ"],
+    hpBase:22000, hpPerFloor:0, strBase:450, strPerFloor:0, defBase:180, defPerFloor:0, count:1
+  },
+  // tier 3: tầng 91–95 · Luyện Khí Đỉnh Phong (1 con)
+  {
+    label:"Luyện Khí Đỉnh Phong", minFloor:91, maxFloor:95,
+    names:["Thiên Uy Thú","Đỉnh Phong Linh Lang","Cực Hỏa Phượng","Tử Thần Xà","Hỗn Nguyên Hổ"],
+    hpBase:5000, hpPerFloor:400, strBase:550, strPerFloor:20, defBase:220, defPerFloor:8, count:1
+  },
+  // tier 3b: tầng 96–99 · Luyện Khí Đỉnh Phong (nhiều con, tối đa 5)
+  {
+    label:"Luyện Khí Đỉnh Phong · Quần Thú", minFloor:96, maxFloor:99,
+    names:["Đỉnh Phong Linh Thú","Thiên Ma Nhỏ","Cực Uy Quái","Vạn Linh Thú","Hỗn Độn Nhỏ"],
+    hpBase:3500, hpPerFloor:300, strBase:480, strPerFloor:15, defBase:190, defPerFloor:6, count:5
+  },
+  // tier 3 boss: tầng 100
+  {
+    label:"Luyện Khí Đỉnh Phong — BOSS", minFloor:100, maxFloor:100, isBoss:true,
+    names:["Thái Cổ Yêu Thú","Hỗn Nguyên Đại Thánh","Vạn Tượng Ma Tổ"],
+    hpBase:80000, hpPerFloor:0, strBase:900, strPerFloor:0, defBase:350, defPerFloor:0, count:1
+  },
+];
+
+// ── State nội bộ của combat ──
+let _tw = {
+  active: false,
+  floor: 1,
+  mobs: [],          // [{name, hp, hpmax, str, def, critRate, critDmg}]
+  currentMob: 0,     // index mob đang đánh
+  playerHp: 0,
+  playerHpMax: 0,
+  auto: false,
+  autoTimer: null,
+  log: [],
+};
+
+// ── Helpers ──
+function _twGetTier(floor){
+  for(const t of TOWER_MOB_TIERS){
+    if(floor >= t.minFloor && floor <= t.maxFloor) return t;
+  }
+  return TOWER_MOB_TIERS[0];
+}
+
+function _twRollMobs(floor){
+  const tier = _twGetTier(floor);
+  const floorOffset = floor - tier.minFloor;
+  const count = tier.count || 1;
+  const mobs = [];
+  for(let i=0;i<count;i++){
+    const nameIdx = Math.floor(Math.random()*tier.names.length);
+    const hp = Math.floor((tier.hpBase + tier.hpPerFloor * floorOffset) * (0.9 + Math.random()*0.2));
+    const str = Math.floor((tier.strBase + tier.strPerFloor * floorOffset) * (0.9 + Math.random()*0.2));
+    const def = Math.floor((tier.defBase + tier.defPerFloor * floorOffset) * (0.9 + Math.random()*0.2));
+    mobs.push({
+      name: tier.names[nameIdx] + (count>1 ? ` #${i+1}` : ""),
+      label: tier.label,
+      isBoss: !!tier.isBoss,
+      hp, hpmax:hp, str, def,
+      critRate:5, critDmg:50,
+    });
+  }
+  return mobs;
+}
+
+function _twCalcAttackInterval(){
+  // AGI: base 1 đòn/2s, mỗi 1000 AGI giảm 0.1s, min 0.4s
+  const agi = S.agi || 0;
+  const ms = Math.max(400, 2000 - Math.floor(agi/1000)*100);
+  return ms;
+}
+
+function _twLog(html){
+  _tw.log.push(html);
+  if(_tw.log.length > 60) _tw.log.shift();
+  const el = document.getElementById("tower-log");
+  if(el){
+    el.innerHTML = _tw.log.map(l=>`<div>${l}</div>`).join("");
+    el.scrollTop = el.scrollHeight;
+  }
+}
+
+function _twRenderEnemy(){
+  const mob = _tw.mobs[_tw.currentMob];
+  if(!mob) return;
+  const pct = mob.hpmax>0 ? Math.max(0, mob.hp/mob.hpmax*100) : 0;
+  const nameEl = document.getElementById("tower-enemy-name");
+  const rankEl = document.getElementById("tower-enemy-rank");
+  const hpTxt  = document.getElementById("tower-enemy-hp-txt");
+  const hpBar  = document.getElementById("tower-enemy-hp-bar");
+  if(nameEl) nameEl.innerHTML = (mob.isBoss?"👑 ":"") + mob.name + (_tw.mobs.length>1 ? ` (${_tw.currentMob+1}/${_tw.mobs.length})` : "");
+  if(nameEl) nameEl.style.color = mob.isBoss ? "#ffd700" : "#e08080";
+  if(rankEl) rankEl.textContent = mob.label;
+  if(hpTxt)  hpTxt.textContent = fmt(Math.max(0,mob.hp))+" / "+fmt(mob.hpmax);
+  if(hpBar)  hpBar.style.width = pct+"%";
+}
+
+function _twRenderPlayer(){
+  const pct = _tw.playerHpMax>0 ? Math.max(0,_tw.playerHp/_tw.playerHpMax*100) : 0;
+  const hpTxt = document.getElementById("tower-player-hp-txt");
+  const hpBar = document.getElementById("tower-player-hp-bar");
+  const stEl  = document.getElementById("tower-player-stage");
+  if(hpTxt) hpTxt.textContent = fmt(Math.max(0,_tw.playerHp))+" / "+fmt(_tw.playerHpMax);
+  if(hpBar) hpBar.style.width = pct+"%";
+  if(stEl)  stEl.textContent = S.stageName||"—";
+}
+
+function _twRenderFloorLabel(){
+  const fl = document.getElementById("tower-floor-label");
+  const tier = _twGetTier(_tw.floor);
+  if(fl) fl.textContent = `Tầng ${_tw.floor} · ${tier.label}${tier.isBoss?" ⚠":""}`;
+  const bn = document.getElementById("tower-best-num");
+  if(bn) bn.textContent = S.tower.bestFloor||0;
+}
+
+// ── Player tấn công 1 đòn ──
+function _twPlayerStrike(){
+  if(!_tw.active) return;
+  const mob = _tw.mobs[_tw.currentMob];
+  if(!mob || mob.hp<=0) return;
+
+  const str   = S.str || 0;
+  const crit  = Math.random()*100 < (S.critRate||5);
+  const rawDmg = Math.max(1, str - mob.def);
+  const dmg   = crit ? Math.floor(rawDmg * (1 + (S.critDmg||50)/100)) : rawDmg;
+
+  mob.hp = Math.max(0, mob.hp - dmg);
+  const critTag = crit ? `<span style="color:#ffd700;font-weight:700;"> [Chí Mạng!]</span>` : "";
+  _twLog(`⚔ Ngươi gây <b style="color:#f0c14b">${fmt(dmg)}</b> sát thương${critTag} → ${mob.name} còn <span style="color:#e08080">${fmt(Math.max(0,mob.hp))}</span> HP`);
+  _twRenderEnemy();
+
+  if(mob.hp <= 0){
+    _twOnMobDead();
+    return;
+  }
+  // Mob phản công ngay sau đòn đánh của người chơi
+  _twMobStrike();
+}
+
+// ── Mob tấn công ──
+function _twMobStrike(){
+  if(!_tw.active) return;
+  const mob = _tw.mobs[_tw.currentMob];
+  if(!mob || mob.hp<=0) return;
+  if(_tw.playerHp<=0) return;
+
+  const crit  = Math.random()*100 < mob.critRate;
+  const rawDmg = Math.max(1, mob.str - (S.def||0));
+  const dmg   = crit ? Math.floor(rawDmg * (1 + mob.critDmg/100)) : rawDmg;
+
+  _tw.playerHp = Math.max(0, _tw.playerHp - dmg);
+  const critTag = crit ? `<span style="color:#ff6060;font-weight:700;"> [Chí Mạng!]</span>` : "";
+  _twLog(`🔴 ${mob.name} phản công <b style="color:#e84545">${fmt(dmg)}</b>${critTag} → HP ngươi còn <span style="color:#e84545">${fmt(Math.max(0,_tw.playerHp))}</span>`);
+  _twRenderPlayer();
+
+  if(_tw.playerHp<=0){
+    _twOnPlayerDead();
+  }
+}
+
+// ── Mob chết ──
+function _twOnMobDead(){
+  const mob = _tw.mobs[_tw.currentMob];
+  _twLog(`✦ <b style="color:#70e880">${mob.name} đã bị tiêu diệt!</b>`);
+
+  // Còn mob tiếp theo trong tầng không?
+  _tw.currentMob++;
+  if(_tw.currentMob < _tw.mobs.length){
+    const next = _tw.mobs[_tw.currentMob];
+    _twLog(`⚠ <span style="color:#ffaa60">Xuất hiện: ${next.name}!</span>`);
+    _twRenderEnemy();
+    return;
+  }
+
+  // Hết toàn bộ mob → thắng tầng
+  _twOnFloorClear();
+}
+
+// ── Thắng tầng ──
+function _twOnFloorClear(){
+  _twStopAuto();
+  _tw.active = false;
+
+  if(_tw.floor > (S.tower.bestFloor||0)){
+    S.tower.bestFloor = _tw.floor;
+    saveGame();
+  }
+
+  const tier = _twGetTier(_tw.floor);
+  const isBoss = tier.isBoss;
+  const resBox = document.getElementById("tower-result-box");
+  const resDiv = document.getElementById("tower-result");
+
+  if(resBox) resBox.innerHTML = `
+    <div style="font-size:${isBoss?"36":"28"}px;margin-bottom:10px;">${isBoss?"👑":"✦"}</div>
+    <div style="font-size:14px;font-weight:700;color:${isBoss?"#ffd700":"#70e880"};letter-spacing:1px;margin-bottom:6px;">
+      ${isBoss?"BOSS BỊ TIÊU DIỆT!":"Tầng "+_tw.floor+" Hoàn Thành!"}
+    </div>
+    <div style="font-size:10px;color:#5a6a40;margin-bottom:16px;">${tier.label}</div>
+    <div style="display:flex;flex-direction:column;gap:7px;">
+      <div onclick="G._towerNextFloor()" style="
+        padding:10px;border-radius:9px;font-size:12px;font-weight:700;cursor:pointer;
+        background:rgba(60,160,80,.15);border:1px solid rgba(60,160,80,.4);color:#70e880;">
+        ▶ Lên Tầng ${_tw.floor+1}
+      </div>
+      <div onclick="G.closeTower()" style="
+        padding:8px;border-radius:9px;font-size:11px;font-weight:700;cursor:pointer;
+        background:rgba(201,168,76,.06);border:1px solid rgba(201,168,76,.2);color:#9a8040;">
+        ✕ Thoát Tháp
+      </div>
+    </div>`;
+  if(resDiv) resDiv.style.display = "flex";
+}
+
+// ── Thua ──
+function _twOnPlayerDead(){
+  _twStopAuto();
+  _tw.active = false;
+
+  const resBox = document.getElementById("tower-result-box");
+  const resDiv = document.getElementById("tower-result");
+
+  // Lưu HP thực vào game state
+  S.hp = Math.max(0, _tw.playerHp);
+  calcBuffs(); renderHUD(); saveGame();
+
+  if(resBox) resBox.innerHTML = `
+    <div style="font-size:32px;margin-bottom:10px;">💀</div>
+    <div style="font-size:14px;font-weight:700;color:#e84545;letter-spacing:1px;margin-bottom:6px;">Thất Bại!</div>
+    <div style="font-size:10px;color:#7a4040;margin-bottom:16px;">Ngươi đã ngã xuống tại tầng ${_tw.floor}.<br>HP sẽ được tính lại khi thoát.</div>
+    <div style="display:flex;flex-direction:column;gap:7px;">
+      <div onclick="G._towerRetry()" style="
+        padding:10px;border-radius:9px;font-size:12px;font-weight:700;cursor:pointer;
+        background:rgba(201,168,76,.08);border:1px solid rgba(201,168,76,.3);color:#f0d98c;">
+        🔄 Đánh Lại Tầng ${_tw.floor}
+      </div>
+      <div onclick="G.closeTower()" style="
+        padding:8px;border-radius:9px;font-size:11px;font-weight:700;cursor:pointer;
+        background:rgba(180,40,40,.06);border:1px solid rgba(180,40,40,.2);color:#e08080;">
+        ✕ Thoát Tháp
+      </div>
+    </div>`;
+  if(resDiv) resDiv.style.display = "flex";
+}
+
+// ── Auto combat loop ──
+function _twAutoLoop(){
+  if(!_tw.active || !_tw.auto) return;
+  _twPlayerStrike();
+  if(_tw.active && _tw.auto){
+    _tw.autoTimer = setTimeout(_twAutoLoop, _twCalcAttackInterval());
+  }
+}
+
+function _twStopAuto(){
+  _tw.auto = false;
+  clearTimeout(_tw.autoTimer);
+  _tw.autoTimer = null;
+  const btn = document.getElementById("tower-btn-auto");
+  if(btn){ btn.textContent="▶ Auto"; btn.style.background="rgba(60,160,80,.12)"; btn.style.borderColor="rgba(60,160,80,.35)"; btn.style.color="#70e880"; }
+}
+
+// ── Khởi động một tầng ──
+function _twStartFloor(floor){
+  _tw.floor = floor;
+  _tw.mobs  = _twRollMobs(floor);
+  _tw.currentMob = 0;
+  _tw.active = true;
+  _tw.log = [];
+
+  const tier = _twGetTier(floor);
+  const mob  = _tw.mobs[0];
+  _twLog(`<span style="color:#d6b15f">✦ Tầng ${floor} · ${tier.label}${tier.isBoss?" [BOSS]":""} ✦</span>`);
+  if(_tw.mobs.length>1) _twLog(`<span style="color:#ffaa60">⚠ ${_tw.mobs.length} con yêu thú xuất hiện!</span>`);
+  _twLog(`👁 ${mob.isBoss?"👑 ":""}${mob.name} — STR:${fmt(mob.str)} DEF:${fmt(mob.def)} HP:${fmt(mob.hpmax)}`);
+  _twLog(`⚔ Ngươi — STR:${fmt(S.str||0)} DEF:${fmt(S.def||0)} HP:${fmt(_tw.playerHp)} AGI:${fmt(S.agi||0)}`);
+
+  // Hide result overlay
+  const resDiv = document.getElementById("tower-result");
+  if(resDiv) resDiv.style.display = "none";
+
+  _twRenderEnemy();
+  _twRenderPlayer();
+  _twRenderFloorLabel();
+
+  // Nếu đang auto thì tiếp tục
+  if(_tw.auto){
+    clearTimeout(_tw.autoTimer);
+    _tw.autoTimer = setTimeout(_twAutoLoop, _twCalcAttackInterval());
+  }
+}
+
+// ── Public API ──
+function openTower(){
+  if(S.stage < 3){ showNotif({icon:"🗼",title:"Chưa đủ điều kiện",lines:["Cần đạt <b>Luyện Khí Hậu Kỳ</b> để vào Phong Thần Tháp!"],duration:2500}); return; }
+
+  _tw.playerHp    = S.hp || S.hpmax || 100;
+  _tw.playerHpMax = S.hpmax || 100;
+  _tw.auto = false;
+  clearTimeout(_tw.autoTimer);
+
+  const startFloor = Math.max(1, S.tower.floor||1);
+  _twStartFloor(startFloor);
+
+  document.getElementById("tower-popup").style.display = "flex";
+}
+
+function closeTower(){
+  _twStopAuto();
+  _tw.active = false;
+  // Lưu HP về S
+  S.hp = Math.max(0, Math.min(_tw.playerHp, _tw.playerHpMax));
+  S.tower.floor = _tw.floor;
+  calcBuffs(); renderHUD(); saveGame();
+  document.getElementById("tower-popup").style.display = "none";
+  const resDiv = document.getElementById("tower-result");
+  if(resDiv) resDiv.style.display = "none";
+}
+
+function _towerToggleAuto(){
+  if(!_tw.active) return;
+  _tw.auto = !_tw.auto;
+  const btn = document.getElementById("tower-btn-auto");
+  if(_tw.auto){
+    if(btn){ btn.textContent="⏸ Auto ON"; btn.style.background="rgba(60,160,80,.28)"; btn.style.borderColor="rgba(60,160,80,.7)"; btn.style.color="#a0ff80"; }
+    _twAutoLoop();
+  } else {
+    _twStopAuto();
+  }
+}
+
+function _towerManualAttack(){
+  if(!_tw.active) return;
+  if(_tw.auto) return; // auto đang chạy thì manual không cần
+  _twPlayerStrike();
+}
+
+function _towerNextFloor(){
+  const next = _tw.floor + 1;
+  if(next > 999){ alert("Bạn đã chinh phục toàn bộ Phong Thần Tháp! 🎉"); closeTower(); return; }
+  S.tower.floor = next;
+  saveGame();
+  _twStartFloor(next);
+  const resDiv = document.getElementById("tower-result");
+  if(resDiv) resDiv.style.display = "none";
+}
+
+function _towerRetry(){
+  // Đánh lại tầng hiện tại, HP giữ nguyên (không hồi)
+  _twStartFloor(_tw.floor);
+}
+
+// ── Đan dược panel ──
+function _towerOpenDan(){
+  const panel = document.getElementById("tower-dan-panel");
+  if(!panel) return;
+  const list  = document.getElementById("tower-dan-list");
+  const inv   = S.danDuoc || {};
+  const ALL   = typeof ALL_DAN_DUOC !== "undefined" ? ALL_DAN_DUOC : [];
+  const usable = ALL.filter(d=>( inv[d.id]||0)>0 && ["hoi_khi","sinh_co","hoi_huyet","hoi_xuan"].includes(d.fx));
+
+  if(!usable.length){
+    list.innerHTML = `<div style="font-size:10.5px;color:#5a4020;text-align:center;padding:16px 0;">Không có đan dược phù hợp.</div>`;
+  } else {
+    list.innerHTML = usable.map(d=>`
+      <div onclick="G._towerUseDan('${d.id}')" style="
+        display:flex;align-items:center;gap:8px;padding:8px 10px;margin-bottom:5px;border-radius:8px;
+        background:rgba(201,168,76,.04);border:1px solid rgba(201,168,76,.14);cursor:pointer;transition:all .15s;"
+        onmouseover="this.style.background='rgba(201,168,76,.1)'" onmouseout="this.style.background='rgba(201,168,76,.04)'">
+        <span style="font-size:17px;">${d.icon||"💊"}</span>
+        <div style="flex:1;min-width:0;">
+          <div style="font-size:11px;font-weight:700;color:#e0ceaa;">${d.name}</div>
+          <div style="font-size:9px;color:#5a4020;">${d.desc||""}</div>
+        </div>
+        <div style="font-size:10px;color:#9a8040;">×${inv[d.id]||0}</div>
+      </div>`).join("");
+  }
+  panel.style.display = "block";
+}
+
+function _towerCloseDan(){
+  const panel = document.getElementById("tower-dan-panel");
+  if(panel) panel.style.display = "none";
+}
+
+function _towerUseDan(id){
+  const result = useDanDuoc(id);
+  _twLog(`💊 ${result.msg}`);
+  // Đồng bộ HP từ S vào _tw sau khi dùng đan
+  _tw.playerHp    = Math.min(S.hp, _tw.playerHpMax);
+  _tw.playerHpMax = S.hpmax;
+  _twRenderPlayer();
+  _towerCloseDan();
+}
+
+
 return { 
   openTamPhapBookPopup, _learnTamPhapBook,
   buildCongPhapTreeHTML, onCongPhapBoxClick, onCongPhapComingSoon, showCongPhapRootInfo,
@@ -14316,6 +14847,7 @@ return {
   _uploadAvatar: _uploadAvatar,
   _confirmAvatar: _confirmAvatar,
   checkDie, _showDiePopup, _dieRevivePrompt, _dieDoRevive, _dieAccept,
+  openTower, closeTower, _towerToggleAuto, _towerManualAttack, _towerNextFloor, _towerRetry, _towerOpenDan, _towerCloseDan, _towerUseDan,
   openInvSimpleDetail,
   openCharStatsPopup,
   _ttOpenPopup, _ttClosePopup, _ttPickHour, _ttBreakthrough,
