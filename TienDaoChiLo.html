@@ -22,7 +22,7 @@
 
 <script>
 // ★ ĐỔI SỐ NÀY MỖI KHI DEPLOY BẢN MỚI (phải khớp với sw.js) ★
-const APP_VERSION = '1.0.7';
+const APP_VERSION = '1.0.1';
 
 // ── DEBUG PANEL: thêm ?debug=1 vào URL để xem chẩn đoán ngay trên màn hình ──
 // (không cần DevTools — hữu ích để chẩn đoán trên điện thoại)
@@ -2685,6 +2685,13 @@ const S = {
 
 /* ===== UNLOCK SYSTEM ===== */
 function checkUnlocks(){
+  // ★ TỐI ƯU: nếu đã mở khóa toàn bộ rồi thì bỏ qua toàn bộ DOM work bên dưới
+  //   (trước đây mỗi lần renderHUD() gọi hàm này — tức mỗi phút game — đều
+  //   query lại ~15 element và add class dù chúng đã unlock từ lâu).
+  if(S._allUnlockedCache && S.stage >= 3){
+    if(typeof checkCraftUnlocks === "function") checkCraftUnlocks();
+    return;
+  }
   // HP/Mana hiện sau khi chọn con đường tu luyện
   if(S.unlockHP){
     document.getElementById("float-bars").classList.add("visible");
@@ -2742,6 +2749,10 @@ function checkUnlocks(){
   // Bản Đồ đã bị xóa
   // Craft buttons (Luyện Đan / Luyện Khí / Luyện Phù)
   if(typeof checkCraftUnlocks === "function") checkCraftUnlocks();
+  // ★ Đánh dấu đã unlock hết để các lần gọi sau bỏ qua DOM work (xem đầu hàm)
+  if(S.unlockHP && S.unlockInventory && S.stage >= 3){
+    S._allUnlockedCache = true;
+  }
 }
 
 /* ===== CONSTANTS ===== */
@@ -11043,6 +11054,9 @@ let _ttPopupAttr = null;
 
 function _ttStartTicker(){
   _ttStopTicker();
+  // ★ TỐI ƯU: vòng tròn Thuộc Tính chỉ thay đổi rất chậm theo thời gian tu luyện,
+  //   nên render lại mỗi 3s thay vì mỗi 1s vẫn mượt nhưng giảm ~66% số lần
+  //   rebuild innerHTML nặng (vòng tròn + 8 quả cầu linh căn).
   _ttTickerInterval = setInterval(()=>{
     if(_currentScreenId !== 'thuoc_tinh') { _ttStopTicker(); return; }
     if(!window.ThuocTinh) return;
@@ -11053,7 +11067,7 @@ function _ttStartTicker(){
     } else {
       _ttRefreshPopup();
     }
-  }, 1000);
+  }, 3000);
 }
 function _ttStopTicker(){
   if(_ttTickerInterval){ clearInterval(_ttTickerInterval); _ttTickerInterval = null; }
@@ -12985,6 +12999,47 @@ function startClock(){
   // Bắt đầu từ 00:01:00
   if(S.hour===0 && S.minute===0 && S.second===0){ S.minute = 1; }
   let regenTick = 0; // đếm để hồi mana mỗi 5 giây
+  // ★ TỐI ƯU: Bảng tra cứu Mana→HP được tạo MỘT LẦN ở ngoài interval,
+  //   không tạo lại 36 object mỗi giây như trước (giảm áp lực GC).
+  const MANA2HP_TABLE = [
+    {mana:0,       hp:0},          // 0:  Phàm Nhân — không chuyển
+    {mana:5,       hp:2},          // 1-4:  Luyện Khí
+    {mana:5,       hp:2},
+    {mana:5,       hp:2},
+    {mana:5,       hp:2},
+    {mana:50,      hp:20},         // 5-8:  Trúc Cơ
+    {mana:50,      hp:20},
+    {mana:50,      hp:20},
+    {mana:50,      hp:20},
+    {mana:500,     hp:200},        // 9-12:  Kim Đan
+    {mana:500,     hp:200},
+    {mana:500,     hp:200},
+    {mana:500,     hp:200},
+    {mana:50000,   hp:25000},      // 13-16: Nguyên Anh
+    {mana:50000,   hp:25000},
+    {mana:50000,   hp:25000},
+    {mana:50000,   hp:25000},
+    {mana:500000,  hp:250000},     // 17-20: Hóa Thần
+    {mana:500000,  hp:250000},
+    {mana:500000,  hp:250000},
+    {mana:500000,  hp:250000},
+    {mana:50000000,    hp:25000000},    // 21-24: Luyện Hư
+    {mana:50000000,    hp:25000000},
+    {mana:50000000,    hp:25000000},
+    {mana:50000000,    hp:25000000},
+    {mana:250000000,   hp:125000000},   // 25-28: Hợp Thể
+    {mana:250000000,   hp:125000000},
+    {mana:250000000,   hp:125000000},
+    {mana:250000000,   hp:125000000},
+    {mana:750000000,   hp:375000000},   // 29-32: Đại Thừa
+    {mana:750000000,   hp:375000000},
+    {mana:750000000,   hp:375000000},
+    {mana:750000000,   hp:375000000},
+    {mana:75000000000, hp:37000000000}, // 33-36: Độ Kiếp
+    {mana:75000000000, hp:37000000000},
+    {mana:75000000000, hp:37000000000},
+    {mana:75000000000, hp:37000000000},
+  ];
   setInterval(()=>{
     // Kiểm tra Die ngay đầu mỗi tick (mỗi giây) — HP/Soul về 0 phải chết ngay, không có khoảng trễ
     if(!_isDead && S.stage >= 1){
@@ -13011,45 +13066,6 @@ function startClock(){
     tickDanDuocBuffs();
 
     // Chuyển Đổi Mana → HP theo cảnh giới (mỗi 10 giây thực)
-    const MANA2HP_TABLE = [
-      {mana:0,       hp:0},          // 0:  Phàm Nhân — không chuyển
-      {mana:5,       hp:2},          // 1-4:  Luyện Khí
-      {mana:5,       hp:2},
-      {mana:5,       hp:2},
-      {mana:5,       hp:2},
-      {mana:50,      hp:20},         // 5-8:  Trúc Cơ
-      {mana:50,      hp:20},
-      {mana:50,      hp:20},
-      {mana:50,      hp:20},
-      {mana:500,     hp:200},        // 9-12:  Kim Đan
-      {mana:500,     hp:200},
-      {mana:500,     hp:200},
-      {mana:500,     hp:200},
-      {mana:50000,   hp:25000},      // 13-16: Nguyên Anh
-      {mana:50000,   hp:25000},
-      {mana:50000,   hp:25000},
-      {mana:50000,   hp:25000},
-      {mana:500000,  hp:250000},     // 17-20: Hóa Thần
-      {mana:500000,  hp:250000},
-      {mana:500000,  hp:250000},
-      {mana:500000,  hp:250000},
-      {mana:50000000,    hp:25000000},    // 21-24: Luyện Hư
-      {mana:50000000,    hp:25000000},
-      {mana:50000000,    hp:25000000},
-      {mana:50000000,    hp:25000000},
-      {mana:250000000,   hp:125000000},   // 25-28: Hợp Thể
-      {mana:250000000,   hp:125000000},
-      {mana:250000000,   hp:125000000},
-      {mana:250000000,   hp:125000000},
-      {mana:750000000,   hp:375000000},   // 29-32: Đại Thừa
-      {mana:750000000,   hp:375000000},
-      {mana:750000000,   hp:375000000},
-      {mana:750000000,   hp:375000000},
-      {mana:75000000000, hp:37000000000}, // 33-36: Độ Kiếp
-      {mana:75000000000, hp:37000000000},
-      {mana:75000000000, hp:37000000000},
-      {mana:75000000000, hp:37000000000},
-    ];
     mana2HpTick++;
     if(mana2HpTick >= 10){
       mana2HpTick = 0;
