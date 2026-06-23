@@ -22,7 +22,7 @@
 
 <script>
 // ★ ĐỔI SỐ NÀY MỖI KHI DEPLOY BẢN MỚI (phải khớp với sw.js) ★
-const APP_VERSION = '1.0.6';
+const APP_VERSION = '1.0.7';
 
 // ── DEBUG PANEL: thêm ?debug=1 vào URL để xem chẩn đoán ngay trên màn hình ──
 // (không cần DevTools — hữu ích để chẩn đoán trên điện thoại)
@@ -2604,11 +2604,16 @@ const S = {
   card1d:0, card5d:0, card15d:0,
   card1mo:0, card5mo:0,
   card1y:0, card5y:0, card10y:0,
+  // Thẻ Tu Luyện Tâm Pháp (riêng biệt)
+  mindCard1h:0, mindCard5h:0, mindCard10h:0,
+  mindCard1d:0, mindCard5d:0, mindCard15d:0,
+  mindCard1mo:0, mindCard5mo:0,
+  mindCard1y:0, mindCard5y:0, mindCard10y:0,
   bonusStr:0, bonusDef:0, bonusAgi:0, bonusHP:0,
   theChatStrBonus:0, theChatDefBonus:0, theChatAgiBonus:0, theChatHpBonus:0, theChatExpBonus:0,
   mindStr:0, mindDef:0, mindHP:0, mindMana:0,
   congphap:"", congphapLevel:"",
-  mindMethod:"", mindLevel:"Chưa học",
+  mindMethod:"", mindLevel:"Chưa Học",
   // Chức Nghiệp exp
   luyenDanExp:0, luyenDanStar:0,   // Luyện Đan Sư: 0=chưa có, 1-9=Nhất~Cửu Tinh
   trandaoExp:0,  trandaoStar:0,    // Trận Đạo Sư
@@ -2649,12 +2654,18 @@ const S = {
   freeLongUsed: false,
   // Shop: miễn phí 1h mỗi 5h thực
   shopFree1hNextTime: 0,   // timestamp ms khi lượt tiếp theo hồi (0 = sẵn sàng)
-  // Tu luyện bình thường (theo thời gian game thực)
+  // Tu luyện bình thường — Tu Vi (theo thời gian game thực)
   normalCult: false,          // đang tu luyện bình thường?
   normalCultNextMin: 0,       // tổng phút game khi nhận tu vi tiếp theo
   normalCultIntervalMin: 0,   // khoảng cách phút ngẫu nhiên lần này
   normalCultTotalGain: 0,     // tổng tu vi đã nhận trong phiên này
   normalCultCount: 0,         // số lần đã nhận
+  // Tu luyện bình thường — Tâm Pháp (theo thời gian game thực)
+  normalMindCult: false,          // đang tu luyện tâm pháp bình thường?
+  normalMindCultNextMin: 0,       // tổng phút game khi nhận tâm pháp exp tiếp theo
+  normalMindCultIntervalMin: 0,   // khoảng cách phút lần này
+  normalMindCultTotalGain: 0,     // tổng exp tâm pháp đã nhận
+  normalMindCultCount: 0,         // số lần đã nhận
   // Unlock flags
   unlockHP: false,
   unlockInventory: false,
@@ -2953,30 +2964,30 @@ function addMindExp(delta){
 }
 
 // Ngưỡng exp cho mỗi cấp (dùng chung cho mọi loại tâm pháp)
-// Chưa học: exp < 10
-// Tiểu Thành: 10 <= exp <= 100 (expMax = 100)
-// Trung Thành: 101 <= exp <= 300 (expMax = 300)
-// Đại Thành:   301 <= exp <= 900 (expMax = 900)
-// Viên Mãn:    exp > 900         (expMax = 1800, đỉnh)
+// Chưa Học:    exp < 100                (expMax = 100)
+// Tiểu Thành:  100 <= exp < 3000        (expMax = 3000)
+// Trung Thành: 3000 <= exp < 15000      (expMax = 15000)
+// Đại Thành:   15000 <= exp < 30000     (expMax = 30000)
+// Viên Mãn:    exp >= 30000             (expMax = 30000, đỉnh)
 function getMindLevelFromExp(e){
-  if(e < 10)   return "Chưa học";
-  if(e <= 100) return "Tiểu Thành";
-  if(e <= 300) return "Trung Thành";
-  if(e <= 900) return "Đại Thành";
+  if(e < 100)   return "Chưa Học";
+  if(e < 3000)  return "Tiểu Thành";
+  if(e < 15000) return "Trung Thành";
+  if(e < 30000) return "Đại Thành";
   return "Viên Mãn";
 }
 function getMindExpMaxFromExp(e){
-  if(e < 10)   return 100;
-  if(e <= 100) return 100;
-  if(e <= 300) return 300;
-  if(e <= 900) return 900;
-  return 1800;
+  if(e < 100)   return 100;
+  if(e < 3000)  return 3000;
+  if(e < 15000) return 15000;
+  if(e < 30000) return 30000;
+  return 30000;
 }
 
 function calcMindSystem(){
   S.mindStr = 0; S.mindDef = 0; S.mindHP = 0; S.mindMana = 0;
   S.mindCritRate = 0; S.mindCritDmg = 0; S.mindKhu = 0;
-  if(!S.mindMethod){ S.mindLevel = "Chưa học"; return; }
+  if(!S.mindMethod){ S.mindLevel = "Chưa Học"; return; }
 
   const m = S.mindMethod;
   const e = getMindExp();
@@ -2986,7 +2997,7 @@ function calcMindSystem(){
   const [,emk] = getMindExpKey();
   if(emk) S[emk] = getMindExpMaxFromExp(e);
 
-  if(S.mindLevel === "Chưa học") return; // Chưa học => không có buff
+  if(S.mindLevel === "Chưa Học") return; // Chưa Học => không có buff
 
   // === Tâm Kiếm (STR + Mana + TLCM) ===
   const kiemTbl = {
@@ -3175,6 +3186,12 @@ const CULT_RATE_VM = {
 const CAP_IDX = {"Hạ Phẩm":0,"Trung Phẩm":1,"Thượng Phẩm":2,"Cực Phẩm":3,"Viên Mãn":3};
 
 // Trả về tu vi nhận được sau duration giây
+// Hệ số ngộ tính — dùng cho cả calcCultExp lẫn calcMindCultExp
+const NGO_TINH_MULT = {
+  "B":1, "B+":1.5, "A":3, "A+":3.5, "S":6, "S+":7, "SS":8, "SSS":10
+};
+function getNgoTinhMult(){ return NGO_TINH_MULT[S.ngoTinh] || 1; }
+
 function calcCultExp(durationSec){
   const lc  = S.linhcan    || "Huyền Linh Căn";
   const cap = S.linhcanCap || "Hạ Phẩm";
@@ -3188,7 +3205,7 @@ function calcCultExp(durationSec){
     perTick = rates[idx];
   }
   const ticks = durationSec / 1800; // 1 tick = 30 phút
-  return Math.floor(perTick * ticks * S.expRate); // tu vi = perTick × số tick × expRate (bao gồm buff thể chất)
+  return Math.floor(perTick * ticks * S.expRate * getNgoTinhMult()); // tu vi = perTick × tick × expRate × ngộ tính
 }
 
 // Danh sách thời gian có thể chọn theo cảnh giới
@@ -3206,6 +3223,28 @@ const CULT_OPTIONS = [
   { label:"5 năm",   sec:157680000,cardKey:"card5y",  stageMin:13 },
   { label:"10 năm",  sec:315360000,cardKey:"card10y", stageMin:13 },
 ];
+
+// Danh sách thẻ tu luyện Tâm Pháp — dùng chung thẻ với Tu Vi (card1h, card5h...)
+const MIND_CULT_OPTIONS = [
+  { label:"1 giờ",   sec:3600,     cardKey:"card1h",  stageMin:1  },
+  { label:"5 giờ",   sec:18000,    cardKey:"card5h",  stageMin:1  },
+  { label:"10 giờ",  sec:36000,    cardKey:"card10h", stageMin:5  },
+  { label:"1 ngày",  sec:86400,    cardKey:"card1d",  stageMin:5  },
+  { label:"5 ngày",  sec:432000,   cardKey:"card5d",  stageMin:5  },
+  { label:"15 ngày", sec:1296000,  cardKey:"card15d", stageMin:9  },
+  { label:"1 tháng", sec:2592000,  cardKey:"card1mo", stageMin:9  },
+  { label:"5 tháng", sec:12960000, cardKey:"card5mo", stageMin:9  },
+  { label:"1 năm",   sec:31536000, cardKey:"card1y",  stageMin:13 },
+  { label:"5 năm",   sec:157680000,cardKey:"card5y",  stageMin:13 },
+  { label:"10 năm",  sec:315360000,cardKey:"card10y", stageMin:13 },
+];
+
+// Exp tâm pháp nhận được: 1 tick (30ph) = 5 điểm base × ngộ tính × stage
+function calcMindCultExp(durationSec){
+  const ticks = durationSec / 1800; // 1 tick = 30 phút
+  const stageBonus = 1 + (S.stage||0) * 0.1;
+  return Math.floor(5 * ticks * stageBonus * getNgoTinhMult());
+}
 
 function fmtDuration(sec){
   if(sec < 3600) return Math.floor(sec/60)+"p";
@@ -3380,6 +3419,84 @@ function stopNormalCultivateOverlay(){
   openScreen("cultivate"); // refresh UI trong overlay
 }
 
+// ===== TU LUYỆN TÂM PHÁP BÌNH THƯỜNG =====
+function startNormalMindCultivate(){
+  const totalMin = S.minute + S.hour*60 + S.day*1440 + (S.month-1)*43200 + (S.year-1035)*518400;
+  S.normalMindCult = true;
+  S.normalMindCultTotalGain = 0;
+  S.normalMindCultCount = 0;
+  S.normalMindCultIntervalMin = 30;
+  S.normalMindCultNextMin = totalMin + S.normalMindCultIntervalMin;
+  openScreen("cultivate");
+}
+
+function stopNormalMindCultivate(){
+  S.normalMindCult = false;
+  clearInterval(window._mindCultOverlayTimer);
+  openScreen("cultivate");
+}
+
+function openCardMindCultivatePopup(){
+  calcStage(); calcBuffs();
+  const stage = S.stage;
+  let gridHTML = '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;padding:2px 0 4px;">';
+  for(const opt of MIND_CULT_OPTIONS){
+    const locked = opt.stageMin > stage;
+    const qty = S[opt.cardKey] || 0;
+    const hasCard = qty > 0;
+    const canAct = !locked && hasCard;
+    const gain = calcMindCultExp(opt.sec);
+    let bg, border, color, sub;
+    if(locked){
+      const ls = STAGE_DATA[opt.stageMin];
+      bg="rgba(255,255,255,.03)"; border="rgba(255,255,255,.07)"; color="#3a2810";
+      sub='<div style="font-size:8px;color:#3a2810;margin-top:2px">'+(ls?ls.n:"🔒")+'</div>';
+    } else if(!hasCard){
+      bg="rgba(255,255,255,.03)"; border="rgba(255,255,255,.07)"; color="#4a3818";
+      sub='<div style="font-size:8px;color:#c06060;margin-top:2px">Không có thẻ</div>';
+    } else {
+      bg="rgba(100,160,255,.09)"; border="rgba(100,160,255,.38)"; color="#a8c8f8";
+      sub='<div style="font-size:8px;color:#70d870;margin-top:2px">Còn '+qty+' thẻ</div>';
+    }
+    const click = canAct
+      ? 'onclick="G.useMindCultCard(\''+opt.cardKey+'\','+opt.sec+');document.getElementById(\'card-mind-cult-popup\').remove();"'
+      : "";
+    gridHTML += '<div '+click+' style="padding:8px 4px;border-radius:8px;text-align:center;cursor:'+(canAct?'pointer':'default')+';background:'+bg+';border:1px solid '+border+';transition:background .15s;'+(canAct?'':'opacity:.5;')+'"'+(canAct?' onmouseover="this.style.background=\'rgba(100,160,255,.18)\'" onmouseout="this.style.background=\''+bg+'\'"':'')+'>'+
+      '<div style="font-size:11px;font-weight:700;color:'+color+'">'+opt.label+'</div>'+
+      '<div style="font-size:8.5px;color:#6080a0;margin-top:1px">+'+fmt(gain)+' exp</div>'+
+      sub+
+    '</div>';
+  }
+  gridHTML += '</div>';
+
+  const popup = document.createElement("div");
+  popup.id = "card-mind-cult-popup";
+  popup.style.cssText = "position:fixed;inset:0;z-index:2700;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.82);backdrop-filter:blur(4px);padding:16px;";
+  popup.innerHTML = '<div style="width:100%;max-width:400px;background:rgba(2,6,14,.99);border:1px solid rgba(100,160,255,.3);border-radius:14px;overflow:hidden;box-shadow:0 0 40px rgba(0,0,0,.7);">'+
+    '<div style="padding:11px 14px;border-bottom:1px solid rgba(100,160,255,.12);display:flex;justify-content:space-between;align-items:center;">'+
+      '<div style="font-size:13px;font-weight:700;color:#a8c8f8;">📜 Thẻ Tu Luyện Tâm Pháp</div>'+
+      '<div onclick="document.getElementById(\'card-mind-cult-popup\').remove()" style="cursor:pointer;color:#4a6080;font-size:16px;padding:0 4px;">✕</div>'+
+    '</div>'+
+    '<div style="padding:12px 14px;">'+
+      '<div style="font-size:9.5px;color:#3a5070;margin-bottom:10px;line-height:1.5;">Dùng Thẻ Tu Luyện (chung với Tu Vi) để nhận exp Tâm Pháp tức thì. Mua thẻ tại <b style="color:#a8c8f8">Shop → Thẻ Tu Luyện</b>.</div>'+
+      gridHTML+
+    '</div>'+
+  '</div>';
+  popup.onclick = (e) => { if(e.target===popup) popup.remove(); };
+  document.body.appendChild(popup);
+}
+
+// Dùng thẻ tâm pháp: tiêu 1 thẻ, cộng exp
+function useMindCultCard(cardKey, durationSec){
+  if((S[cardKey]||0) <= 0) return;
+  S[cardKey]--;
+  const gain = calcMindCultExp(durationSec);
+  addMindExp(gain);
+  calcMindSystem(); renderHUD();
+  openScreen("cultivate");
+  showToast("⚡ +" + fmt(gain) + " exp Tâm Pháp!");
+}
+
 function openCardCultivatePopup(){
   // Cập nhật expRate mới nhất trước khi tính preview
   calcStage(); calcBuffs();
@@ -3515,7 +3632,7 @@ function renderHUD(){
     </div>
 
     <div class="hd"></div>
-    <div class="hs">Tu Vi</div>
+    <div class="hs" style="display:flex;align-items:center;gap:5px;">Tu Vi ${S.normalCult?`<span style="font-size:8px;color:#60d870;background:rgba(60,160,70,.15);border:1px solid rgba(60,160,70,.3);border-radius:4px;padding:1px 4px;letter-spacing:.5px;">⟳ Tu</span>`:""}</div>
     <div class="tuvi-wrap">
       <div class="tuvi-top">
         <div class="tuvi-stage">${S.stageName}</div>
@@ -3560,13 +3677,14 @@ function renderHUD(){
     })()}
     <div class="hl" style="overflow:hidden;"><span class="hll" style="flex-shrink:0">Chức Nghiệp:</span><span style="font-size:10px;color:#e0ceaa;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1;">${jobs.length > 40 ? jobs.slice(0,38)+"…" : jobs}</span></div>
     <div class="hl"><span class="hll">Tâm Pháp:</span>
-      <span class="hlv">${(S.mindMethod && S.mindLevel !== "Chưa học") ? S.mindMethod : "—"}</span>
+      <span class="hlv">${(S.mindMethod && S.mindLevel !== "Chưa Học") ? S.mindMethod : "—"}</span>
+      ${S.normalMindCult?`<span style="font-size:8px;color:#70a8e0;background:rgba(60,120,200,.15);border:1px solid rgba(60,120,200,.3);border-radius:4px;padding:1px 4px;letter-spacing:.5px;margin-left:3px;">⟳ Tu</span>`:""}
     </div>
-    ${(S.mindMethod && S.mindLevel !== "Chưa học") ? (()=>{
+    ${(S.mindMethod && S.mindLevel !== "Chưa Học") ? (()=>{
       const e = getMindExp();
       const emax = getMindExpMax();
       const pct = emax>0 ? Math.min(100, e/emax*100) : 0;
-      const lv = S.mindLevel||"Chưa học";
+      const lv = S.mindLevel||"Chưa Học";
       const lvColor = lv==="Viên Mãn"?"#f0c14b":lv==="Đại Thành"?"#80d8ff":lv==="Trung Thành"?"#a0e8a0":"#c8a84a";
       const canBreakMind = lv==="Tiểu Thành"||lv==="Trung Thành"||lv==="Đại Thành";
       const atMax = e >= emax;
@@ -4156,12 +4274,12 @@ function doMindBreakthrough(){
   if(!ek) return;
   const e = S[ek];
   const lv = S.mindLevel;
-  if(lv === "Tiểu Thành" && e >= 100){
-    S[ek] = 101;
-  } else if(lv === "Trung Thành" && e >= 300){
-    S[ek] = 301;
-  } else if(lv === "Đại Thành" && e >= 900){
-    S[ek] = 901;
+  if(lv === "Tiểu Thành" && e >= 3000){
+    S[ek] = 3000;
+  } else if(lv === "Trung Thành" && e >= 15000){
+    S[ek] = 15000;
+  } else if(lv === "Đại Thành" && e >= 30000){
+    S[ek] = 30000;
   } else { return; }
   calcMindSystem();
   renderHUD();
@@ -5694,7 +5812,7 @@ function ctViewFormula(uid){
 
   const popup = document.createElement("div");
   popup.id = "ct-popup";
-  popup.style.cssText = "position:fixed;inset:0;z-index:1200;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.85);backdrop-filter:blur(4px);padding:16px;";
+  popup.style.cssText = "position:fixed;inset:0;z-index:3200;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.85);backdrop-filter:blur(4px);padding:16px;";
   popup.innerHTML = `
     <div style="width:100%;max-width:380px;background:rgba(8,6,2,.99);border:1px solid rgba(201,168,76,.3);border-radius:14px;overflow:hidden;box-shadow:0 0 40px rgba(0,0,0,.7);">
       <div style="padding:11px 14px;border-bottom:1px solid rgba(201,168,76,.12);display:flex;justify-content:space-between;align-items:center;">
@@ -8054,14 +8172,14 @@ function buildInventoryHTML(){
     const hasOther3 = ddKeys.length>0 || dlKeys.length>0 || ct.length>0 || pk.length>0;
     html += `<div class="shop-section-title" style="${hasOther3?"margin-top:14px":"margin-top:0"}">Tâm Pháp</div>`;
     for(const book of tpBooks){
-      const isLearned = book.learned || (S.mindMethod===book.method && S.mindLevel && S.mindLevel!=="Chưa học");
+      const isLearned = book.learned || (S.mindMethod===book.method && S.mindLevel && S.mindLevel!=="Chưa Học");
       html += `<div class="shop-item" style="padding:7px 10px;cursor:pointer;" onclick="G.openTamPhapBookPopup('${book.uid}')">
         <div class="shop-item-icon" style="font-size:22px">📖</div>
         <div class="shop-item-info">
           <div class="shop-item-name" style="color:#f0c14b">${book.method}</div>
           <div class="shop-item-desc">Tâm Pháp · ${isLearned
             ? '<span style="color:#70e880">✦ Đã học</span>'
-            : '<span style="color:#c8a84a">Chưa học · Ấn để học</span>'}</div>
+            : '<span style="color:#c8a84a">Chưa Học · Ấn để học</span>'}</div>
         </div>
         <div style="font-size:18px;color:#5a4020;flex-shrink:0;">›</div>
       </div>`;
@@ -9878,9 +9996,24 @@ const LUYEN_KHI_SECT_META = {
 const CONG_PHAP_ROW_ORDER = ["thanh_van","nhat_dao","the_cuc","van_phap"]; // Kiếm Tu, Đao Tu, Thể Tu, Pháp Tu
 const CONG_PHAP_SLOTS = 15; // mỗi con đường tu tối đa 15 công pháp
 
-// Số ô đã mở khóa trên 1 con đường, dựa theo tu vi (ô i mở khi S.stage >= i)
+// Stage tối thiểu để mở từng ô công pháp
+// Ô 1: Luyện Khí Hậu Kỳ (3), Ô 2: Trúc Cơ Sơ Kỳ (5), Ô 3: Trúc Cơ Hậu Kỳ (7)
+// Ô 4: Kim Đan Sơ Kỳ (9), Ô 5: Kim Đan Hậu Kỳ (11), Ô 6: Nguyên Anh Sơ Kỳ (13)
+// Ô 7: Nguyên Anh Hậu Kỳ (15), Ô 8: Hóa Thần Sơ Kỳ (17), Ô 9: Hóa Thần Hậu Kỳ (19)
+// Ô 10: Luyện Hư Sơ Kỳ (21), Ô 11: Luyện Hư Hậu Kỳ (23), Ô 12: Hợp Thể Sơ Kỳ (25)
+// Ô 13: Hợp Thể Hậu Kỳ (27), Ô 14: Đại Thừa (29), Ô 15: Độ Kiếp (33)
+const CP_SLOT_STAGE_REQ = [0, 3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 27, 29, 33];
+// CP_SLOT_STAGE_REQ[i] = stage tối thiểu để mở ô i (index 1–15)
+
+// Số ô đã mở khóa trên 1 con đường, dựa theo stage
 function _cpUnlockedCount(){
-  return Math.max(0, Math.min(CONG_PHAP_SLOTS, S.stage||0));
+  const stage = S.stage || 0;
+  let count = 0;
+  for(let i = 1; i <= CONG_PHAP_SLOTS; i++){
+    if(stage >= CP_SLOT_STAGE_REQ[i]) count++;
+    else break;
+  }
+  return count;
 }
 
 function buildCongPhapTreeHTML(){
@@ -9889,7 +10022,7 @@ function buildCongPhapTreeHTML(){
   const activeSectId = sectInfo ? sectInfo.sectId : null;
   const unlockedCount = _cpUnlockedCount();
 
-  const rootLearned = !!(S.mindMethod && S.mindLevel && S.mindLevel !== "Chưa học");
+  const rootLearned = !!(S.mindMethod && S.mindLevel && S.mindLevel !== "Chưa Học");
   const rootHTML = `
     <div class="cp-root-box" onclick="G.showCongPhapRootInfo()">
       <div class="cp-root-icon">${rootLearned?"📖":"🔒"}</div>
@@ -9953,7 +10086,8 @@ function onCongPhapBoxClick(sectId, idx, status){
   if(status === "open"){
     showNotif({icon:"📖", title:`${meta.name} · Ô ${idx}`, lines:["Tính năng học Công Pháp tại đây đang được phát triển.","Đón chờ cập nhật!"], color:meta.color, duration:2600});
   } else if(status === "stage"){
-    const need = STAGE_DATA[idx] ? STAGE_DATA[idx].n : "???";
+    const reqStage = CP_SLOT_STAGE_REQ[idx];
+    const need = STAGE_DATA[reqStage] ? STAGE_DATA[reqStage].n : "???";
     showNotif({icon:"🔒", title:"Chưa Mở Khóa", lines:[`Cần đạt tu vi <b>${need}</b> để mở khóa ô này.`], color:"#a08840", duration:2400});
   } else {
     showNotif({icon:"⛔", title:"Chưa Thể Song Tu", lines:["Chưa đạt Kim Đan, ngươi chỉ có thể chuyên tâm con đường tu luyện đã chọn."], color:"#e87060", duration:2600});
@@ -9965,11 +10099,11 @@ function onCongPhapComingSoon(){
 }
 
 function showCongPhapRootInfo(){
-  const learned = S.mindMethod && S.mindLevel && S.mindLevel !== "Chưa học";
+  const learned = S.mindMethod && S.mindLevel && S.mindLevel !== "Chưa Học";
   if(learned){ openTamPhapPopup(); return; }
   showNotif({
     icon:"📖", title:"Tâm Pháp",
-    lines:["Chưa học Tâm Pháp.","Tìm sách Tâm Pháp trong Nhẫn Trữ Vật để học!"],
+    lines:["Chưa Học Tâm Pháp.","Tìm sách Tâm Pháp trong Nhẫn Trữ Vật để học!"],
     color:"#f0c14b", duration:2600
   });
 }
@@ -9977,7 +10111,7 @@ function showCongPhapRootInfo(){
 // Popup chi tiết Tâm Pháp (mở khi đã học) — giống style popup pháp khí trong Nhẫn Trữ Vật
 function openTamPhapPopup(){
   const e = getMindExp();
-  const lvl = S.mindLevel || "Chưa học";
+  const lvl = S.mindLevel || "Chưa Học";
   const TIERS = [
     { name:"Tiểu Thành",  min:0,   max:100  },
     { name:"Trung Thành", min:100, max:300  },
@@ -10064,30 +10198,30 @@ function openTamPhapTuLuyenPopup(){
   pop.id = "tamphap-tuluyen-popup";
   pop.style.cssText = "position:fixed;inset:0;z-index:3100;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.82);backdrop-filter:blur(4px);padding:16px;";
 
-  const normalActive = !!S.normalCult;
+  const normalActive = !!S.normalMindCult;
   const btnNormalLabel = normalActive ? "⏸ Dừng Tu Luyện" : "▶ Tu Luyện Bình Thường";
   const btnNormalAction = normalActive
-    ? `G.stopNormalCultivateOverlay();document.getElementById('tamphap-tuluyen-popup').remove();`
-    : `G.startNormalCultivateOverlay();document.getElementById('tamphap-tuluyen-popup').remove();`;
+    ? `G.stopNormalMindCultivate();document.getElementById('tamphap-tuluyen-popup').remove();`
+    : `G.startNormalMindCultivate();document.getElementById('tamphap-tuluyen-popup').remove();`;
 
   pop.innerHTML = `
-    <div style="width:100%;max-width:290px;background:rgba(8,6,2,.99);border:1px solid rgba(201,168,76,.35);border-radius:14px;overflow:hidden;box-shadow:0 0 50px rgba(0,0,0,.85);">
-      <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 13px;border-bottom:1px solid rgba(201,168,76,.12);">
-        <div style="font-size:12px;font-weight:700;color:#f0c14b;">⚡ Tu Luyện Tâm Pháp</div>
-        <div onclick="document.getElementById('tamphap-tuluyen-popup').remove()" style="width:20px;height:20px;display:flex;align-items:center;justify-content:center;border:1px solid rgba(201,168,76,.2);border-radius:4px;color:#9a7a30;cursor:pointer;font-size:11px;">✕</div>
+    <div style="width:100%;max-width:290px;background:rgba(2,6,14,.99);border:1px solid rgba(100,160,255,.35);border-radius:14px;overflow:hidden;box-shadow:0 0 50px rgba(0,0,0,.85);">
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 13px;border-bottom:1px solid rgba(100,160,255,.12);">
+        <div style="font-size:12px;font-weight:700;color:#a8c8f8;">⚡ Tu Luyện Tâm Pháp</div>
+        <div onclick="document.getElementById('tamphap-tuluyen-popup').remove()" style="width:20px;height:20px;display:flex;align-items:center;justify-content:center;border:1px solid rgba(100,160,255,.2);border-radius:4px;color:#4a6080;cursor:pointer;font-size:11px;">✕</div>
       </div>
       <div style="padding:14px;">
-        <div style="font-size:10px;color:#7a6030;line-height:1.6;margin-bottom:14px;">Chọn phương thức tu luyện để nâng cao cảnh giới Tâm Pháp.</div>
+        <div style="font-size:10px;color:#3a5070;line-height:1.6;margin-bottom:14px;">Chọn phương thức tu luyện để nâng cao cảnh giới Tâm Pháp.</div>
         <div style="display:flex;flex-direction:column;gap:8px;">
-          <div onclick="${btnNormalAction}" style="padding:10px 14px;background:rgba(201,168,76,.1);border:1px solid rgba(201,168,76,.4);border-radius:9px;cursor:pointer;transition:background .15s;"
-            onmouseover="this.style.background='rgba(201,168,76,.2)'" onmouseout="this.style.background='rgba(201,168,76,.1)'">
-            <div style="font-size:11.5px;font-weight:700;color:#f0d98c;">${btnNormalLabel}</div>
-            <div style="font-size:9px;color:#7a6030;margin-top:2px;">Tự động nhận tu vi mỗi 30 phút (không cần thẻ)</div>
+          <div onclick="${btnNormalAction}" style="padding:10px 14px;background:rgba(100,160,255,.1);border:1px solid rgba(100,160,255,.4);border-radius:9px;cursor:pointer;transition:background .15s;"
+            onmouseover="this.style.background='rgba(100,160,255,.2)'" onmouseout="this.style.background='rgba(100,160,255,.1)'">
+            <div style="font-size:11.5px;font-weight:700;color:#a8c8f8;">${btnNormalLabel}</div>
+            <div style="font-size:9px;color:#3a5070;margin-top:2px;">Tự động nhận exp Tâm Pháp mỗi 30 phút (không cần thẻ)</div>
           </div>
-          <div onclick="document.getElementById('tamphap-tuluyen-popup').remove();G.openCardCultivatePopup();" style="padding:10px 14px;background:rgba(100,160,255,.07);border:1px solid rgba(100,160,255,.3);border-radius:9px;cursor:pointer;transition:background .15s;"
-            onmouseover="this.style.background='rgba(100,160,255,.15)'" onmouseout="this.style.background='rgba(100,160,255,.07)'">
-            <div style="font-size:11.5px;font-weight:700;color:#a8c8f8;">📜 Dùng Thẻ Tu Luyện</div>
-            <div style="font-size:9px;color:#5a6880;margin-top:2px;">Tu luyện tức thì — tiêu thẻ, nhận tu vi ngay</div>
+          <div onclick="document.getElementById('tamphap-tuluyen-popup').remove();G.openCardMindCultivatePopup();" style="padding:10px 14px;background:rgba(80,200,120,.07);border:1px solid rgba(80,200,120,.3);border-radius:9px;cursor:pointer;transition:background .15s;"
+            onmouseover="this.style.background='rgba(80,200,120,.15)'" onmouseout="this.style.background='rgba(80,200,120,.07)'">
+            <div style="font-size:11.5px;font-weight:700;color:#80e8a0;">📜 Dùng Thẻ Tu Luyện Tâm Pháp</div>
+            <div style="font-size:9px;color:#3a6050;margin-top:2px;">Tu luyện tức thì — dùng chung Thẻ Tu Luyện, nhận exp Tâm Pháp ngay</div>
           </div>
         </div>
       </div>
@@ -10232,7 +10366,7 @@ function openScreen(id, tab){
       window._charActiveTab = activeTab;
 
       function renderCharTab(){
-        const isActive = S.normalCult;
+        const isActive = S.normalCult || S.normalMindCult;
         const eqCols = _buildEquipColumnsHTML();
         return `
           <div style="display:flex;flex-direction:column;align-items:center;min-height:0;padding:10px;">
@@ -10378,127 +10512,243 @@ function openScreen(id, tab){
       const totalMin = S.minute + S.hour*60 + S.day*1440 + (S.month-1)*43200 + (S.year-1035)*518400;
       const remainMin = isActive ? Math.max(0, S.normalCultNextMin - totalMin) : 0;
       const progressPct = isActive ? Math.min(100, Math.max(0, (interval - remainMin) / interval * 100)) : 0;
+
+      // Tâm Pháp data
+      const hasMind = !!(S.mindMethod && S.mindLevel && S.mindLevel !== "Chưa Học");
+      const mindE = getMindExp(); const mindEmax = getMindExpMax();
+      const mindPct = mindEmax>0 ? Math.min(100, mindE/mindEmax*100) : 0;
+      const mindLv = S.mindLevel||"Chưa Học";
+      const mindLvColor = mindLv==="Viên Mãn"?"#f0c14b":mindLv==="Đại Thành"?"#80d8ff":mindLv==="Trung Thành"?"#a0e8a0":"#c8a84a";
+      const mindCanBreak = (mindLv==="Tiểu Thành"||mindLv==="Trung Thành"||mindLv==="Đại Thành") && mindE>=mindEmax;
+      const isMindActive = S.normalMindCult && hasMind;
+      const mindInterval = S.normalMindCultIntervalMin || 30;
+      const mindRemain = isMindActive ? Math.max(0, S.normalMindCultNextMin - totalMin) : 0;
+      const mindProgressPct = isMindActive ? Math.min(100, Math.max(0,(mindInterval - mindRemain)/mindInterval*100)) : 0;
+
       b.innerHTML=`
-        <div style="display:flex;flex-direction:column;align-items:center;padding:18px 8px 20px;gap:0;">
+        <div style="display:flex;flex-direction:column;align-items:center;padding:12px 8px 20px;gap:0;">
+
+          <!-- === TAB NAVIGATION === -->
+          <div style="display:flex;width:100%;max-width:320px;margin-bottom:16px;gap:0;border:1px solid rgba(201,168,76,.2);border-radius:10px;overflow:hidden;">
+            <div id="tab-tuvi-btn" onclick="G._cultivateTab='tuvi';G.openScreen('cultivate')" style="
+              flex:1;padding:8px 4px;text-align:center;font-size:11px;font-weight:700;cursor:pointer;transition:all .2s;
+              background:rgba(201,168,76,.15);color:#f0d98c;border-right:1px solid rgba(201,168,76,.2);
+            ">⚔️ Tu Vi${isActive?` <span style="font-size:8px;color:#60d870;vertical-align:middle;">⟳</span>`:`${S.exp>=S.expmax&&S.stage>0?' <span style="font-size:8px;color:#f0c14b;vertical-align:middle;">✦</span>':''}`}</div>
+            <div id="tab-tamphap-btn" onclick="G._cultivateTab='tamphap';G.openScreen('cultivate')" style="
+              flex:1;padding:8px 4px;text-align:center;font-size:11px;font-weight:700;cursor:pointer;transition:all .2s;
+              background:rgba(100,160,255,.08);color:#6890c0;
+            ">⚡ Tâm Pháp${isMindActive?` <span style="font-size:8px;color:#70a8e0;vertical-align:middle;">⟳</span>`:`${mindCanBreak?' <span style="font-size:8px;color:#a8c8f8;vertical-align:middle;">✦</span>':''}`}</div>
+          </div>
+
           <!-- Hình người ngồi thiền -->
-          <div style="position:relative;display:flex;align-items:center;justify-content:center;margin-bottom:22px;">
-            <!-- Glow nền khi active -->
-            ${isActive ? `<div style="position:absolute;width:120px;height:120px;border-radius:50%;background:radial-gradient(circle,rgba(80,220,200,.18) 0%,transparent 70%);animation:cultivate-glow 2.5s ease-in-out infinite;pointer-events:none;"></div>` : ''}
-            <!-- Ảnh nhân vật: mix-blend-mode:screen loại bỏ nền đen -->
+          <div style="position:relative;display:flex;align-items:center;justify-content:center;margin-bottom:18px;">
+            ${(isActive||isMindActive) ? `<div style="position:absolute;width:120px;height:120px;border-radius:50%;background:radial-gradient(circle,rgba(80,220,200,.18) 0%,transparent 70%);animation:cultivate-glow 2.5s ease-in-out infinite;pointer-events:none;"></div>` : ''}
             <img src="${S.avatar||_TL}"
               style="
                 width:120px;height:auto;
                 mix-blend-mode:screen;
-                filter:${isActive
+                filter:${(isActive||isMindActive)
                   ? 'brightness(0.92) sepia(0.5) hue-rotate(140deg) saturate(2) drop-shadow(0 0 12px rgba(80,220,200,.7))'
                   : 'brightness(0.7) sepia(0.3) hue-rotate(140deg) saturate(1.2) drop-shadow(0 0 4px rgba(80,220,200,.25))'};
                 transition:filter .4s ease;
                 display:block;
               "
             />
-            ${isActive ? `<div style="position:absolute;bottom:-12px;font-size:9px;color:rgba(80,220,200,.9);letter-spacing:1.5px;font-weight:700;text-shadow:0 0 8px rgba(80,220,200,.5);">⟳ ĐANG NHẬP ĐỊNH</div>` : ''}
+            ${(isActive||isMindActive) ? `<div style="position:absolute;bottom:-12px;font-size:9px;color:rgba(80,220,200,.9);letter-spacing:1.5px;font-weight:700;text-shadow:0 0 8px rgba(80,220,200,.5);">⟳ ĐANG NHẬP ĐỊNH</div>` : ''}
           </div>
 
-          <!-- Thanh Tu Vi -->
-          <div style="width:100%;max-width:320px;margin-bottom:20px;">
-            <div style="display:flex;justify-content:space-between;font-size:10.5px;margin-bottom:5px;">
-              <span style="color:#f0c14b;font-weight:700">${S.stageName||'Phàm Nhân'}</span>
-              <span style="color:#7a6030">${expP.toFixed(1)}%</span>
+          <!-- ============ TAB TU VI ============ -->
+          <div id="tab-panel-tuvi" style="width:100%;max-width:320px;">
+            <!-- Thanh Tu Vi -->
+            <div style="margin-bottom:16px;">
+              <div style="display:flex;justify-content:space-between;font-size:10.5px;margin-bottom:5px;">
+                <span style="color:#f0c14b;font-weight:700">${S.stageName||'Phàm Nhân'}</span>
+                <span style="color:#7a6030">${expP.toFixed(1)}%</span>
+              </div>
+              <div style="width:100%;height:8px;background:rgba(255,255,255,.07);border-radius:99px;overflow:hidden;margin-bottom:4px;">
+                <div style="height:100%;border-radius:99px;width:${expP}%;background:linear-gradient(90deg,#7a5a12,#f0c14b);box-shadow:0 0 6px rgba(240,193,75,.35);transition:width .4s;"></div>
+              </div>
+              <div style="font-size:9px;color:#5a4018;text-align:right;">${fmt(S.exp)} / ${fmt(S.expmax)} tu vi</div>
             </div>
-            <div style="width:100%;height:8px;background:rgba(255,255,255,.07);border-radius:99px;overflow:hidden;margin-bottom:4px;">
-              <div style="height:100%;border-radius:99px;width:${expP}%;background:linear-gradient(90deg,#7a5a12,#f0c14b);box-shadow:0 0 6px rgba(240,193,75,.35);transition:width .4s;"></div>
+
+            ${isActive ? `
+            <!-- Đang tu luyện Tu Vi: thanh tiến độ -->
+            <div style="margin-bottom:14px;padding:12px 14px;background:rgba(16,44,20,.4);border:1px solid rgba(60,160,70,.25);border-radius:10px;">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+                <div style="font-size:10px;font-weight:700;color:#70d880;">🌿 Tĩnh Tọa</div>
+                <div id="cult-overlay-flash" style="font-size:10px;color:#f0c14b;font-weight:700;opacity:0;transition:opacity .4s;"></div>
+              </div>
+              <div style="width:100%;height:6px;background:rgba(255,255,255,.07);border-radius:99px;overflow:hidden;margin-bottom:5px;">
+                <div id="cult-overlay-progress" style="height:100%;border-radius:99px;background:linear-gradient(90deg,#2a6a30,#60d870);width:${progressPct.toFixed(1)}%;transition:width .8s ease;"></div>
+              </div>
+              <div style="display:flex;justify-content:space-between;font-size:9.5px;color:#4a7040;">
+                <span>Còn: <b id="cult-overlay-next" style="color:#70d870;">${remainMin} phút</b></span>
+                <span>Đã nhận: <b id="cult-overlay-count" style="color:#c8a84a;">${S.normalCultCount||0}</b> lần</span>
+              </div>
             </div>
-            <div style="font-size:9px;color:#5a4018;text-align:right;">${fmt(S.exp)} / ${fmt(S.expmax)} tu vi</div>
+            <div onclick="G.stopNormalCultivate()" style="
+              width:100%;padding:11px;text-align:center;
+              background:rgba(180,60,60,.1);border:1px solid rgba(180,60,60,.35);
+              border-radius:10px;font-size:13px;font-weight:700;color:#e08888;
+              cursor:pointer;letter-spacing:1px;transition:all .2s;
+            " onmouseover="this.style.background='rgba(180,60,60,.2)'" onmouseout="this.style.background='rgba(180,60,60,.1)'">
+              ⬆ Xuất Định
+            </div>
+            ` : `
+            <!-- Nghỉ Ngơi -->
+            ${(()=>{
+              const ni = getNghiNgoiInfo();
+              const manaStr = ni.manaPct>0 ? ` · Mana +${Math.floor(ni.manaPct*100)}%` : '';
+              return `<div style="width:100%;margin-bottom:6px;text-align:center;font-size:9.5px;color:#7a6030;letter-spacing:.5px;">🌙 Nghỉ Ngơi</div>
+              <div onclick="G.doNghiNgoi()" style="
+                width:100%;padding:10px 6px;text-align:center;margin-bottom:14px;
+                background:rgba(80,100,160,.1);border:1px solid rgba(80,100,160,.4);
+                border-radius:10px;font-size:12px;font-weight:700;color:#a0b0e0;
+                cursor:pointer;letter-spacing:.5px;transition:all .2s;
+              " onmouseover="this.style.background='rgba(80,100,160,.2)'" onmouseout="this.style.background='rgba(80,100,160,.1)'">
+                🌙 Nghỉ Ngơi (+${ni.label} · HP +${Math.floor(ni.hpPct*100)}%${manaStr})
+              </div>`;
+            })()}
+            <!-- Nút tu vi: Đột Phá hoặc 2 nút Bắt Đầu / Thẻ -->
+            ${(()=>{
+              const canBreak = S.exp >= S.expmax && S.stage > 0;
+              if(canBreak){
+                const { needRoll, rate } = getBreakthroughInfo();
+                const rateStr = needRoll ? ` · Tỷ lệ ${rate}%` : '';
+                return `<div style="width:100%;margin-bottom:12px;padding:9px 12px;background:rgba(240,193,75,.08);border:1px solid rgba(240,193,75,.3);border-radius:10px;">
+                  <div style="font-size:9px;color:#9a7830;line-height:1.6;text-align:center;">✦ Tu vi đã đầy — sẵn sàng Đột Phá${rateStr}!</div>
+                </div>
+                <div onclick="G.doBreakthrough()" style="
+                  width:100%;padding:12px 6px;text-align:center;
+                  background:rgba(240,193,75,.12);border:2px solid rgba(240,193,75,.55);
+                  border-radius:10px;font-size:14px;font-weight:700;color:#f0d98c;
+                  cursor:pointer;letter-spacing:1px;transition:all .2s;
+                  box-shadow:0 0 18px rgba(240,193,75,.12);
+                " onmouseover="this.style.background='rgba(240,193,75,.25)';this.style.boxShadow='0 0 28px rgba(240,193,75,.25)'"
+                   onmouseout="this.style.background='rgba(240,193,75,.12)';this.style.boxShadow='0 0 18px rgba(240,193,75,.12)'">
+                  ✦ Đột Phá ✦
+                </div>`;
+              } else {
+                return `<div style="width:100%;margin-bottom:12px;padding:9px 12px;background:rgba(16,44,20,.25);border:1px solid rgba(60,160,70,.15);border-radius:10px;">
+                  <div style="font-size:9px;color:#5a8050;line-height:1.6;text-align:center;">
+                    🌿 Bình thường: nhận tu vi sau <b style="color:#80d870;">30 phút</b> · Ước tính <b style="color:#c8a84a;">~${fmt(calcCultExp(30*60))}</b> / lần
+                  </div>
+                </div>
+                <div style="display:flex;gap:8px;width:100%;">
+                  <div onclick="G.startNormalCultivate()" style="
+                    flex:1;padding:10px 6px;text-align:center;
+                    background:rgba(60,160,70,.1);border:1px solid rgba(60,160,70,.4);
+                    border-radius:10px;font-size:12px;font-weight:700;color:#80e880;
+                    cursor:pointer;letter-spacing:.5px;transition:all .2s;
+                  " onmouseover="this.style.background='rgba(60,160,70,.2)';this.style.borderColor='rgba(60,160,70,.7)'"
+                     onmouseout="this.style.background='rgba(60,160,70,.1)';this.style.borderColor='rgba(60,160,70,.4)'">
+                    🌿 Bắt Đầu
+                  </div>
+                  <div onclick="G.openCardCultivatePopup()" style="
+                    flex:1;padding:10px 6px;text-align:center;
+                    background:rgba(201,168,76,.08);border:1px solid rgba(201,168,76,.35);
+                    border-radius:10px;font-size:12px;font-weight:700;color:#f0d98c;
+                    cursor:pointer;letter-spacing:.5px;transition:all .2s;
+                  " onmouseover="this.style.background='rgba(201,168,76,.18)';this.style.borderColor='rgba(201,168,76,.7)'"
+                     onmouseout="this.style.background='rgba(201,168,76,.08)';this.style.borderColor='rgba(201,168,76,.35)'">
+                    📜 Dùng Thẻ
+                  </div>
+                </div>`;
+              }
+            })()}
+            `}
           </div>
 
-          ${isActive ? `
-          <!-- Đang tu luyện: thanh tiến độ -->
-          <div style="width:100%;max-width:320px;margin-bottom:18px;padding:12px 14px;background:rgba(16,44,20,.4);border:1px solid rgba(60,160,70,.25);border-radius:10px;">
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
-              <div style="font-size:10px;font-weight:700;color:#70d880;">🌿 Tĩnh Tọa</div>
-              <div id="cult-overlay-flash" style="font-size:10px;color:#f0c14b;font-weight:700;opacity:0;transition:opacity .4s;"></div>
-            </div>
-            <div style="width:100%;height:6px;background:rgba(255,255,255,.07);border-radius:99px;overflow:hidden;margin-bottom:5px;">
-              <div id="cult-overlay-progress" style="height:100%;border-radius:99px;background:linear-gradient(90deg,#2a6a30,#60d870);width:${progressPct.toFixed(1)}%;transition:width .8s ease;"></div>
-            </div>
-            <div style="display:flex;justify-content:space-between;font-size:9.5px;color:#4a7040;">
-              <span>Còn: <b id="cult-overlay-next" style="color:#70d870;">${remainMin} phút</b></span>
-              <span>Đã nhận: <b id="cult-overlay-count" style="color:#c8a84a;">${S.normalCultCount||0}</b> lần</span>
-            </div>
-          </div>
-          <div onclick="G.stopNormalCultivateOverlay()" style="
-            width:100%;max-width:280px;padding:11px;text-align:center;
-            background:rgba(180,60,60,.1);border:1px solid rgba(180,60,60,.35);
-            border-radius:10px;font-size:13px;font-weight:700;color:#e08888;
-            cursor:pointer;letter-spacing:1px;transition:all .2s;
-          " onmouseover="this.style.background='rgba(180,60,60,.2)'" onmouseout="this.style.background='rgba(180,60,60,.1)'">
-            ⬆ Xuất Định
-          </div>
-          ` : `
-          <!-- Nghỉ Ngơi -->
-          ${(()=>{
-            const ni = getNghiNgoiInfo();
-            const manaStr = ni.manaPct>0 ? ` · Mana +${Math.floor(ni.manaPct*100)}%` : '';
-            return `<div style="width:100%;max-width:320px;margin-bottom:6px;text-align:center;font-size:9.5px;color:#7a6030;letter-spacing:.5px;">🌙 Nghỉ Ngơi</div>
-            <div onclick="G.doNghiNgoi()" style="
-              width:100%;max-width:320px;padding:10px 6px;text-align:center;margin-bottom:14px;
-              background:rgba(80,100,160,.1);border:1px solid rgba(80,100,160,.4);
-              border-radius:10px;font-size:12px;font-weight:700;color:#a0b0e0;
-              cursor:pointer;letter-spacing:.5px;transition:all .2s;
-            " onmouseover="this.style.background='rgba(80,100,160,.2)'" onmouseout="this.style.background='rgba(80,100,160,.1)'">
-              🌙 Nghỉ Ngơi (+${ni.label} · HP +${Math.floor(ni.hpPct*100)}%${manaStr})
-            </div>`;
-          })()}
-          <!-- Chưa tu luyện: 2 nút cạnh nhau (hoặc nút Đột Phá nếu đã đầy) -->
-          ${(()=>{
-            const canBreak = S.exp >= S.expmax && S.stage > 0;
-            if(canBreak){
-              const { needRoll, rate } = getBreakthroughInfo();
-              const rateStr = needRoll ? ` · Tỷ lệ ${rate}%` : '';
-              return `<div style="width:100%;max-width:320px;margin-bottom:12px;padding:9px 12px;background:rgba(240,193,75,.08);border:1px solid rgba(240,193,75,.3);border-radius:10px;">
-                <div style="font-size:9px;color:#9a7830;line-height:1.6;text-align:center;">
-                  ✦ Tu vi đã đầy — sẵn sàng Đột Phá${rateStr}!
-                </div>
+          <!-- ============ TAB TÂM PHÁP ============ -->
+          <div id="tab-panel-tamphap" style="width:100%;max-width:320px;display:none;">
+            ${hasMind ? `
+            <!-- Thanh Tâm Pháp -->
+            <div style="margin-bottom:16px;">
+              <div style="display:flex;justify-content:space-between;font-size:10.5px;margin-bottom:3px;">
+                <span style="color:#a8c8f8;font-weight:700">${S.mindMethod}</span>
+                <span style="color:#3a5070;font-size:9.5px;">${mindLv}</span>
               </div>
-              <div onclick="G.doBreakthrough()" style="
-                width:100%;max-width:320px;padding:12px 6px;text-align:center;
-                background:rgba(240,193,75,.12);border:2px solid rgba(240,193,75,.55);
-                border-radius:10px;font-size:14px;font-weight:700;color:#f0d98c;
-                cursor:pointer;letter-spacing:1px;transition:all .2s;
-                box-shadow:0 0 18px rgba(240,193,75,.12);
-              " onmouseover="this.style.background='rgba(240,193,75,.25)';this.style.boxShadow='0 0 28px rgba(240,193,75,.25)'"
-                 onmouseout="this.style.background='rgba(240,193,75,.12)';this.style.boxShadow='0 0 18px rgba(240,193,75,.12)'">
-                ✦ Đột Phá ✦
-              </div>`;
-            } else {
-              return `<div style="width:100%;max-width:320px;margin-bottom:12px;padding:9px 12px;background:rgba(16,44,20,.25);border:1px solid rgba(60,160,70,.15);border-radius:10px;">
-                <div style="font-size:9px;color:#5a8050;line-height:1.6;text-align:center;">
-                  🌿 Bình thường: nhận tu vi sau <b style="color:#80d870;">30 phút</b> · Ước tính <b style="color:#c8a84a;">~${fmt(calcCultExp(30*60))}</b> / lần
-                </div>
+              <div style="width:100%;height:8px;background:rgba(255,255,255,.07);border-radius:99px;overflow:hidden;margin-bottom:4px;">
+                <div style="height:100%;border-radius:99px;width:${mindPct}%;background:linear-gradient(90deg,#3a5a8a,${mindLvColor});box-shadow:0 0 6px rgba(100,180,255,.3);transition:width .4s;"></div>
               </div>
-              <div style="display:flex;gap:8px;width:100%;max-width:320px;">
-                <div onclick="G.startNormalCultivateOverlay()" style="
-                  flex:1;padding:10px 6px;text-align:center;
-                  background:rgba(60,160,70,.1);border:1px solid rgba(60,160,70,.4);
-                  border-radius:10px;font-size:12px;font-weight:700;color:#80e880;
-                  cursor:pointer;letter-spacing:.5px;transition:all .2s;
-                " onmouseover="this.style.background='rgba(60,160,70,.2)';this.style.borderColor='rgba(60,160,70,.7)'"
-                   onmouseout="this.style.background='rgba(60,160,70,.1)';this.style.borderColor='rgba(60,160,70,.4)'">
-                  🌿 Bắt Đầu Tu Luyện
-                </div>
-                <div onclick="G.openCardCultivatePopup()" style="
-                  flex:1;padding:10px 6px;text-align:center;
-                  background:rgba(201,168,76,.08);border:1px solid rgba(201,168,76,.35);
-                  border-radius:10px;font-size:12px;font-weight:700;color:#f0d98c;
-                  cursor:pointer;letter-spacing:.5px;transition:all .2s;
-                " onmouseover="this.style.background='rgba(201,168,76,.18)';this.style.borderColor='rgba(201,168,76,.7)'"
-                   onmouseout="this.style.background='rgba(201,168,76,.08)';this.style.borderColor='rgba(201,168,76,.35)'">
-                  📜 Tu Luyện Thẻ
-                </div>
-              </div>`;
-            }
-          })()}
-          `}
+              <div style="font-size:9px;color:#3a5070;text-align:right;">${fmt(mindE)} / ${fmt(mindEmax)} exp (${mindPct.toFixed(1)}%)</div>
+            </div>
+
+            ${mindCanBreak ? `
+            <!-- Tâm Pháp đủ để Đột Phá -->
+            <div style="margin-bottom:12px;padding:9px 12px;background:rgba(100,160,255,.08);border:1px solid rgba(100,160,255,.3);border-radius:10px;">
+              <div style="font-size:9px;color:#4a7090;line-height:1.6;text-align:center;">✦ Tâm Pháp đã đủ — sẵn sàng Đột Phá!</div>
+            </div>
+            <div onclick="G.doMindBreakthrough()" style="
+              width:100%;padding:12px 6px;text-align:center;
+              background:rgba(100,160,255,.12);border:2px solid rgba(100,160,255,.55);
+              border-radius:10px;font-size:14px;font-weight:700;color:#a8c8f8;
+              cursor:pointer;letter-spacing:1px;transition:all .2s;
+              box-shadow:0 0 18px rgba(100,160,255,.12);
+            " onmouseover="this.style.background='rgba(100,160,255,.25)';this.style.boxShadow='0 0 28px rgba(100,160,255,.25)'"
+               onmouseout="this.style.background='rgba(100,160,255,.12)';this.style.boxShadow='0 0 18px rgba(100,160,255,.12)'">
+              ✦ Đột Phá Tâm Pháp ✦
+            </div>
+            ` : isMindActive ? `
+            <!-- Đang tu luyện Tâm Pháp -->
+            <div style="margin-bottom:14px;padding:12px 14px;background:rgba(14,26,44,.4);border:1px solid rgba(60,120,200,.25);border-radius:10px;">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+                <div style="font-size:10px;font-weight:700;color:#70a8e0;">⚡ Tĩnh Tọa Tâm Pháp</div>
+                <div id="mind-cult-overlay-flash" style="font-size:10px;color:#a8c8f8;font-weight:700;opacity:0;transition:opacity .4s;"></div>
+              </div>
+              <div style="width:100%;height:6px;background:rgba(255,255,255,.07);border-radius:99px;overflow:hidden;margin-bottom:5px;">
+                <div id="mind-cult-overlay-progress" style="height:100%;border-radius:99px;background:linear-gradient(90deg,#2a4a8a,#60a8e0);width:${mindProgressPct.toFixed(1)}%;transition:width .8s ease;"></div>
+              </div>
+              <div style="display:flex;justify-content:space-between;font-size:9.5px;color:#3a5880;">
+                <span>Còn: <b id="mind-cult-overlay-next" style="color:#70a8e0;">${mindRemain} phút</b></span>
+                <span>Đã nhận: <b id="mind-cult-overlay-count" style="color:#a8c8f8;">${S.normalMindCultCount||0}</b> lần</span>
+              </div>
+            </div>
+            <div onclick="G.stopNormalMindCultivate()" style="
+              width:100%;padding:11px;text-align:center;
+              background:rgba(180,60,60,.1);border:1px solid rgba(180,60,60,.35);
+              border-radius:10px;font-size:13px;font-weight:700;color:#e08888;
+              cursor:pointer;letter-spacing:1px;transition:all .2s;
+            " onmouseover="this.style.background='rgba(180,60,60,.2)'" onmouseout="this.style.background='rgba(180,60,60,.1)'">
+              ⬆ Xuất Định
+            </div>
+            ` : `
+            <!-- Tâm Pháp: 2 nút Bắt Đầu / Thẻ -->
+            <div style="width:100%;margin-bottom:12px;padding:9px 12px;background:rgba(14,26,44,.25);border:1px solid rgba(60,120,200,.15);border-radius:10px;">
+              <div style="font-size:9px;color:#3a5880;line-height:1.6;text-align:center;">
+                ⚡ Bình thường: nhận exp Tâm Pháp sau <b style="color:#70a8e0;">30 phút</b> · Ước tính <b style="color:#a8c8f8;">~${fmt(calcMindCultExp(30*60))}</b> / lần
+              </div>
+            </div>
+            <div style="display:flex;gap:8px;width:100%;">
+              <div onclick="G.startNormalMindCultivate()" style="
+                flex:1;padding:10px 6px;text-align:center;
+                background:rgba(60,120,200,.1);border:1px solid rgba(60,120,200,.4);
+                border-radius:10px;font-size:12px;font-weight:700;color:#70a8e0;
+                cursor:pointer;letter-spacing:.5px;transition:all .2s;
+              " onmouseover="this.style.background='rgba(60,120,200,.2)';this.style.borderColor='rgba(60,120,200,.7)'"
+                 onmouseout="this.style.background='rgba(60,120,200,.1)';this.style.borderColor='rgba(60,120,200,.4)'">
+                ⚡ Bắt Đầu
+              </div>
+              <div onclick="G.openCardMindCultivatePopup()" style="
+                flex:1;padding:10px 6px;text-align:center;
+                background:rgba(80,200,120,.07);border:1px solid rgba(80,200,120,.3);
+                border-radius:10px;font-size:12px;font-weight:700;color:#80e8a0;
+                cursor:pointer;letter-spacing:.5px;transition:all .2s;
+              " onmouseover="this.style.background='rgba(80,200,120,.18)';this.style.borderColor='rgba(80,200,120,.7)'"
+                 onmouseout="this.style.background='rgba(80,200,120,.07)';this.style.borderColor='rgba(80,200,120,.3)'">
+                📜 Dùng Thẻ
+              </div>
+            </div>
+            `}
+            ` : `
+            <!-- Chưa học Tâm Pháp -->
+            <div style="width:100%;padding:18px 14px;text-align:center;background:rgba(14,26,44,.3);border:1px solid rgba(60,100,160,.15);border-radius:10px;">
+              <div style="font-size:11px;color:#3a5070;margin-bottom:8px;">Chưa Học Tâm Pháp</div>
+              <div style="font-size:9.5px;color:#2a3a50;line-height:1.7;">Hãy vào <b style="color:#70a8e0;">Tâm Pháp</b> để học một pháp môn trước khi tu luyện.</div>
+            </div>
+            `}
+          </div>
+
         </div>
         <style>
           @keyframes cultivate-glow {
@@ -10508,7 +10758,25 @@ function openScreen(id, tab){
         </style>
       `;
 
-      // Cập nhật thanh tiến độ overlay mỗi giây
+      // Áp dụng tab đang chọn (mặc định tuvi)
+      const activeTab = G._cultivateTab || 'tuvi';
+      const panelTuVi = document.getElementById('tab-panel-tuvi');
+      const panelTamPhap = document.getElementById('tab-panel-tamphap');
+      const btnTuVi = document.getElementById('tab-tuvi-btn');
+      const btnTamPhap = document.getElementById('tab-tamphap-btn');
+      if(panelTuVi && panelTamPhap && btnTuVi && btnTamPhap){
+        if(activeTab === 'tamphap'){
+          panelTuVi.style.display='none'; panelTamPhap.style.display='block';
+          btnTuVi.style.background='rgba(201,168,76,.04)'; btnTuVi.style.color='#5a4020';
+          btnTamPhap.style.background='rgba(100,160,255,.18)'; btnTamPhap.style.color='#a8c8f8';
+        } else {
+          panelTuVi.style.display='block'; panelTamPhap.style.display='none';
+          btnTuVi.style.background='rgba(201,168,76,.18)'; btnTuVi.style.color='#f0d98c';
+          btnTamPhap.style.background='rgba(100,160,255,.04)'; btnTamPhap.style.color='#3a5070';
+        }
+      }
+
+      // Timer cập nhật Tu Vi overlay
       if(isActive){
         clearInterval(window._cultivateOverlayTimer);
         window._cultivateOverlayTimer = setInterval(()=>{
@@ -10526,6 +10794,26 @@ function openScreen(id, tab){
         }, 1000);
       } else {
         clearInterval(window._cultivateOverlayTimer);
+      }
+
+      // Timer cập nhật Tâm Pháp overlay
+      if(isMindActive){
+        clearInterval(window._mindCultOverlayTimer);
+        window._mindCultOverlayTimer = setInterval(()=>{
+          const me = document.getElementById("mind-cult-overlay-progress");
+          const me2 = document.getElementById("mind-cult-overlay-next");
+          const me3 = document.getElementById("mind-cult-overlay-count");
+          if(!me){ clearInterval(window._mindCultOverlayTimer); return; }
+          const now2 = S.minute + S.hour*60 + S.day*1440 + (S.month-1)*43200 + (S.year-1035)*518400;
+          const mrem2 = Math.max(0, S.normalMindCultNextMin - now2);
+          const mintv2 = S.normalMindCultIntervalMin || 30;
+          const mpct2 = Math.min(100, Math.max(0, (mintv2 - mrem2) / mintv2 * 100));
+          if(me) me.style.width = mpct2.toFixed(1)+"%";
+          if(me2) me2.textContent = mrem2+" phút";
+          if(me3) me3.textContent = (S.normalMindCultCount||0);
+        }, 1000);
+      } else {
+        clearInterval(window._mindCultOverlayTimer);
       }
     },
     inventory:()=>{
@@ -12861,6 +13149,38 @@ function startClock(){
           if(nextEl) nextEl.textContent = (S.normalCultNextMin - totalMin2) + " phút";
         }
       }
+      // Tu luyện Tâm Pháp bình thường: kiểm tra mỗi phút game
+      if(S.normalMindCult && S.mindMethod && S.mindLevel !== "Chưa Học"){
+        const totalMin = S.minute + S.hour*60 + S.day*1440 + (S.month-1)*43200 + (S.year-1035)*518400;
+        if(totalMin >= S.normalMindCultNextMin){
+          const gain = calcMindCultExp(S.normalMindCultIntervalMin * 60);
+          addMindExp(gain);
+          S.normalMindCultTotalGain = (S.normalMindCultTotalGain||0) + gain;
+          S.normalMindCultCount = (S.normalMindCultCount||0) + 1;
+          S.normalMindCultIntervalMin = 30;
+          S.normalMindCultNextMin = totalMin + S.normalMindCultIntervalMin;
+          calcMindSystem(); renderHUD();
+          // Flash UI tâm pháp nếu đang mở
+          const mcFlashEl = document.getElementById("mind-cult-overlay-flash");
+          const mcProgressEl = document.getElementById("mind-cult-overlay-progress");
+          const mcCountEl = document.getElementById("mind-cult-overlay-count");
+          if(mcFlashEl){ mcFlashEl.textContent="✦ +"+fmt(gain)+" exp Tâm Pháp!"; mcFlashEl.style.opacity="1"; setTimeout(()=>{ if(mcFlashEl) mcFlashEl.style.opacity="0"; },2500); }
+          if(mcProgressEl) mcProgressEl.style.width="0%";
+          if(mcCountEl) mcCountEl.textContent=S.normalMindCultCount;
+          // Nếu exp đầy → đột phá khả dụng
+          const e2=getMindExp(); const em2=getMindExpMax(); const lv2=S.mindLevel;
+          const canBreakMind=(lv2==="Tiểu Thành"||lv2==="Trung Thành"||lv2==="Đại Thành") && e2>=em2;
+          if(canBreakMind) openScreen("cultivate");
+        } else {
+          const totalMin2 = S.minute + S.hour*60 + S.day*1440 + (S.month-1)*43200 + (S.year-1035)*518400;
+          const startMin = S.normalMindCultNextMin - S.normalMindCultIntervalMin;
+          const pct = Math.min(100, (totalMin2 - startMin) / S.normalMindCultIntervalMin * 100);
+          const mcProgEl = document.getElementById("mind-cult-overlay-progress");
+          const mcNextEl = document.getElementById("mind-cult-overlay-next");
+          if(mcProgEl) mcProgEl.style.width = pct.toFixed(1)+"%";
+          if(mcNextEl) mcNextEl.textContent = (S.normalMindCultNextMin - totalMin2)+" phút";
+        }
+      }
     }
   }, 1000);
 }
@@ -12950,7 +13270,7 @@ function chooseDuong(type){
   };
   const d = duongs[type];
   if(!d) return;
-  S.mindMethod = d.mind; S.mindLevel = "Chưa học";
+  S.mindMethod = d.mind; S.mindLevel = "Chưa Học";
   S.kiemExp = 0; S.kiemExpMax = 100;
   S.daoExp  = 0; S.daoExpMax  = 100;
   S.theExp  = 0; S.theExpMax  = 100;
@@ -13584,8 +13904,8 @@ function openTamPhapBookPopup(uid){
   const book = books.find(b=>b.uid===uid);
   if(!book) return;
 
-  const alreadyLearned = !!S.mindMethod && S.mindMethod === book.method && S.mindLevel && S.mindLevel !== "Chưa học";
-  // Nếu chưa học mindMethod này (mindLevel = "Chưa học" hoặc mindMethod khác)
+  const alreadyLearned = !!S.mindMethod && S.mindMethod === book.method && S.mindLevel && S.mindLevel !== "Chưa Học";
+  // Nếu chưa học mindMethod này (mindLevel = "Chưa Học" hoặc mindMethod khác)
   const canLearn = !alreadyLearned;
 
   const METHOD_DESC = {
@@ -13635,10 +13955,10 @@ function _learnTamPhapBook(uid){
   S.tamPhapBooks.splice(bookIdx, 1);
   // Đặt mindMethod và đánh dấu đã học
   S.mindMethod = book.method;
-  S.mindLevel  = "Tiểu Thành";
-  // Set exp ban đầu = 10 để calcMindSystem nhận ra Tiểu Thành (e < 10 → Chưa học)
+  S.mindLevel  = "Chưa Học";
+  // Bắt đầu ở Chưa Học (exp = 0), cần 100 exp mới vào Tiểu Thành
   const [initKey] = getMindExpKey();
-  if(initKey && (!S[initKey] || S[initKey] < 10)) S[initKey] = 10;
+  if(initKey) S[initKey] = 0;
   calcMindSystem(); renderHUD();
   // Đóng popup học tâm pháp
   const tpPop = document.getElementById("tamphabbook-popup");
@@ -13894,6 +14214,9 @@ return {
   claimAchievement,
   startCultivate, startNormalCultivate, stopNormalCultivate, collectCultivation,
   startNormalCultivateOverlay, stopNormalCultivateOverlay, openCardCultivatePopup,
+  startNormalMindCultivate, stopNormalMindCultivate,
+  openCardMindCultivatePopup, useMindCultCard,
+  _cultivateTab: 'tuvi',
   gainProfExp,
   openUpgradeStarPopup, doUpgradeStar,
   openUpgradeCSPopup, doUpgradeCS, _csSliderUpdate,
