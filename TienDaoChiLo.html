@@ -22,7 +22,7 @@
 
 <script>
 // ★ ĐỔI SỐ NÀY MỖI KHI DEPLOY BẢN MỚI (phải khớp với sw.js) ★
-const APP_VERSION = '1.0.4';
+const APP_VERSION = '1.0.5';
 
 // ── DEBUG PANEL: thêm ?debug=1 vào URL để xem chẩn đoán ngay trên màn hình ──
 // (không cần DevTools — hữu ích để chẩn đoán trên điện thoại)
@@ -2438,6 +2438,11 @@ window._fsServerTimestamp = serverTimestamp;
       <span style="color:#6a5028">Cực Phẩm</span>
       <span id="lsp-cuc" style="color:#e060ff;font-weight:700">0</span>
     </div>
+    <div style="height:1px;background:rgba(201,168,76,.1);margin:5px 0;"></div>
+    <div style="display:flex;justify-content:space-between;gap:16px;">
+      <span style="color:#6a5028">Tiên Đạo Tệ</span>
+      <span id="lsp-tdt" style="color:#f0c14b;font-weight:700">0</span>
+    </div>
   </div>
 </div>
 
@@ -2486,66 +2491,96 @@ window._fsServerTimestamp = serverTimestamp;
 <!-- Bottom nav -->
 <div id="bottom-nav">
 
-<!-- Chat + Tông Môn button row — góc phải dưới, ngay trên bottom nav -->
+<!-- Chat + Tông Môn + Phong Thần Tháp column — góc phải dưới, ngay trên bottom nav -->
 <div id="chat-daohuu-row" style="
   display:none;
   position:fixed;bottom:62px;right:10px;
-  flex-direction:row;align-items:center;gap:6px;
+  flex-direction:column;align-items:flex-end;gap:6px;
   z-index:500;pointer-events:all;
 ">
-  <!-- Chat button -->
-  <div id="chat-btn" onclick="G.toggleChat()" title="Chat" style="
-    display:flex;
-    width:46px;height:46px;
-    background:rgba(10,7,2,.92);
-    border:1px solid rgba(80,160,255,.3);
-    border-radius:10px;
-    box-shadow:0 2px 12px rgba(0,0,0,.5);
-    cursor:pointer;overflow:hidden;
-    flex-direction:column;align-items:center;justify-content:center;gap:2px;
-    position:relative;
-    transition:border-color .15s,box-shadow .15s;
-  "
-  onmouseover="this.style.borderColor='rgba(80,160,255,.7)';this.style.boxShadow='0 0 14px rgba(80,160,255,.2)'"
-  onmouseout="this.style.borderColor='rgba(80,160,255,.3)';this.style.boxShadow='0 2px 12px rgba(0,0,0,.5)'">
-    <span style="font-size:18px;line-height:1;">💬</span>
-    <span style="font-size:7.5px;color:#3a6a9a;letter-spacing:.3px;">Chat</span>
-    <div id="chat-notif-dot" style="position:absolute;top:6px;right:6px;width:8px;height:8px;border-radius:50%;background:#5ab0ff;display:none;box-shadow:0 0 6px rgba(90,176,255,.8);"></div>
-  </div>
-  <!-- Tông Môn button -->
-  <div id="tongmon-btn" onclick="G.openTongMon()" style="
+  <!-- Phong Thần Tháp — nút nổi bật kiểu rank button -->
+  <div id="tower-float-btn" onclick="G.openTower()" style="
     display:none;
-    width:46px;height:46px;
-    background:rgba(10,7,2,.92);
-    border:1px solid rgba(201,168,76,.3);
-    border-radius:10px;
-    box-shadow:0 2px 12px rgba(0,0,0,.5);
-    cursor:pointer;overflow:hidden;
-    transition:border-color .15s,box-shadow .15s;
-  " title="Tông Môn"
-  onmouseover="this.style.borderColor='rgba(201,168,76,.7)';this.style.boxShadow='0 0 14px rgba(201,168,76,.2)'"
-  onmouseout="this.style.borderColor='rgba(201,168,76,.3)';this.style.boxShadow='0 2px 12px rgba(0,0,0,.5)'">
-    <div id="tongmon-btn-inner" style="width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;">
-      <span style="font-size:18px;line-height:1;">⛩️</span>
-      <span style="font-size:7.5px;color:#8a6a28;letter-spacing:.3px;">Tông Môn</span>
+    align-items:center;gap:8px;
+    padding:0 14px 0 10px;height:40px;
+    background:linear-gradient(90deg,rgba(20,10,4,.97),rgba(30,15,5,.97));
+    border:1px solid rgba(201,168,76,.55);
+    border-radius:20px;
+    box-shadow:0 0 16px rgba(201,168,76,.2),0 2px 12px rgba(0,0,0,.6);
+    cursor:pointer;overflow:hidden;position:relative;
+    transition:all .2s;
+  "
+  onmouseover="this.style.borderColor='rgba(201,168,76,.9)';this.style.boxShadow='0 0 22px rgba(201,168,76,.35),0 2px 12px rgba(0,0,0,.6)'"
+  onmouseout="this.style.borderColor='rgba(201,168,76,.55)';this.style.boxShadow='0 0 16px rgba(201,168,76,.2),0 2px 12px rgba(0,0,0,.6)'">
+    <!-- Shimmer line -->
+    <div style="position:absolute;inset:0;background:linear-gradient(105deg,transparent 40%,rgba(255,220,100,.07) 50%,transparent 60%);pointer-events:none;"></div>
+    <span style="font-size:18px;line-height:1;filter:drop-shadow(0 0 4px rgba(255,200,80,.5));">🗼</span>
+    <div style="display:flex;flex-direction:column;gap:0;">
+      <span style="font-size:10px;font-weight:700;color:#f0d98c;letter-spacing:.8px;line-height:1.2;">PHONG THẦN THÁP</span>
+      <span id="tower-float-sub" style="font-size:8px;color:#7a5a20;letter-spacing:.3px;">Tầng <span id="tower-float-floor">0</span> · Chinh phục</span>
+    </div>
+    <!-- Pending reward badge -->
+    <div id="tower-float-badge" style="display:none;position:absolute;top:4px;right:4px;width:14px;height:14px;border-radius:50%;background:#e84545;border:2px solid rgba(20,10,4,.97);align-items:center;justify-content:center;">
+      <span style="font-size:8px;color:#fff;font-weight:700;">!</span>
     </div>
   </div>
-  <!-- Dược Viên button -->
-  <div id="duocvien-btn" onclick="G.openScreen('duoc_vien')" title="Dược Viên" style="
-    display:none;
-    width:46px;height:46px;
-    background:rgba(10,7,2,.92);
-    border:1px solid rgba(120,201,76,.3);
-    border-radius:10px;
-    box-shadow:0 2px 12px rgba(0,0,0,.5);
-    cursor:pointer;overflow:hidden;
-    flex-direction:column;align-items:center;justify-content:center;gap:2px;
-    transition:border-color .15s,box-shadow .15s;
-  "
-  onmouseover="this.style.borderColor='rgba(120,201,76,.7)';this.style.boxShadow='0 0 14px rgba(120,201,76,.2)'"
-  onmouseout="this.style.borderColor='rgba(120,201,76,.3)';this.style.boxShadow='0 2px 12px rgba(0,0,0,.5)'">
-    <span style="font-size:18px;line-height:1;">🌱</span>
-    <span style="font-size:7.5px;color:#5a9a3a;letter-spacing:.3px;">Dược Viên</span>
+
+  <!-- Hàng ngang: Chat + Tông Môn + Dược Viên -->
+  <div style="display:flex;flex-direction:row;align-items:center;gap:6px;">
+    <!-- Chat button -->
+    <div id="chat-btn" onclick="G.toggleChat()" title="Chat" style="
+      display:flex;
+      width:46px;height:46px;
+      background:rgba(10,7,2,.92);
+      border:1px solid rgba(80,160,255,.3);
+      border-radius:10px;
+      box-shadow:0 2px 12px rgba(0,0,0,.5);
+      cursor:pointer;overflow:hidden;
+      flex-direction:column;align-items:center;justify-content:center;gap:2px;
+      position:relative;
+      transition:border-color .15s,box-shadow .15s;
+    "
+    onmouseover="this.style.borderColor='rgba(80,160,255,.7)';this.style.boxShadow='0 0 14px rgba(80,160,255,.2)'"
+    onmouseout="this.style.borderColor='rgba(80,160,255,.3)';this.style.boxShadow='0 2px 12px rgba(0,0,0,.5)'">
+      <span style="font-size:18px;line-height:1;">💬</span>
+      <span style="font-size:7.5px;color:#3a6a9a;letter-spacing:.3px;">Chat</span>
+      <div id="chat-notif-dot" style="position:absolute;top:6px;right:6px;width:8px;height:8px;border-radius:50%;background:#5ab0ff;display:none;box-shadow:0 0 6px rgba(90,176,255,.8);"></div>
+    </div>
+    <!-- Tông Môn button -->
+    <div id="tongmon-btn" onclick="G.openTongMon()" style="
+      display:none;
+      width:46px;height:46px;
+      background:rgba(10,7,2,.92);
+      border:1px solid rgba(201,168,76,.3);
+      border-radius:10px;
+      box-shadow:0 2px 12px rgba(0,0,0,.5);
+      cursor:pointer;overflow:hidden;
+      transition:border-color .15s,box-shadow .15s;
+    " title="Tông Môn"
+    onmouseover="this.style.borderColor='rgba(201,168,76,.7)';this.style.boxShadow='0 0 14px rgba(201,168,76,.2)'"
+    onmouseout="this.style.borderColor='rgba(201,168,76,.3)';this.style.boxShadow='0 2px 12px rgba(0,0,0,.5)'">
+      <div id="tongmon-btn-inner" style="width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;">
+        <span style="font-size:18px;line-height:1;">⛩️</span>
+        <span style="font-size:7.5px;color:#8a6a28;letter-spacing:.3px;">Tông Môn</span>
+      </div>
+    </div>
+    <!-- Dược Viên button -->
+    <div id="duocvien-btn" onclick="G.openScreen('duoc_vien')" title="Dược Viên" style="
+      display:none;
+      width:46px;height:46px;
+      background:rgba(10,7,2,.92);
+      border:1px solid rgba(120,201,76,.3);
+      border-radius:10px;
+      box-shadow:0 2px 12px rgba(0,0,0,.5);
+      cursor:pointer;overflow:hidden;
+      flex-direction:column;align-items:center;justify-content:center;gap:2px;
+      transition:border-color .15s,box-shadow .15s;
+    "
+    onmouseover="this.style.borderColor='rgba(120,201,76,.7)';this.style.boxShadow='0 0 14px rgba(120,201,76,.2)'"
+    onmouseout="this.style.borderColor='rgba(120,201,76,.3)';this.style.boxShadow='0 2px 12px rgba(0,0,0,.5)'">
+      <span style="font-size:18px;line-height:1;">🌱</span>
+      <span style="font-size:7.5px;color:#5a9a3a;letter-spacing:.3px;">Dược Viên</span>
+    </div>
   </div>
 </div>
 
@@ -2556,10 +2591,60 @@ window._fsServerTimestamp = serverTimestamp;
   <div class="nav-btn" id="nav-cultivate" onclick="G.openScreen('cultivate')"><div class="nav-icon">🌀</div><div class="nav-label">Tu Luyện</div></div>
   <div class="nav-btn" id="nav-skills" onclick="G.openScreen('skills')"><div class="nav-icon">📖</div><div class="nav-label">Công Pháp</div></div>
   <div class="nav-btn" id="nav-thuoc-tinh" onclick="G.openScreen('thuoc_tinh')"><div class="nav-icon">✨</div><div class="nav-label">Thuộc Tính</div></div>
-  <div class="nav-btn" id="nav-tower" onclick="G.openTower()" style="opacity:.35;"><div class="nav-icon">🗼</div><div class="nav-label">Phong Thần Tháp</div></div>
 </div>
 
 <!-- ===== PHONG THẦN THÁP POPUP ===== -->
+<!-- Tower Floor Select Screen -->
+<div id="tower-select-popup" style="display:none;position:fixed;inset:0;z-index:2800;background:#06080e;flex-direction:column;overflow:hidden;">
+  <!-- Header -->
+  <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-bottom:1px solid rgba(201,168,76,.15);background:rgba(4,6,12,.98);flex-shrink:0;">
+    <div style="display:flex;align-items:center;gap:8px;">
+      <span style="font-size:18px;">🗼</span>
+      <div>
+        <div style="font-size:12px;font-weight:700;color:#f0d98c;letter-spacing:1px;">PHONG THẦN THÁP</div>
+        <div style="font-size:9.5px;color:#7a6030;margin-top:1px;">Chọn tầng để chinh phục</div>
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px;">
+      <div style="font-size:9px;color:#5a4020;">Kỷ lục: tầng <span id="tsel-best-num" style="color:#f0c14b;font-weight:700;">0</span></div>
+      <div onclick="G._towerSelectClose()" style="width:26px;height:26px;display:flex;align-items:center;justify-content:center;border:1px solid rgba(201,168,76,.25);border-radius:6px;color:#9a7a30;font-size:12px;cursor:pointer;">✕</div>
+    </div>
+  </div>
+  <!-- Body: 2 cột -->
+  <div style="flex:1;display:flex;min-height:0;overflow:hidden;">
+    <!-- Cột trái: tiến độ + phần thưởng -->
+    <div id="tsel-left" style="width:76px;flex-shrink:0;border-right:1px solid rgba(201,168,76,.12);display:flex;flex-direction:column;align-items:center;padding:10px 6px;gap:8px;overflow-y:auto;background:rgba(4,6,12,.5);">
+      <div style="font-size:8.5px;font-weight:700;color:#7a5a20;letter-spacing:.8px;text-align:center;line-height:1.4;">TIẾN ĐỘ</div>
+      <div id="tsel-progress-info" style="text-align:center;">
+        <div style="font-size:18px;">🗼</div>
+        <div id="tsel-prog-floor" style="font-size:11px;font-weight:700;color:#f0c14b;margin-top:3px;">0</div>
+        <div style="font-size:8px;color:#5a4020;margin-top:1px;">tầng đã<br>vượt</div>
+      </div>
+      <!-- Divider -->
+      <div style="width:100%;height:1px;background:rgba(201,168,76,.1);"></div>
+      <!-- Phần thưởng -->
+      <div style="font-size:8px;font-weight:700;color:#5a4020;letter-spacing:.6px;text-align:center;">PHẦN THƯỞNG</div>
+      <div id="tsel-reward-btn" onclick="G._towerClaimReward()" style="
+        width:48px;height:48px;border-radius:10px;
+        background:rgba(201,168,76,.08);border:2px solid rgba(201,168,76,.25);
+        display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;
+        cursor:pointer;position:relative;transition:all .2s;">
+        <span style="font-size:22px;">🎁</span>
+        <span style="font-size:7.5px;color:#7a5a20;">Nhận</span>
+        <!-- Badge đỏ -->
+        <div id="tsel-reward-badge" style="display:none;position:absolute;top:-5px;right:-5px;width:16px;height:16px;border-radius:50%;background:#e84545;border:2px solid #06080e;display:flex;align-items:center;justify-content:center;">
+          <span style="font-size:8px;color:#fff;font-weight:700;">!</span>
+        </div>
+      </div>
+      <div id="tsel-reward-hint" style="font-size:7.5px;color:#5a4020;text-align:center;line-height:1.4;"></div>
+    </div>
+    <!-- Cột phải: lưới tầng -->
+    <div id="tsel-right" style="flex:1;overflow-y:auto;padding:10px 10px 16px;">
+      <div id="tsel-grid"></div>
+    </div>
+  </div>
+</div>
+
 <div id="tower-popup" style="display:none;position:fixed;inset:0;z-index:2800;background:#06080e;flex-direction:column;overflow:hidden;">
   <!-- Header -->
   <div id="tower-hdr" style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-bottom:1px solid rgba(201,168,76,.15);background:rgba(4,6,12,.98);flex-shrink:0;">
@@ -2600,7 +2685,7 @@ window._fsServerTimestamp = serverTimestamp;
     <!-- Player status -->
     <div style="flex:0 0 auto;padding:8px 14px;border-top:1px solid rgba(201,168,76,.1);background:rgba(4,6,12,.7);">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
-        <div style="font-size:10px;color:#6a5028;">${S&&S.name?S.name:'Tu Sĩ'} · <span id="tower-player-stage" style="color:#c8a84a;">—</span></div>
+        <div style="font-size:10px;color:#6a5028;"><span id="tower-player-name">Tu Sĩ</span> · <span id="tower-player-stage" style="color:#c8a84a;">—</span></div>
         <div style="font-size:9.5px;color:#7a6030;">HP: <span id="tower-player-hp-txt" style="color:#e84545;font-weight:700;">—</span></div>
       </div>
       <div style="height:6px;background:rgba(232,69,69,.12);border-radius:3px;overflow:hidden;border:1px solid rgba(232,69,69,.15);margin-bottom:8px;">
@@ -2719,7 +2804,7 @@ const S = {
   ageNguyenAnh:-1,// tuổi khi đạt Nguyên Anh Sơ Kỳ (stage 13)
   lsHa:0, lsTrung:0, lsThuong:0, lsCuc:0,
   tienDaoTe:0,
-  tower:{ floor:0, bestFloor:0 },
+  tower:{ floor:0, bestFloor:0, claimedRewards:[] },
   binhTuoiLinhKhi:0,
   baseExpRate:1, baseManaRate:1, expRate:1, manaRate:1,
   bonusManaMax:0,
@@ -2832,8 +2917,8 @@ function checkUnlocks(){
     if(duocvienBtn) duocvienBtn.style.display = "flex";
     const ttBtn = document.getElementById("nav-thuoc-tinh");
     if(ttBtn) ttBtn.classList.add("unlocked");
-    const towerBtn = document.getElementById("nav-tower");
-    if(towerBtn){ towerBtn.style.opacity="1"; towerBtn.style.pointerEvents="all"; towerBtn.classList.add("unlocked"); }
+    const towerBtn = document.getElementById("tower-float-btn");
+    if(towerBtn){ towerBtn.style.display = "flex"; }
   }
   // chat-daohuu-row (chứa Chat/Tông Môn/Dược Viên) chỉ cần hiện hàng khi có ít nhất 1 nút con mở
   if(S.stage >= 2){
@@ -3291,7 +3376,7 @@ const CULT_RATE_VM = {
 const CAP_IDX = {"Hạ Phẩm":0,"Trung Phẩm":1,"Thượng Phẩm":2,"Cực Phẩm":3,"Viên Mãn":3};
 
 // Trả về tu vi nhận được sau duration giây
-// Hệ số ngộ tính — dùng cho cả calcCultExp lẫn calcMindCultExp
+// Hệ số ngộ tính — CHỈ dùng cho calcMindCultExp (tâm pháp), KHÔNG ảnh hưởng tu vi
 const NGO_TINH_MULT = {
   "B":1, "B+":1.5, "A":3, "A+":3.5, "S":6, "S+":7, "SS":8, "SSS":10
 };
@@ -3310,7 +3395,8 @@ function calcCultExp(durationSec){
     perTick = rates[idx];
   }
   const ticks = durationSec / 1800; // 1 tick = 30 phút
-  return Math.floor(perTick * ticks * S.expRate * getNgoTinhMult()); // tu vi = perTick × tick × expRate × ngộ tính
+  // Tu vi chỉ phụ thuộc linh căn + expRate — ngộ tính KHÔNG ảnh hưởng
+  return Math.floor(perTick * ticks * S.expRate);
 }
 
 // Danh sách thời gian có thể chọn theo cảnh giới
@@ -4016,6 +4102,8 @@ function openCurrencyPanel(){
   document.getElementById("lsp-trung").textContent  = fmt(S.lsTrung);
   document.getElementById("lsp-thuong").textContent = fmt(S.lsThuong);
   document.getElementById("lsp-cuc").textContent    = fmt(S.lsCuc);
+  const tdtEl = document.getElementById("lsp-tdt");
+  if(tdtEl) tdtEl.textContent = fmt(S.tienDaoTe||0);
   p.style.display = "block";
 }
 function closeCurrencyPanel(){
@@ -4032,21 +4120,21 @@ function toggleFS(){
  * Thất bại: giữ nguyên stage, mất 20% exp tích lũy, +tâm ma.
  */
 const BREAK_BASE_RATE = {
-  // ── TRÚC CƠ (đột phá từ stage 4) ── kỳ vọng số lần thử: Thiên 2-3, Địa 5-6, Huyền 10-15, Hoàng >20, Ngũ Hành 1-2
+  // ── TRÚC CƠ (đột phá từ stage 4) ──
   trucco: {
-    "Thiên Linh Căn":    {"Hạ Phẩm":40, "Trung Phẩm":40, "Thượng Phẩm":40, "Cực Phẩm":40},
-    "Địa Linh Căn":      {"Hạ Phẩm":18, "Trung Phẩm":18, "Thượng Phẩm":18, "Cực Phẩm":18},
-    "Huyền Linh Căn":    {"Hạ Phẩm":8,  "Trung Phẩm":8,  "Thượng Phẩm":8,  "Cực Phẩm":8},
-    "Hoàng Linh Căn":    {"Hạ Phẩm":4,  "Trung Phẩm":4,  "Thượng Phẩm":4,  "Cực Phẩm":4,  "Viên Mãn":4},
-    "Ngũ Hành Linh Căn": {"Hạ Phẩm":67, "Trung Phẩm":67, "Thượng Phẩm":67, "Cực Phẩm":67, "Viên Mãn":67},
+    "Thiên Linh Căn":    {"Hạ Phẩm":85, "Trung Phẩm":85, "Thượng Phẩm":85, "Cực Phẩm":85},
+    "Địa Linh Căn":      {"Hạ Phẩm":60, "Trung Phẩm":60, "Thượng Phẩm":60, "Cực Phẩm":60},
+    "Huyền Linh Căn":    {"Hạ Phẩm":30, "Trung Phẩm":30, "Thượng Phẩm":30, "Cực Phẩm":30},
+    "Hoàng Linh Căn":    {"Hạ Phẩm":10, "Trung Phẩm":10, "Thượng Phẩm":10, "Cực Phẩm":10, "Viên Mãn":10},
+    "Ngũ Hành Linh Căn": {"Hạ Phẩm":90, "Trung Phẩm":90, "Thượng Phẩm":90, "Cực Phẩm":90, "Viên Mãn":90},
   },
-  // ── KIM ĐAN (đột phá từ stage 8) ── kỳ vọng số lần thử: Thiên 3-5, Địa 8-11, Huyền ≥20, Hoàng ≥40, Ngũ Hành 2-3
+  // ── KIM ĐAN (đột phá từ stage 8) ──
   kimdan: {
-    "Thiên Linh Căn":    {"Hạ Phẩm":25, "Trung Phẩm":25, "Thượng Phẩm":25, "Cực Phẩm":25},
-    "Địa Linh Căn":      {"Hạ Phẩm":11, "Trung Phẩm":11, "Thượng Phẩm":11, "Cực Phẩm":11},
-    "Huyền Linh Căn":    {"Hạ Phẩm":5,  "Trung Phẩm":5,  "Thượng Phẩm":5,  "Cực Phẩm":5},
-    "Hoàng Linh Căn":    {"Hạ Phẩm":3,  "Trung Phẩm":3,  "Thượng Phẩm":3,  "Cực Phẩm":3,  "Viên Mãn":3},
-    "Ngũ Hành Linh Căn": {"Hạ Phẩm":40, "Trung Phẩm":40, "Thượng Phẩm":40, "Cực Phẩm":40, "Viên Mãn":40},
+    "Thiên Linh Căn":    {"Hạ Phẩm":60, "Trung Phẩm":60, "Thượng Phẩm":60, "Cực Phẩm":60},
+    "Địa Linh Căn":      {"Hạ Phẩm":40, "Trung Phẩm":40, "Thượng Phẩm":40, "Cực Phẩm":40},
+    "Huyền Linh Căn":    {"Hạ Phẩm":15, "Trung Phẩm":15, "Thượng Phẩm":15, "Cực Phẩm":15},
+    "Hoàng Linh Căn":    {"Hạ Phẩm":5,  "Trung Phẩm":5,  "Thượng Phẩm":5,  "Cực Phẩm":5,  "Viên Mãn":5},
+    "Ngũ Hành Linh Căn": {"Hạ Phẩm":75, "Trung Phẩm":75, "Thượng Phẩm":75, "Cực Phẩm":75, "Viên Mãn":75},
   },
 };
 
@@ -5603,6 +5691,10 @@ function tickDanDuocBuffs(){
       const pct = b.pct || 0.03;
       const h = Math.max(1, Math.floor(S.hpmax * pct));
       S.hp = Math.min(S.hpmax, S.hp + h);
+      if(typeof _tw !== "undefined" && _tw.active){
+        _tw.playerHp = Math.min(_tw.playerHpMax, _tw.playerHp + h);
+        _twRenderPlayer();
+      }
     }
   }
   // Hồi Huyết Đan: hồi 5% HP mỗi 10 giây
@@ -5615,6 +5707,10 @@ function tickDanDuocBuffs(){
       const pct = b.pct || 0.05;
       const h = Math.max(1, Math.floor(S.hpmax * pct));
       S.hp = Math.min(S.hpmax, S.hp + h);
+      if(typeof _tw !== "undefined" && _tw.active){
+        _tw.playerHp = Math.min(_tw.playerHpMax, _tw.playerHp + h);
+        _twRenderPlayer();
+      }
     }
   }
   // Tụ Hồn Đan: Soul +3% mỗi 10 giây
@@ -12542,6 +12638,8 @@ function loadGame(){ try{
   if(S.ageTrucCo    === undefined) S.ageTrucCo    = -1;
   if(S.ageKimDan    === undefined) S.ageKimDan    = -1;
   if(S.ageNguyenAnh === undefined) S.ageNguyenAnh = -1;
+  if(!S.tower) S.tower = { floor:0, bestFloor:0, claimedRewards:[] };
+  if(!Array.isArray(S.tower.claimedRewards)) S.tower.claimedRewards = [];
   _danLoConfigs = S.danLoConfigs; // re-sync sau loadGame
   closeScreen(); calcBuffs(); renderHUD(); checkUnlocks();
   _updateDaoHuuBtnAvatar();
@@ -12927,6 +13025,11 @@ function applyTheChatBuffs(){
       if(S.hp < S.hpmax && (S.hp||0) > 0){
         const heal = Math.max(1, Math.floor(S.hpmax * eff.hpRegen.pct / 100));
         S.hp = Math.min(S.hpmax, S.hp + heal);
+        // Đồng bộ vào combat nếu đang trong tháp
+        if(typeof _tw !== "undefined" && _tw.active){
+          _tw.playerHp = Math.min(_tw.playerHpMax, _tw.playerHp + heal);
+          _twRenderPlayer();
+        }
         const fbHv = document.getElementById("fb-hp-v");
         const fbHb = document.getElementById("fb-hp-b");
         if(fbHv) fbHv.textContent = fs(S.hp)+"/"+fs(S.hpmax);
@@ -13170,6 +13273,11 @@ function startClock(){
         const heal2     = m2h.hp;
         S.mana = Math.max(0, S.mana - manaSpend);
         S.hp = Math.min(S.hpmax, S.hp + heal2);
+        // Đồng bộ HP vào combat nếu đang trong tháp
+        if(typeof _tw !== "undefined" && _tw.active){
+          _tw.playerHp = Math.min(_tw.playerHpMax, _tw.playerHp + heal2);
+          _twRenderPlayer();
+        }
         // Cập nhật float bar HP
         const m2hHv = document.getElementById("fb-hp-v");
         const m2hHb = document.getElementById("fb-hp-b");
@@ -14282,9 +14390,11 @@ function _twRenderPlayer(){
   const hpTxt = document.getElementById("tower-player-hp-txt");
   const hpBar = document.getElementById("tower-player-hp-bar");
   const stEl  = document.getElementById("tower-player-stage");
+  const nmEl  = document.getElementById("tower-player-name");
   if(hpTxt) hpTxt.textContent = fmt(Math.max(0,_tw.playerHp))+" / "+fmt(_tw.playerHpMax);
   if(hpBar) hpBar.style.width = pct+"%";
   if(stEl)  stEl.textContent = S.stageName||"—";
+  if(nmEl)  nmEl.textContent = S.name||"Tu Sĩ";
 }
 
 function _twRenderFloorLabel(){
@@ -14332,7 +14442,38 @@ function _twMobStrike(){
   const afterCrit = crit ? Math.floor(mob.str * (1 + mob.critDmg/100)) : mob.str;
   const dmg    = Math.max(1, Math.floor(afterCrit - (S.def||0) * TOWER_ARMOR_RATIO));
 
+  const tier = _twGetTier(_tw.floor);
+  const isBossFloor = (_tw.floor === tier.maxFloor);
+
   _tw.playerHp = Math.max(0, _tw.playerHp - dmg);
+  // Tầng thường (không phải boss): khóa HP tối thiểu 1 — không chết thật
+  if(!isBossFloor && _tw.playerHp <= 0){
+    _tw.playerHp = 1;
+    _twRenderPlayer();
+    // Dừng chiến đấu và hiện thất bại an toàn (không trừ HP thật)
+    _twStopLoops();
+    _tw.active = false;
+    const resBox = document.getElementById("tower-result-box");
+    const resDiv = document.getElementById("tower-result");
+    if(resBox) resBox.innerHTML = `
+      <div style="font-size:32px;margin-bottom:10px;">😵</div>
+      <div style="font-size:14px;font-weight:700;color:#ffaa40;letter-spacing:1px;margin-bottom:6px;">Không Thể Tiếp Tục!</div>
+      <div style="font-size:10px;color:#7a5030;margin-bottom:16px;">HP chạm đáy tại tầng ${_tw.floor}.<br>Tầng thường không mất sinh lực — hãy nâng sức mạnh!</div>
+      <div style="display:flex;flex-direction:column;gap:7px;">
+        <div onclick="G._towerRetry()" style="
+          padding:10px;border-radius:9px;font-size:12px;font-weight:700;cursor:pointer;
+          background:rgba(201,168,76,.08);border:1px solid rgba(201,168,76,.3);color:#f0d98c;">
+          🔄 Đánh Lại Tầng ${_tw.floor}
+        </div>
+        <div onclick="G.closeTower()" style="
+          padding:8px;border-radius:9px;font-size:11px;font-weight:700;cursor:pointer;
+          background:rgba(180,40,40,.06);border:1px solid rgba(180,40,40,.2);color:#e08080;">
+          ✕ Thoát Tháp
+        </div>
+      </div>`;
+    if(resDiv) resDiv.style.display = "flex";
+    return;
+  }
   const critTag = crit ? `<span style="color:#ff6060;font-weight:700;"> [Chí Mạng!]</span>` : "";
   _twLog(`🔴 ${mob.name} tấn công <b style="color:#e84545">${fmt(dmg)}</b>${critTag} → HP ngươi còn <span style="color:#e84545">${fmt(Math.max(0,_tw.playerHp))}</span>`);
   _twRenderPlayer();
@@ -14400,11 +14541,20 @@ function _twOnMobDead(){
   _twOnFloorClear();
 }
 
+function _towerRefreshFloatBtn(){
+  const best = S.tower.bestFloor || 0;
+  const floatFloor = document.getElementById("tower-float-floor");
+  if(floatFloor) floatFloor.textContent = best;
+  const floatBadge = document.getElementById("tower-float-badge");
+  if(floatBadge) floatBadge.style.display = _towerHasPendingReward() ? "flex" : "none";
+}
+
 // ── Thắng tầng ──
 function _twOnFloorClear(){
   if(_tw.floor > (S.tower.bestFloor||0)){
     S.tower.bestFloor = _tw.floor;
     saveGame();
+    _towerRefreshFloatBtn();
   }
 
   const tier = _twGetTier(_tw.floor);
@@ -14526,22 +14676,207 @@ function _twStartFloor(floor){
   _twStartPlayerLoop();
 }
 
-// ── Public API ──
-function openTower(){
-  if(S.stage < 3){ showNotif({icon:"🗼",title:"Chưa đủ điều kiện",lines:["Cần đạt <b>Luyện Khí Hậu Kỳ</b> để vào Phong Thần Tháp!"],duration:2500}); return; }
+// ── Phần Thưởng Phong Thần Tháp — mỗi 10 tầng có 1 phần thưởng ──
+// claimedRewards: mảng số tầng đã nhận thưởng VD: [10, 20, 30]
+// Phần thưởng: lsHa, lsTrung, tienDaoTe, danDuoc, v.v.
+const TOWER_REWARDS = (function(){
+  const rewards = [];
+  const totalFloors = TOWER_MOB_TIERS[TOWER_MOB_TIERS.length-1].maxFloor;
+  for(let f = 10; f <= totalFloors; f += 10){
+    const tier = Math.floor((f-1)/30); // 0-16
+    let r;
+    if(f % 100 === 0){
+      // Mốc 100: thưởng lớn
+      r = { lsTrung: 50 * Math.ceil(f/100), tienDaoTe: 20 * Math.ceil(f/100) };
+    } else if(f % 30 === 0){
+      // Boss tầng (tầng 30, 60, 90...): thưởng trung bình
+      r = { lsTrung: 10 + tier*5, lsHa: 50 + tier*20 };
+    } else {
+      // Thường
+      r = { lsHa: 30 + tier*10 };
+    }
+    rewards.push({ floor: f, reward: r });
+  }
+  return rewards;
+})();
+
+function _twRewardLabel(r){
+  const parts = [];
+  if(r.lsHa)     parts.push(`💠×${r.lsHa}`);
+  if(r.lsTrung)  parts.push(`🔷×${r.lsTrung}`);
+  if(r.tienDaoTe)parts.push(`🪙×${r.tienDaoTe}`);
+  return parts.join(" ") || "—";
+}
+
+function _towerHasPendingReward(){
+  const best = S.tower.bestFloor || 0;
+  const claimed = S.tower.claimedRewards || [];
+  return TOWER_REWARDS.some(rw => rw.floor <= best && !claimed.includes(rw.floor));
+}
+
+function _towerBuildSelectGrid(){
+  const totalFloors = TOWER_MOB_TIERS[TOWER_MOB_TIERS.length-1].maxFloor;
+  const best = S.tower.bestFloor || 0;
+  let html = "";
+  // Nhóm theo từng cảnh giới (30 tầng), mỗi nhóm chia 3 hàng x 10 tầng
+  for(let realmIdx = 0; realmIdx < TOWER_MOB_TIERS.length; realmIdx++){
+    const tier = TOWER_MOB_TIERS[realmIdx];
+    const unlocked = best >= tier.minFloor;
+    const color = unlocked ? "#c8a84a" : "#3a2a10";
+    html += `<div style="margin-bottom:14px;">`;
+    html += `<div style="font-size:9px;font-weight:700;color:${color};letter-spacing:.6px;margin-bottom:5px;padding-bottom:3px;border-bottom:1px solid rgba(201,168,76,.1);">${tier.label} (Tầng ${tier.minFloor}–${tier.maxFloor})</div>`;
+    // 3 hàng × 10 tầng
+    for(let row = 0; row < 3; row++){
+      const rowStart = tier.minFloor + row * 10;
+      const rowEnd   = Math.min(rowStart + 9, tier.maxFloor);
+      html += `<div style="display:flex;gap:3px;margin-bottom:4px;flex-wrap:wrap;">`;
+      for(let f = rowStart; f <= rowEnd; f++){
+        const isUnlocked = f <= best + 1 && (f === 1 || f <= best + 1); // có thể đánh: đã thắng f-1 hoặc f=1
+        const isPassed   = f <= best;
+        const isCurrent  = f === (S.tower.floor || 1);
+        const isBoss     = (f === tier.maxFloor);
+        const hasReward  = TOWER_REWARDS.some(rw => rw.floor === f);
+        const rewardClaimed = (S.tower.claimedRewards||[]).includes(f);
+        const rewardPending = hasReward && isPassed && !rewardClaimed;
+
+        let bg, border, txtColor, cursor;
+        if(isPassed){
+          bg = "rgba(60,160,80,.15)";
+          border = "rgba(60,160,80,.4)";
+          txtColor = "#70e880";
+          cursor = "pointer";
+        } else if(isUnlocked){
+          bg = "rgba(201,168,76,.1)";
+          border = "rgba(201,168,76,.45)";
+          txtColor = "#f0d98c";
+          cursor = "pointer";
+        } else {
+          bg = "rgba(20,15,5,.5)";
+          border = "rgba(60,50,20,.2)";
+          txtColor = "#3a2a10";
+          cursor = "not-allowed";
+        }
+        if(isBoss && (isPassed || isUnlocked)){
+          border = isPassed ? "rgba(255,200,50,.5)" : "rgba(255,150,30,.6)";
+          txtColor = isPassed ? "#ffd700" : "#ffaa40";
+        }
+
+        html += `<div onclick="G._towerSelectFloor(${f})" style="
+          position:relative;width:26px;height:26px;border-radius:6px;
+          background:${bg};border:1px solid ${border};
+          display:flex;align-items:center;justify-content:center;
+          font-size:9.5px;font-weight:700;color:${txtColor};
+          cursor:${cursor};transition:all .15s;flex-shrink:0;
+          ${isPassed||isUnlocked?"":"pointer-events:none;"}
+        " title="Tầng ${f}${isBoss?" [BOSS]":""}">
+          ${isBoss && !isPassed ? "👑" : f}
+          ${rewardPending ? `<div style="position:absolute;top:-4px;right:-4px;width:10px;height:10px;border-radius:50%;background:#e84545;border:1.5px solid #06080e;"></div>` : ""}
+        </div>`;
+      }
+      html += `</div>`;
+    }
+    html += `</div>`;
+  }
+  return html;
+}
+
+function openTowerSelectScreen(){
+  S.tower.claimedRewards = S.tower.claimedRewards || [];
+  const best = S.tower.bestFloor || 0;
+
+  // Cập nhật nút float
+  const floatFloor = document.getElementById("tower-float-floor");
+  if(floatFloor) floatFloor.textContent = best;
+  const floatBadge = document.getElementById("tower-float-badge");
+  if(floatBadge) floatBadge.style.display = _towerHasPendingReward() ? "flex" : "none";
+
+  // Cập nhật tiến độ
+  const progEl = document.getElementById("tsel-prog-floor");
+  if(progEl) progEl.textContent = best;
+  const bestEl = document.getElementById("tsel-best-num");
+  if(bestEl) bestEl.textContent = best;
+
+  // Reward badge
+  const badge = document.getElementById("tsel-reward-badge");
+  const hint  = document.getElementById("tsel-reward-hint");
+  const hasPending = _towerHasPendingReward();
+  if(badge){
+    badge.style.display = hasPending ? "flex" : "none";
+  }
+  // Đếm còn bao nhiêu phần thưởng chờ
+  const pendingCount = TOWER_REWARDS.filter(rw => rw.floor <= best && !(S.tower.claimedRewards||[]).includes(rw.floor)).length;
+  if(hint) hint.textContent = hasPending ? `${pendingCount} phần thưởng chờ!` : (best >= 10 ? "Đã nhận hết" : "Vượt 10 tầng\nđể nhận thưởng");
+
+  // Lưới tầng
+  const grid = document.getElementById("tsel-grid");
+  if(grid) grid.innerHTML = _towerBuildSelectGrid();
+
+  document.getElementById("tower-select-popup").style.display = "flex";
+  // Scroll tới tầng hiện tại
+  setTimeout(()=>{
+    const currentRow = Math.floor((Math.max(1, best+1)-1)/10);
+    const rightCol = document.getElementById("tsel-right");
+    if(rightCol){ rightCol.scrollTop = Math.max(0, (currentRow-1)*38); }
+  }, 80);
+}
+
+function _towerSelectClose(){
+  document.getElementById("tower-select-popup").style.display = "none";
+}
+
+function _towerSelectFloor(floor){
+  const best = S.tower.bestFloor || 0;
+  // Chỉ cho vào tầng đã thắng hoặc tầng kế tiếp
+  if(floor > best + 1 && floor > 1){ return; }
+  _towerSelectClose();
 
   _tw.playerHp    = S.hp || S.hpmax || 100;
   _tw.playerHpMax = S.hpmax || 100;
-  _tw.auto = true; // Tự động đánh ngay khi vào tháp, không cần bấm nút Auto
+  _tw.auto = true;
   _twStopLoops();
-
-  const startFloor = Math.max(1, S.tower.floor||1);
-  _twStartFloor(startFloor);
+  S.tower.floor = floor;
+  _twStartFloor(floor);
 
   const btn = document.getElementById("tower-btn-auto");
   if(btn){ btn.textContent="⏸ Auto ON"; btn.style.background="rgba(60,160,80,.28)"; btn.style.borderColor="rgba(60,160,80,.7)"; btn.style.color="#a0ff80"; }
-
   document.getElementById("tower-popup").style.display = "flex";
+}
+
+function _towerClaimReward(){
+  S.tower.claimedRewards = S.tower.claimedRewards || [];
+  const best = S.tower.bestFloor || 0;
+  const pending = TOWER_REWARDS.filter(rw => rw.floor <= best && !S.tower.claimedRewards.includes(rw.floor));
+  if(!pending.length){
+    showNotif({icon:"🎁",title:"Không có phần thưởng",lines:["Vượt thêm tầng để nhận thưởng mới!"],duration:2000});
+    return;
+  }
+  // Gộp tất cả phần thưởng chờ và nhận 1 lần
+  let totalLsHa=0, totalLsTrung=0, totalTdt=0;
+  pending.forEach(rw=>{
+    S.tower.claimedRewards.push(rw.floor);
+    totalLsHa    += rw.reward.lsHa    || 0;
+    totalLsTrung += rw.reward.lsTrung || 0;
+    totalTdt     += rw.reward.tienDaoTe || 0;
+  });
+  if(totalLsHa)    S.lsHa    = (S.lsHa||0)    + totalLsHa;
+  if(totalLsTrung) S.lsTrung = (S.lsTrung||0) + totalLsTrung;
+  if(totalTdt)     S.tienDaoTe = (S.tienDaoTe||0) + totalTdt;
+  calcBuffs(); renderHUD(); saveGame();
+
+  const lines = [];
+  if(totalLsHa)    lines.push(`💠 Linh Thạch Hạ Phẩm ×${totalLsHa}`);
+  if(totalLsTrung) lines.push(`🔷 Linh Thạch Trung Phẩm ×${totalLsTrung}`);
+  if(totalTdt)     lines.push(`🪙 Tiên Đạo Tệ ×${totalTdt}`);
+  showNotif({icon:"🎁",title:`Nhận ${pending.length} Phần Thưởng!`,lines,color:"#f0c14b",duration:3500});
+
+  // Refresh màn chọn tầng
+  openTowerSelectScreen();
+}
+
+// ── Public API ──
+function openTower(){
+  if(S.stage < 3){ showNotif({icon:"🗼",title:"Chưa đủ điều kiện",lines:["Cần đạt <b>Luyện Khí Hậu Kỳ</b> để vào Phong Thần Tháp!"],duration:2500}); return; }
+  openTowerSelectScreen();
 }
 
 function closeTower(){
@@ -14554,6 +14889,8 @@ function closeTower(){
   document.getElementById("tower-popup").style.display = "none";
   const resDiv = document.getElementById("tower-result");
   if(resDiv) resDiv.style.display = "none";
+  // Quay lại màn chọn tầng
+  openTowerSelectScreen();
 }
 
 function _towerToggleAuto(){
@@ -14751,6 +15088,7 @@ return {
   _confirmAvatar: _confirmAvatar,
   checkDie, _showDiePopup, _dieRevivePrompt, _dieDoRevive, _dieAccept,
   openTower, closeTower, _towerToggleAuto, _towerManualAttack, _towerNextFloor, _towerRetry, _towerOpenDan, _towerCloseDan, _towerUseDan,
+  openTowerSelectScreen, _towerSelectClose, _towerSelectFloor, _towerClaimReward, _towerRefreshFloatBtn,
   openInvSimpleDetail,
   openCharStatsPopup,
   _ttOpenPopup, _ttClosePopup, _ttPickHour, _ttBreakthrough,
