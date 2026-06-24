@@ -22,7 +22,7 @@
 
 <script>
 // ★ ĐỔI SỐ NÀY MỖI KHI DEPLOY BẢN MỚI (phải khớp với sw.js) ★
-const APP_VERSION = '1.0.7';
+const APP_VERSION = '1.0.8';
 
 // ── DEBUG PANEL: thêm ?debug=1 vào URL để xem chẩn đoán ngay trên màn hình ──
 // (không cần DevTools — hữu ích để chẩn đoán trên điện thoại)
@@ -2677,6 +2677,7 @@ window._fsServerTimestamp = serverTimestamp;
 
     <!-- Enemy zone -->
     <div id="tower-enemy-zone" style="flex:0 0 auto;padding:14px 16px 10px;text-align:center;background:linear-gradient(180deg,rgba(30,10,10,.6) 0%,transparent 100%);">
+      <div id="tower-combat-timer" style="font-size:10px;font-weight:700;color:#c8a84a;letter-spacing:1px;margin-bottom:4px;font-family:monospace;">⏱ 00:00</div>
       <div id="tower-enemy-name" style="font-size:11px;font-weight:700;color:#e08080;letter-spacing:.8px;margin-bottom:6px;">—</div>
       <div id="tower-enemy-rank" style="font-size:9px;color:#7a4030;margin-bottom:8px;">—</div>
       <!-- Enemy HP bar -->
@@ -5683,6 +5684,13 @@ function useDanDuoc(id){
     }
   }
   calcBuffs(); renderHUD();
+  // Đồng bộ HP/HPMax vào combat (Phong Thần Tháp) nếu đang trong trận —
+  // bảo đảm mọi cách hồi/giảm HP bên ngoài combat đều phản ánh đúng vào combat.
+  if(typeof _tw !== "undefined" && _tw.active){
+    _tw.playerHpMax = S.hpmax;
+    _tw.playerHp    = Math.max(0, Math.min(S.hp, _tw.playerHpMax));
+    _twRenderPlayer();
+  }
   const _statsAfter = { hpmax:S.hpmax, manamax:S.manamax, str:S.str, def:S.def, agi:S.agi, soul:S.soul||0, agemax:S.agemax };
   const _statsChanged = consumed && Object.keys(_statsBefore).some(k => _statsAfter[k] !== _statsBefore[k]);
   return {ok:consumed, msg, statsChanged:_statsChanged, statsBefore:_statsBefore, danName:dan.name};
@@ -14341,6 +14349,8 @@ let _tw = {
   playerTimer: null,
   mobTimer: null,
   log: [],
+  combatStartMs: 0,  // thời điểm bắt đầu trận (Date.now()) — dùng cho đồng hồ tính giờ
+  clockTimer: null,  // interval id cập nhật đồng hồ hiển thị
 };
 
 // ── Helpers ──
@@ -14429,6 +14439,28 @@ function _twRenderFloorLabel(){
   if(fl) fl.textContent = `Tầng ${_tw.floor} · ${tier.label}${isBossFloor?" ⚠":""}`;
   const bn = document.getElementById("tower-best-num");
   if(bn) bn.textContent = S.tower.bestFloor||0;
+}
+
+// ── Đồng hồ tính giờ trận đấu (hiển thị phía trên tên Yêu Thú) ──
+function _twRenderTimer(){
+  const el = document.getElementById("tower-combat-timer");
+  if(!el) return;
+  const elapsedSec = _tw.combatStartMs ? Math.max(0, Math.floor((Date.now()-_tw.combatStartMs)/1000)) : 0;
+  const mm = String(Math.floor(elapsedSec/60)).padStart(2,"0");
+  const ss = String(elapsedSec%60).padStart(2,"0");
+  el.textContent = `⏱ ${mm}:${ss}`;
+}
+
+function _twStartTimer(){
+  _tw.combatStartMs = Date.now();
+  _twRenderTimer();
+  clearInterval(_tw.clockTimer);
+  _tw.clockTimer = setInterval(_twRenderTimer, 1000);
+}
+
+function _twStopTimer(){
+  clearInterval(_tw.clockTimer);
+  _tw.clockTimer = null;
 }
 
 // ── Hằng số combat ──
@@ -14545,6 +14577,7 @@ function _twStopLoops(){
   clearTimeout(_tw.mobTimer);
   _tw.playerTimer = null;
   _tw.mobTimer = null;
+  _twStopTimer();
 }
 
 // ── Mob chết ──
@@ -14694,6 +14727,7 @@ function _twStartFloor(floor){
   _twRenderEnemy();
   _twRenderPlayer();
   _twRenderFloorLabel();
+  _twStartTimer();
 
   // Quái LUÔN tự đánh theo nhịp riêng, dù Auto của người chơi có bật hay không
   _twStartMobLoop();
