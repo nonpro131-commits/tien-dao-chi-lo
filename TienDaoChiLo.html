@@ -22,7 +22,7 @@
 
 <script>
 // ★ ĐỔI SỐ NÀY MỖI KHI DEPLOY BẢN MỚI (phải khớp với sw.js) ★
-const APP_VERSION = '1.0.6';
+const APP_VERSION = '1.0.7';
 
 // ── DEBUG PANEL: thêm ?debug=1 vào URL để xem chẩn đoán ngay trên màn hình ──
 // (không cần DevTools — hữu ích để chẩn đoán trên điện thoại)
@@ -561,7 +561,7 @@ body.hud-open #chat-daohuu-row{opacity:0;pointer-events:none;}
   display:none;
   position:fixed;bottom:116px;right:10px;
   width:310px;height:420px;max-height:min(420px,calc(100vh - 180px));
-  z-index:600;
+  z-index:2700;
   background:rgba(8,5,2,.97);
   border:1px solid rgba(80,160,255,.4);
   border-radius:14px;
@@ -1199,7 +1199,7 @@ body.story-closed #main{
 #hud-notif{
   position:fixed;top:50%;left:50%;
   transform:translate(-50%,-50%) scale(.92);
-  z-index:1800;
+  z-index:3500;
   pointer-events:none;
   opacity:0;
   transition:opacity .25s ease, transform .25s cubic-bezier(.16,1,.3,1);
@@ -2346,13 +2346,15 @@ window._fsServerTimestamp = serverTimestamp;
         transition:border-color .15s,color .15s;">⚙️</div>
     </div>
   </div>
-  <div class="fbar-card">
-    <div class="fbar-row"><div class="fbar-name"><span style="color:#e84545;">❤</span> HP</div><div class="fbar-val" id="fb-hp-v">—</div></div>
+  <div class="fbar-card" onclick="G._showRegenPopup('hp')" style="cursor:pointer;pointer-events:all;" title="Xem chi tiết hồi HP">
+    <div class="fbar-row"><div class="fbar-name"><span style="color:#e84545;">❤</span> HP <span style="font-size:8px;color:#5a3030;font-weight:400;margin-left:2px;">▸</span></div><div class="fbar-val" id="fb-hp-v">—</div></div>
     <div class="fbar-track"><div class="fbar-fill fill-hp" id="fb-hp-b" style="width:100%"></div></div>
+    <div id="fb-hp-regen-hint" style="font-size:8px;color:#7a4040;margin-top:2px;display:none;"></div>
   </div>
-  <div class="fbar-card">
-    <div class="fbar-row"><div class="fbar-name">💧 Mana</div><div class="fbar-val" id="fb-mana-v">—</div></div>
+  <div class="fbar-card" onclick="G._showRegenPopup('mana')" style="cursor:pointer;pointer-events:all;" title="Xem chi tiết hồi Mana">
+    <div class="fbar-row"><div class="fbar-name">💧 Mana <span style="font-size:8px;color:#2a3a5a;font-weight:400;margin-left:2px;">▸</span></div><div class="fbar-val" id="fb-mana-v">—</div></div>
     <div class="fbar-track"><div class="fbar-fill fill-mana" id="fb-mana-b" style="width:0%"></div></div>
+    <div id="fb-mana-regen-hint" style="font-size:8px;color:#3a5070;margin-top:2px;display:none;"></div>
   </div>
   <div style="display:flex;flex-direction:row;align-items:center;gap:6px;pointer-events:all;">
     <div id="hud-btn" onclick="G.toggleHUD()">☰</div>
@@ -2439,9 +2441,18 @@ window._fsServerTimestamp = serverTimestamp;
       <span id="lsp-cuc" style="color:#e060ff;font-weight:700">0</span>
     </div>
     <div style="height:1px;background:rgba(201,168,76,.1);margin:5px 0;"></div>
-    <div style="display:flex;justify-content:space-between;gap:16px;">
+    <div style="display:flex;justify-content:space-between;gap:16px;align-items:center;">
       <span style="color:#6a5028">Tiên Đạo Tệ</span>
-      <span id="lsp-tdt" style="color:#f0c14b;font-weight:700">0</span>
+      <div style="display:flex;align-items:center;gap:6px;">
+        <span id="lsp-tdt" style="color:#f0c14b;font-weight:700">0</span>
+        <div onclick="G.closeCurrencyPanel();G._showNapDiemPopup()" style="
+          width:18px;height:18px;display:flex;align-items:center;justify-content:center;
+          background:rgba(201,168,76,.15);border:1px solid rgba(201,168,76,.5);
+          border-radius:4px;font-size:12px;font-weight:700;color:#f0c14b;cursor:pointer;
+          transition:background .15s;line-height:1;" title="Nạp Tiên Đạo Tệ"
+          onmouseover="this.style.background='rgba(201,168,76,.3)'"
+          onmouseout="this.style.background='rgba(201,168,76,.15)'">+</div>
+      </div>
     </div>
   </div>
 </div>
@@ -8929,7 +8940,7 @@ function _doAlchemy(){
     if(old) old.remove();
     const wrap = document.createElement("div");
     wrap.id = "alchemy-result-popup";
-    wrap.style.cssText = "position:fixed;inset:0;z-index:1400;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.82);backdrop-filter:blur(4px);padding:16px;";
+    wrap.style.cssText = "position:fixed;inset:0;z-index:2750;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.82);backdrop-filter:blur(4px);padding:16px;";
     wrap.innerHTML = html;
     wrap.onclick = (e)=>{ if(e.target===wrap) wrap.remove(); };
     document.body.appendChild(wrap);
@@ -13015,6 +13026,10 @@ function getTheChatInfo(name){
 let theChatHpRegenTick = 0;
 let theChatManaRegenTick = 0;
 
+// Tick counters for equipment (Trâm) hpRegen / manaRegen
+let eqHpRegenTick = 0;
+let eqManaRegenTick = 0;
+
 // Tick counter for Mana → HP conversion (10 mana → 2 HP mỗi 10 giây)
 let mana2HpTick = 0;
 
@@ -13268,6 +13283,8 @@ function startClock(){
     // Thể Chất regen effects (mỗi giây)
     applyTheChatBuffs();
     tickDanDuocBuffs();
+    // Trang bị hpRegen / manaRegen từ Trâm (mỗi giây)
+    _tickEqRegen();
 
     // Chuyển Đổi Mana → HP theo cảnh giới (mỗi 10 giây thực)
     mana2HpTick++;
@@ -13516,7 +13533,7 @@ function _leaveSectVisit(id){
     // Kiểm tra điều kiện: phải đạt Luyện Khí Hậu Kỳ (stage >= 3)
     const isUnlocked = (S.stage || 0) >= 3;
     const popup = document.createElement('div');
-    popup.style.cssText = 'position:fixed;inset:0;z-index:1500;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.88);backdrop-filter:blur(6px);padding:16px;';
+    popup.style.cssText = 'position:fixed;inset:0;z-index:2750;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.88);backdrop-filter:blur(6px);padding:16px;';
     if(!isUnlocked){
       popup.innerHTML = '<div style="width:100%;max-width:340px;background:rgba(6,8,3,.99);border:2px solid rgba(120,80,30,.4);border-radius:16px;padding:22px 20px;text-align:center;box-shadow:0 0 40px rgba(60,40,10,.15);">'
         + '<div style="font-size:36px;margin-bottom:10px;">🔒</div>'
@@ -14983,6 +15000,296 @@ function _towerUseDan(id){
 }
 
 
+function _tickEqRegen(){
+  const eqB = S._eqBonus || {};
+  // HP Regen từ trang bị — tick mỗi 5 giây
+  if(eqB.hpRegen > 0){
+    eqHpRegenTick++;
+    if(eqHpRegenTick >= 5){
+      eqHpRegenTick = 0;
+      if(S.hp < S.hpmax && (S.hp||0) > 0){
+        const heal = Math.max(1, Math.floor(S.hpmax * eqB.hpRegen / 100));
+        S.hp = Math.min(S.hpmax, S.hp + heal);
+        if(typeof _tw !== "undefined" && _tw.active){
+          _tw.playerHp = Math.min(_tw.playerHpMax, _tw.playerHp + heal);
+          _twRenderPlayer();
+        }
+        const fbHv = document.getElementById("fb-hp-v");
+        const fbHb = document.getElementById("fb-hp-b");
+        if(fbHv) fbHv.textContent = fs(S.hp)+"/"+fs(S.hpmax);
+        if(fbHb) fbHb.style.width = (S.hpmax>0?Math.min(100,S.hp/S.hpmax*100):0)+"%";
+      }
+    }
+  } else { eqHpRegenTick = 0; }
+
+  // Mana Regen từ trang bị — tick mỗi 5 giây
+  if(eqB.manaRegen > 0){
+    eqManaRegenTick++;
+    if(eqManaRegenTick >= 5){
+      eqManaRegenTick = 0;
+      if(S.mana < S.manamax){
+        const mBonus = Math.max(1, Math.floor(S.manamax * eqB.manaRegen / 100));
+        S.mana = Math.min(S.manamax, S.mana + mBonus);
+        const fbMv = document.getElementById("fb-mana-v");
+        const fbMb = document.getElementById("fb-mana-b");
+        if(fbMv) fbMv.textContent = fs(S.mana)+"/"+fs(S.manamax);
+        if(fbMb) fbMb.style.width = (S.manamax>0?Math.min(100,S.mana/S.manamax*100):0)+"%";
+      }
+    }
+  } else { eqManaRegenTick = 0; }
+}
+
+function _showRegenPopup(type){
+  const isHp = type === "hp";
+  const old = document.getElementById("regen-detail-popup");
+  if(old) old.remove();
+
+  const eqB = S._eqBonus || {};
+  const ddBs = S.ddBuffs || {};
+  const now = Date.now();
+  const theChatInfo = (S.theChat && S.theChat !== "Phàm Thể") ? getTheChatInfo(S.theChat) : null;
+  const theChatEff  = theChatInfo ? theChatInfo.effects : {};
+
+  // ── Tính từng nguồn hồi ──
+  // MANA2HP_TABLE lookup
+  const MANA2HP_TABLE_DISPLAY = [
+    {mana:0,hp:0},{mana:5,hp:2},{mana:5,hp:2},{mana:5,hp:2},{mana:5,hp:2},
+    {mana:50,hp:20},{mana:50,hp:20},{mana:50,hp:20},{mana:50,hp:20},
+    {mana:500,hp:200},{mana:500,hp:200},{mana:500,hp:200},{mana:500,hp:200},
+    {mana:50000,hp:25000},{mana:50000,hp:25000},{mana:50000,hp:25000},{mana:50000,hp:25000},
+    {mana:500000,hp:250000},{mana:500000,hp:250000},{mana:500000,hp:250000},{mana:500000,hp:250000},
+    {mana:50000000,hp:25000000},{mana:50000000,hp:25000000},{mana:50000000,hp:25000000},{mana:50000000,hp:25000000},
+    {mana:250000000,hp:125000000},{mana:250000000,hp:125000000},{mana:250000000,hp:125000000},{mana:250000000,hp:125000000},
+    {mana:750000000,hp:375000000},{mana:750000000,hp:375000000},{mana:750000000,hp:375000000},{mana:750000000,hp:375000000},
+    {mana:75000000000,hp:37000000000},{mana:75000000000,hp:37000000000},{mana:75000000000,hp:37000000000},{mana:75000000000,hp:37000000000},
+  ];
+  const m2h = MANA2HP_TABLE_DISPLAY[Math.min(S.stage, MANA2HP_TABLE_DISPLAY.length-1)];
+
+  // Trang bị Trâm
+  const eqNon = (S.equippedItems||{}).non;
+  const PHAP_KHI_SLOTS_REF = typeof PHAP_KHI_SLOTS !== "undefined" ? PHAP_KHI_SLOTS : [];
+
+  // Helper render row
+  function row(icon, label, val, interval, color, active, detail){
+    const opacity = active ? "1" : "0.35";
+    const activeTag = active
+      ? `<span style="font-size:8px;padding:1px 5px;background:rgba(80,200,80,.15);border:1px solid rgba(80,200,80,.3);border-radius:4px;color:#70e880;">Đang hồi</span>`
+      : `<span style="font-size:8px;padding:1px 5px;background:rgba(80,80,80,.15);border:1px solid rgba(80,80,80,.2);border-radius:4px;color:#4a4a4a;">Không hoạt động</span>`;
+    return `
+    <div style="padding:9px 12px;border-bottom:1px solid rgba(255,255,255,.05);opacity:${opacity};">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:3px;">
+        <div style="display:flex;align-items:center;gap:6px;">
+          <span style="font-size:15px;">${icon}</span>
+          <span style="font-size:11px;font-weight:700;color:${color};">${label}</span>
+        </div>
+        ${activeTag}
+      </div>
+      <div style="display:flex;justify-content:space-between;align-items:baseline;padding-left:21px;">
+        <span style="font-size:12px;font-weight:700;color:#f0ddb0;">${val}</span>
+        <span style="font-size:9px;color:#5a5050;">${interval}</span>
+      </div>
+      ${detail ? `<div style="font-size:9px;color:#5a4820;padding-left:21px;margin-top:2px;">${detail}</div>` : ""}
+    </div>`;
+  }
+
+  let rows = "";
+
+  if(isHp){
+    // 1. Tu Vi (Mana → HP)
+    const tuViActive = m2h.mana > 0 && S.mana >= m2h.mana && S.hp < S.hpmax;
+    rows += row("⚡", "Hồi HP Tu Vi",
+      `+${fs(m2h.hp)} HP`,
+      "mỗi 10 giây",
+      "#90c8ff",
+      tuViActive,
+      m2h.mana > 0 ? `Tiêu ${fs(m2h.mana)} Mana → +${fs(m2h.hp)} HP · Cần HP chưa đầy` : "Chưa mở (cần tu vi)"
+    );
+
+    // 2. Trang Bị
+    const tramName = eqNon ? eqNon.name : null;
+    const tramRegen = eqB.hpRegen || 0;
+    const tramActive = tramRegen > 0 && S.hp < S.hpmax;
+    const tramHeal = tramRegen > 0 ? Math.max(1, Math.floor(S.hpmax * tramRegen / 100)) : 0;
+    rows += row("🎴", "Hồi HP Trang Bị",
+      tramRegen > 0 ? `+${fs(tramHeal)} HP (${tramRegen}%)` : "—",
+      "mỗi 5 giây",
+      "#c8a84a",
+      tramActive,
+      tramName
+        ? `${tramName} · Hồi HP chính` 
+        : "Trang bị Trâm có chỉ số chính Hồi HP để kích hoạt"
+    );
+
+    // 3. Thể Chất
+    const tcHpR = theChatEff.hpRegen;
+    const tcActive = !!tcHpR && S.hp < S.hpmax;
+    const tcHeal = tcHpR ? Math.max(1, Math.floor(S.hpmax * tcHpR.pct / 100)) : 0;
+    rows += row("💪", "Hồi HP Thể Chất",
+      tcHpR ? `+${fs(tcHeal)} HP (${tcHpR.pct}%)` : "—",
+      tcHpR ? `mỗi ${tcHpR.intervalSec} giây` : "—",
+      "#e87070",
+      tcActive,
+      S.theChat && S.theChat !== "Phàm Thể"
+        ? `${S.theChat}${tcHpR ? "" : " · Thể chất này không hồi HP"}`
+        : "Chưa có Thể Chất đặc biệt"
+    );
+
+    // 4. Đan Dược
+    const ddPT  = ddBs.phuc_thuong;
+    const ddHH  = ddBs.hoi_huyet;
+    let ddVal = "—", ddInterval = "—", ddActive = false, ddDetail = "Chưa dùng đan hồi HP";
+    if(ddHH && ddHH.endMs > now){
+      const healHH = Math.max(1, Math.floor(S.hpmax * (ddHH.pct||0.05)));
+      const remSec = Math.round((ddHH.endMs - now)/1000);
+      ddVal = `+${fs(healHH)} HP (${((ddHH.pct||0.05)*100).toFixed(0)}%)`;
+      ddInterval = "mỗi 10 giây";
+      ddActive = S.hp < S.hpmax;
+      ddDetail = `Hồi Huyết Đan · Còn ${remSec}s`;
+    } else if(ddPT && ddPT.endMs > now){
+      const healPT = Math.max(1, Math.floor(S.hpmax * (ddPT.pct||0.03)));
+      const remSec = Math.round((ddPT.endMs - now)/1000);
+      ddVal = `+${fs(healPT)} HP (${((ddPT.pct||0.03)*100).toFixed(0)}%)`;
+      ddInterval = "mỗi 5 giây";
+      ddActive = S.hp < S.hpmax;
+      ddDetail = `Phục Thương Đan · Còn ${remSec}s`;
+    }
+    rows += row("💊", "Hồi HP Đan Dược", ddVal, ddInterval, "#70e880", ddActive, ddDetail);
+
+  } else {
+    // ── MANA ──
+
+    // 1. Tu Luyện (MANA_REGEN_BY_STAGE)
+    const MANA_REGEN_BY_STAGE_D = [
+      0,10,10,10,10,100,100,100,100,1000,1000,1000,1000,
+      100000,100000,100000,100000,1000000,1000000,1000000,1000000,
+      100000000,100000000,100000000,100000000,500000000,500000000,500000000,500000000,
+      1500000000,1500000000,1500000000,1500000000,150000000000,150000000000,150000000000,150000000000,
+    ];
+    const mRegen = MANA_REGEN_BY_STAGE_D[Math.min(S.stage, MANA_REGEN_BY_STAGE_D.length-1)] || 0;
+    const mRegenActive = mRegen > 0 && S.mana < S.manamax;
+    rows += row("🌀", "Hồi Mana Tu Vi",
+      mRegen > 0 ? `+${fs(mRegen)} Mana` : "—",
+      "mỗi 5 giây",
+      "#5ab0ff",
+      mRegenActive,
+      `Cảnh giới ${S.stageName||"Phàm Nhân"} · ${mRegen > 0 ? "Tự hồi khi chưa đầy" : "Phàm Nhân chưa hồi"}`
+    );
+
+    // 2. Trang Bị
+    const tramManaR = eqB.manaRegen || 0;
+    const tramManaActive = tramManaR > 0 && S.mana < S.manamax;
+    const tramManaBonus = tramManaR > 0 ? Math.max(1, Math.floor(S.manamax * tramManaR / 100)) : 0;
+    rows += row("🎴", "Hồi Mana Trang Bị",
+      tramManaR > 0 ? `+${fs(tramManaBonus)} Mana (${tramManaR}%)` : "—",
+      "mỗi 5 giây",
+      "#c8a84a",
+      tramManaActive,
+      eqNon
+        ? `${eqNon.name} · Hồi Mana chính`
+        : "Trang bị Trâm có chỉ số chính Hồi Mana để kích hoạt"
+    );
+
+    // 3. Thể Chất
+    const tcMR = theChatEff.manaRegen;
+    const tcMActive = !!tcMR && S.mana < S.manamax;
+    const tcMBonus = tcMR ? Math.max(1, Math.floor(S.manamax * tcMR.pct / 100)) : 0;
+    rows += row("💪", "Hồi Mana Thể Chất",
+      tcMR ? `+${fs(tcMBonus)} Mana (${tcMR.pct}%)` : "—",
+      tcMR ? `mỗi ${tcMR.intervalSec} giây` : "—",
+      "#70d8a0",
+      tcMActive,
+      S.theChat && S.theChat !== "Phàm Thể"
+        ? `${S.theChat}${tcMR ? "" : " · Thể chất này không hồi Mana"}`
+        : "Chưa có Thể Chất đặc biệt"
+    );
+
+    // 4. Không có đan dược hồi mana riêng hiện tại (chỉ Trúc Cơ Đan cộng thẳng, không tick)
+    rows += row("💊", "Hồi Mana Đan Dược",
+      "—", "—", "#a0c8f0", false,
+      "Hiện chưa có đan dược hồi Mana theo tick"
+    );
+  }
+
+  const accentColor = isHp ? "#e84545" : "#5ab0ff";
+  const titleIcon   = isHp ? "❤" : "💧";
+  const titleText   = isHp ? "Chi Tiết Hồi HP" : "Chi Tiết Hồi Mana";
+  const curVal      = isHp ? `${fs(S.hp)} / ${fs(S.hpmax)}` : `${fs(S.mana)} / ${fs(S.manamax)}`;
+  const pct         = isHp
+    ? (S.hpmax > 0 ? Math.min(100, S.hp/S.hpmax*100) : 0)
+    : (S.manamax > 0 ? Math.min(100, S.mana/S.manamax*100) : 0);
+  const fillColor   = isHp
+    ? "linear-gradient(90deg,#7a1e1e,#e84545)"
+    : "linear-gradient(90deg,#1a3a8f,#5ab0ff)";
+
+  const pop = document.createElement("div");
+  pop.id = "regen-detail-popup";
+  pop.style.cssText = "position:fixed;inset:0;z-index:3500;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.75);backdrop-filter:blur(4px);padding:16px;";
+  pop.innerHTML = `
+    <div style="width:100%;max-width:360px;background:rgba(8,6,2,.99);border:1.5px solid ${accentColor}44;border-radius:16px;overflow:hidden;box-shadow:0 0 50px rgba(0,0,0,.8);">
+      <!-- Header -->
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:11px 14px;border-bottom:1px solid ${accentColor}22;">
+        <div style="display:flex;align-items:center;gap:7px;">
+          <span style="font-size:18px;color:${accentColor};">${titleIcon}</span>
+          <span style="font-size:13px;font-weight:700;color:#f0ddb0;">${titleText}</span>
+        </div>
+        <div onclick="document.getElementById('regen-detail-popup').remove()" style="width:22px;height:22px;display:flex;align-items:center;justify-content:center;border:1px solid rgba(255,255,255,.15);border-radius:5px;color:#6a6a6a;cursor:pointer;font-size:12px;">✕</div>
+      </div>
+      <!-- Current value bar -->
+      <div style="padding:10px 14px 8px;border-bottom:1px solid rgba(255,255,255,.05);">
+        <div style="display:flex;justify-content:space-between;font-size:10px;margin-bottom:5px;">
+          <span style="color:#6a6060;">Hiện tại</span>
+          <span style="color:#f0ddb0;font-weight:700;">${curVal} (${pct.toFixed(1)}%)</span>
+        </div>
+        <div style="height:6px;background:rgba(255,255,255,.07);border-radius:99px;overflow:hidden;">
+          <div style="height:100%;width:${pct.toFixed(1)}%;background:${fillColor};border-radius:99px;transition:width .4s;"></div>
+        </div>
+        <div style="font-size:8.5px;color:#3a3030;margin-top:4px;">Mỗi nguồn hồi hoạt động độc lập — không cộng dồn.</div>
+      </div>
+      <!-- Rows -->
+      <div style="max-height:55vh;overflow-y:auto;">${rows}</div>
+    </div>`;
+  pop.onclick = e => { if(e.target===pop) pop.remove(); };
+  document.body.appendChild(pop);
+}
+
+
+function _showNapDiemPopup(){
+  const old = document.getElementById("nap-diem-popup");
+  if(old) old.remove();
+  const pop = document.createElement("div");
+  pop.id = "nap-diem-popup";
+  pop.style.cssText = "position:fixed;inset:0;z-index:3500;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.82);backdrop-filter:blur(4px);padding:16px;";
+  pop.innerHTML = `
+    <div style="width:100%;max-width:320px;background:rgba(8,6,2,.99);border:1.5px solid rgba(240,193,75,.4);border-radius:16px;overflow:hidden;box-shadow:0 0 50px rgba(0,0,0,.8);">
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border-bottom:1px solid rgba(240,193,75,.12);">
+        <div style="font-size:13px;font-weight:700;color:#f0d98c;">💰 Nạp Tiên Đạo Tệ</div>
+        <div onclick="document.getElementById('nap-diem-popup').remove()" style="width:22px;height:22px;display:flex;align-items:center;justify-content:center;border:1px solid rgba(240,193,75,.25);border-radius:5px;color:#9a7a30;cursor:pointer;font-size:12px;">✕</div>
+      </div>
+      <div style="padding:16px 16px 20px;text-align:center;">
+        <div style="font-size:32px;margin-bottom:10px;">🌟</div>
+        <div style="font-size:13px;font-weight:700;color:#f0c14b;margin-bottom:8px;letter-spacing:.5px;">Tiên Đạo Tệ</div>
+        <div style="font-size:11px;color:#7a6030;line-height:1.75;margin-bottom:16px;">Tiên Đạo Tệ là đơn vị tiền tệ cao cấp dùng để mua<br>các vật phẩm đặc biệt trong game.</div>
+        <div style="padding:10px 14px;background:rgba(240,193,75,.06);border:1px solid rgba(240,193,75,.2);border-radius:10px;margin-bottom:14px;">
+          <div style="font-size:10px;color:#7a6030;margin-bottom:4px;">📢 Để nạp Tiên Đạo Tệ, liên hệ qua:</div>
+          <div style="font-size:12px;font-weight:700;color:#f0c14b;">Fanpage / Group chính thức</div>
+          <div style="font-size:10px;color:#5a4020;margin-top:4px;">Hoặc dùng Mã Đổi Quà nếu có.</div>
+        </div>
+        <div onclick="document.getElementById('nap-diem-popup').remove();G.openScreen('giftcode')" style="
+          width:100%;padding:10px;text-align:center;box-sizing:border-box;
+          background:rgba(240,193,75,.1);border:1px solid rgba(240,193,75,.4);
+          border-radius:9px;font-size:13px;font-weight:700;color:#f0d98c;
+          cursor:pointer;letter-spacing:.5px;transition:background .15s;"
+          onmouseover="this.style.background='rgba(240,193,75,.2)'"
+          onmouseout="this.style.background='rgba(240,193,75,.1)'">
+          🎁 Nhập Mã Đổi Quà
+        </div>
+      </div>
+    </div>`;
+  pop.onclick = e => { if(e.target===pop) pop.remove(); };
+  document.body.appendChild(pop);
+}
+
+
 return { 
   openTamPhapBookPopup, _learnTamPhapBook,
   buildCongPhapTreeHTML, onCongPhapBoxClick, onCongPhapComingSoon, showCongPhapRootInfo,
@@ -15007,7 +15314,7 @@ return {
   _showCotTruyenPopup,
   closeSetupScreen,
   chooseDuong,
-  openCurrencyPanel, closeCurrencyPanel,
+  openCurrencyPanel, closeCurrencyPanel, _showNapDiemPopup, _showRegenPopup, _tickEqRegen,
   redeemCode,
   claimAchievement,
   startCultivate, startNormalCultivate, stopNormalCultivate, collectCultivation,
