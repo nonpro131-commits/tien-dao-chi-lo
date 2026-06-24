@@ -22,7 +22,7 @@
 
 <script>
 // ★ ĐỔI SỐ NÀY MỖI KHI DEPLOY BẢN MỚI (phải khớp với sw.js) ★
-const APP_VERSION = '1.0.5';
+const APP_VERSION = '1.0.6';
 
 // ── DEBUG PANEL: thêm ?debug=1 vào URL để xem chẩn đoán ngay trên màn hình ──
 // (không cần DevTools — hữu ích để chẩn đoán trên điện thoại)
@@ -2786,7 +2786,7 @@ const S = {
   theChatStrBonus:0, theChatDefBonus:0, theChatAgiBonus:0, theChatHpBonus:0, theChatExpBonus:0,
   mindStr:0, mindDef:0, mindHP:0, mindMana:0,
   congphap:"", congphapLevel:"",
-  mindMethod:"", mindLevel:"Chưa Học",
+  mindMethod:"", mindLevel:"Chưa Học", _pendingMindMethod:"",
   // Chức Nghiệp exp
   luyenDanExp:0, luyenDanStar:0,   // Luyện Đan Sư: 0=chưa có, 1-9=Nhất~Cửu Tinh
   trandaoExp:0,  trandaoStar:0,    // Trận Đạo Sư
@@ -3568,13 +3568,12 @@ function startCultivate(durationSec){
   S.cultivateDuration = durationSec;
   calcStage(); calcBuffs();
   renderHUD();
-  // Refresh cultivate screen if open so exp bar updates immediately
-  const overlay = document.getElementById("screen-overlay");
-  if(overlay && overlay.classList.contains("active")){
-    const t = document.getElementById("screen-title");
-    if(t && t.textContent.includes("Tu Luyện")) openScreen("cultivate");
-  }
+  // Đóng popup chọn thẻ nếu còn mở
+  const cardPopup = document.getElementById("card-cult-popup");
+  if(cardPopup) cardPopup.remove();
+  // Refresh cultivate screen
   openScreen("cultivate");
+  showToast("⚔️ +" + fmt(gain) + " tu vi!");
 }
 
 // Tu luyện bình thường — ngẫu nhiên 10~30 phút, không cần thẻ, không giới hạn
@@ -3650,7 +3649,7 @@ function openCardMindCultivatePopup(){
       sub='<div style="font-size:8px;color:#70d870;margin-top:2px">Còn '+qty+' thẻ</div>';
     }
     const click = canAct
-      ? 'onclick="G.useMindCultCard(\''+opt.cardKey+'\','+opt.sec+');document.getElementById(\'card-mind-cult-popup\').remove();"'
+      ? 'onclick="G.useMindCultCard(\''+opt.cardKey+'\','+opt.sec+')"'
       : "";
     gridHTML += '<div '+click+' style="padding:8px 4px;border-radius:8px;text-align:center;cursor:'+(canAct?'pointer':'default')+';background:'+bg+';border:1px solid '+border+';transition:background .15s;'+(canAct?'':'opacity:.5;')+'"'+(canAct?' onmouseover="this.style.background=\'rgba(100,160,255,.18)\'" onmouseout="this.style.background=\''+bg+'\'"':'')+'>'+
       '<div style="font-size:11px;font-weight:700;color:'+color+'">'+opt.label+'</div>'+
@@ -3684,6 +3683,8 @@ function useMindCultCard(cardKey, durationSec){
   const gain = calcMindCultExp(durationSec);
   addMindExp(gain);
   calcMindSystem(); renderHUD();
+  const cardPopup = document.getElementById("card-mind-cult-popup");
+  if(cardPopup) cardPopup.remove();
   openScreen("cultivate");
   showToast("⚡ +" + fmt(gain) + " exp Tâm Pháp!");
 }
@@ -3711,7 +3712,7 @@ function openCardCultivatePopup(){
       bg="rgba(201,168,76,.09)"; border="rgba(201,168,76,.38)"; color="#f0d98c";
       sub='<div style="font-size:8px;color:#70d870;margin-top:2px">Còn '+qty+' thẻ</div>';
     }
-    const click = canAct ? 'onclick="G.startCultivate('+opt.sec+');document.getElementById(\'card-cult-popup\').remove();"' : "";
+    const click = canAct ? 'onclick="G.startCultivate('+opt.sec+')"' : "";
     gridHTML += '<div '+click+' style="padding:8px 4px;border-radius:8px;text-align:center;cursor:'+(canAct?'pointer':'default')+';background:'+bg+';border:1px solid '+border+';transition:background .15s;'+(canAct?'':'opacity:.5;')+'"'+(canAct?' onmouseover="this.style.background=\'rgba(201,168,76,.18)\'" onmouseout="this.style.background=\''+bg+'\'"':'')+'>'+
       '<div style="font-size:11px;font-weight:700;color:'+color+'">'+opt.label+'</div>'+
       '<div style="font-size:8.5px;color:#7a6030;margin-top:1px">+'+fmt(gain)+'</div>'+
@@ -3868,10 +3869,10 @@ function renderHUD(){
     })()}
     <div class="hl" style="overflow:hidden;"><span class="hll" style="flex-shrink:0">Chức Nghiệp:</span><span style="font-size:10px;color:#e0ceaa;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1;">${jobs.length > 40 ? jobs.slice(0,38)+"…" : jobs}</span></div>
     <div class="hl"><span class="hll">Tâm Pháp:</span>
-      <span class="hlv">${(S.mindMethod && S.mindLevel !== "Chưa Học") ? S.mindMethod : "—"}</span>
+      <span class="hlv">${S.mindMethod ? S.mindMethod : "—"}</span>
       ${S.normalMindCult?`<span style="font-size:8px;color:#70a8e0;background:rgba(60,120,200,.15);border:1px solid rgba(60,120,200,.3);border-radius:4px;padding:1px 4px;letter-spacing:.5px;margin-left:3px;">⟳ Tu</span>`:""}
     </div>
-    ${(S.mindMethod && S.mindLevel !== "Chưa Học") ? (()=>{
+    ${S.mindMethod ? (()=>{
       const e = getMindExp();
       const emax = getMindExpMax();
       const pct = emax>0 ? Math.min(100, e/emax*100) : 0;
@@ -8373,7 +8374,7 @@ function buildInventoryHTML(){
     const hasOther3 = ddKeys.length>0 || dlKeys.length>0 || ct.length>0 || pk.length>0;
     html += `<div class="shop-section-title" style="${hasOther3?"margin-top:14px":"margin-top:0"}">Tâm Pháp</div>`;
     for(const book of tpBooks){
-      const isLearned = book.learned || (S.mindMethod===book.method && S.mindLevel && S.mindLevel!=="Chưa Học");
+      const isLearned = book.learned || (S.mindMethod===book.method);
       html += `<div class="shop-item" style="padding:7px 10px;cursor:pointer;" onclick="G.openTamPhapBookPopup('${book.uid}')">
         <div class="shop-item-icon" style="font-size:22px">📖</div>
         <div class="shop-item-info">
@@ -10223,7 +10224,7 @@ function buildCongPhapTreeHTML(){
   const activeSectId = sectInfo ? sectInfo.sectId : null;
   const unlockedCount = _cpUnlockedCount();
 
-  const rootLearned = !!(S.mindMethod && S.mindLevel && S.mindLevel !== "Chưa Học");
+  const rootLearned = !!S.mindMethod;
   const rootHTML = `
     <div class="cp-root-box" onclick="G.showCongPhapRootInfo()">
       <div class="cp-root-icon">${rootLearned?"📖":"🔒"}</div>
@@ -10300,7 +10301,7 @@ function onCongPhapComingSoon(){
 }
 
 function showCongPhapRootInfo(){
-  const learned = S.mindMethod && S.mindLevel && S.mindLevel !== "Chưa Học";
+  const learned = !!S.mindMethod;
   if(learned){ openTamPhapPopup(); return; }
   showNotif({
     icon:"📖", title:"Tâm Pháp",
@@ -10530,6 +10531,7 @@ function _chatScreenCleanup(){
   _chatCurrentTab = 'world';
   _chatDmTarget = null;
   if (_chatDmUnsub) { _chatDmUnsub(); _chatDmUnsub = null; }
+  if (_chatWorldUnsub) { _chatWorldUnsub(); _chatWorldUnsub = null; }
   _chatOpen = false;
 }
 function openScreen(id, tab){
@@ -12618,6 +12620,10 @@ function showNotif(opts){
   }, duration);
 }
 
+function showToast(text){
+  showNotif({ icon:"✦", title:text, lines:[], color:"#80e8a0", duration:1800 });
+}
+
 /* ===== SAVE/LOAD ===== */
 function saveGame(){
   try{
@@ -13489,7 +13495,7 @@ function chooseDuong(type){
   };
   const d = duongs[type];
   if(!d) return;
-  S.mindMethod = d.mind; S.mindLevel = "Chưa Học";
+  S._pendingMindMethod = d.mind; S.mindMethod = ""; S.mindLevel = "Chưa Học";
   S.kiemExp = 0; S.kiemExpMax = 100;
   S.daoExp  = 0; S.daoExpMax  = 100;
   S.theExp  = 0; S.theExpMax  = 100;
@@ -13874,11 +13880,11 @@ function _grantStarterGear(){
   });
 
   // Sách Tâm Pháp
-  if(S.mindMethod && !S._tamPhapBookGranted){
+  if(S._pendingMindMethod && !S._tamPhapBookGranted){
     S._tamPhapBookGranted = true;
     S.tamPhapBooks = S.tamPhapBooks || [];
-    if(!S.tamPhapBooks.find(b=>b.method===S.mindMethod)){
-      S.tamPhapBooks.push({ uid:"tpb_"+Date.now(), method:S.mindMethod, learned:false });
+    if(!S.tamPhapBooks.find(b=>b.method===S._pendingMindMethod)){
+      S.tamPhapBooks.push({ uid:"tpb_"+Date.now(), method:S._pendingMindMethod, learned:false });
     }
   }
 }
@@ -13970,8 +13976,8 @@ function openTamPhapBookPopup(uid){
   const book = books.find(b=>b.uid===uid);
   if(!book) return;
 
-  const alreadyLearned = !!S.mindMethod && S.mindMethod === book.method && S.mindLevel && S.mindLevel !== "Chưa Học";
-  // Nếu chưa học mindMethod này (mindLevel = "Chưa Học" hoặc mindMethod khác)
+  const alreadyLearned = !!S.mindMethod && S.mindMethod === book.method;
+  // Nếu chưa học mindMethod này (chưa có mindMethod hoặc mindMethod khác)
   const canLearn = !alreadyLearned;
 
   const METHOD_DESC = {
@@ -14044,6 +14050,8 @@ function _learnTamPhapBook(uid){
       screenBody.innerHTML = buildInventoryHTML();
     } else if(titleText.includes("Công Pháp")) {
       openScreen("skills");
+    } else if(titleText.includes("Tu Luyện")) {
+      openScreen("cultivate");
     }
   }
   showNotif({
@@ -14717,19 +14725,19 @@ function _towerHasPendingReward(){
 function _towerBuildSelectGrid(){
   const totalFloors = TOWER_MOB_TIERS[TOWER_MOB_TIERS.length-1].maxFloor;
   const best = S.tower.bestFloor || 0;
-  let html = "";
+  let html = `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px 24px;align-items:start;">`;
   // Nhóm theo từng cảnh giới (30 tầng), mỗi nhóm chia 3 hàng x 10 tầng
   for(let realmIdx = 0; realmIdx < TOWER_MOB_TIERS.length; realmIdx++){
     const tier = TOWER_MOB_TIERS[realmIdx];
     const unlocked = best >= tier.minFloor;
     const color = unlocked ? "#c8a84a" : "#3a2a10";
-    html += `<div style="margin-bottom:14px;">`;
+    html += `<div>`;
     html += `<div style="font-size:9px;font-weight:700;color:${color};letter-spacing:.6px;margin-bottom:5px;padding-bottom:3px;border-bottom:1px solid rgba(201,168,76,.1);">${tier.label} (Tầng ${tier.minFloor}–${tier.maxFloor})</div>`;
     // 3 hàng × 10 tầng
     for(let row = 0; row < 3; row++){
       const rowStart = tier.minFloor + row * 10;
       const rowEnd   = Math.min(rowStart + 9, tier.maxFloor);
-      html += `<div style="display:flex;gap:3px;margin-bottom:4px;flex-wrap:wrap;">`;
+      html += `<div style="display:grid;grid-template-columns:repeat(10,1fr);gap:3px;margin-bottom:4px;">`;
       for(let f = rowStart; f <= rowEnd; f++){
         const isUnlocked = f <= best + 1 && (f === 1 || f <= best + 1); // có thể đánh: đã thắng f-1 hoặc f=1
         const isPassed   = f <= best;
@@ -14762,11 +14770,11 @@ function _towerBuildSelectGrid(){
         }
 
         html += `<div onclick="G._towerSelectFloor(${f})" style="
-          position:relative;width:26px;height:26px;border-radius:6px;
+          position:relative;aspect-ratio:1;width:100%;border-radius:6px;
           background:${bg};border:1px solid ${border};
           display:flex;align-items:center;justify-content:center;
           font-size:9.5px;font-weight:700;color:${txtColor};
-          cursor:${cursor};transition:all .15s;flex-shrink:0;
+          cursor:${cursor};transition:all .15s;
           ${isPassed||isUnlocked?"":"pointer-events:none;"}
         " title="Tầng ${f}${isBoss?" [BOSS]":""}">
           ${isBoss && !isPassed ? "👑" : f}
@@ -14777,6 +14785,7 @@ function _towerBuildSelectGrid(){
     }
     html += `</div>`;
   }
+  html += `</div>`;
   return html;
 }
 
@@ -14812,11 +14821,13 @@ function openTowerSelectScreen(){
   if(grid) grid.innerHTML = _towerBuildSelectGrid();
 
   document.getElementById("tower-select-popup").style.display = "flex";
-  // Scroll tới tầng hiện tại
+  // Scroll tới tầng hiện tại (tầng kế tiếp cần chinh phục)
   setTimeout(()=>{
-    const currentRow = Math.floor((Math.max(1, best+1)-1)/10);
-    const rightCol = document.getElementById("tsel-right");
-    if(rightCol){ rightCol.scrollTop = Math.max(0, (currentRow-1)*38); }
+    const targetFloor = Math.max(1, best + 1);
+    const targetEl = grid ? (grid.querySelector(`[title="Tầng ${targetFloor}"]`) || grid.querySelector(`[title="Tầng ${targetFloor} [BOSS]"]`)) : null;
+    if(targetEl && targetEl.scrollIntoView){
+      targetEl.scrollIntoView({ block: "center", inline: "nearest" });
+    }
   }, 80);
 }
 
