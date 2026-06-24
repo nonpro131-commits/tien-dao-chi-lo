@@ -22,7 +22,7 @@
 
 <script>
 // ★ ĐỔI SỐ NÀY MỖI KHI DEPLOY BẢN MỚI (phải khớp với sw.js) ★
-const APP_VERSION = '1.0.3';
+const APP_VERSION = '1.0.4';
 
 // ── DEBUG PANEL: thêm ?debug=1 vào URL để xem chẩn đoán ngay trên màn hình ──
 // (không cần DevTools — hữu ích để chẩn đoán trên điện thoại)
@@ -14200,12 +14200,13 @@ const TOWER_MOB_TIERS = TOWER_REALM_NAMES.map(function(label, idx){
 let _tw = {
   active: false,
   floor: 1,
-  mobs: [],          // [{name, hp, hpmax, str, def, critRate, critDmg}]
+  mobs: [],          // [{name, hp, hpmax, str, def, agi, critRate, critDmg}]
   currentMob: 0,     // index mob đang đánh
   playerHp: 0,
   playerHpMax: 0,
-  auto: false,
-  autoTimer: null,
+  auto: false,       // true = người chơi tự đánh theo nhịp riêng; quái LUÔN tự đánh bất kể auto
+  playerTimer: null,
+  mobTimer: null,
   log: [],
 };
 
@@ -14233,19 +14234,20 @@ function _twRollMobs(floor){
   const hp = Math.floor(base.hp * mul);
   const str = Math.floor(base.str * mul);
   const def = Math.floor(base.def * mul);
+  const agi = Math.floor((base.agi||0) * mul);
   const mobs = [{
     name: yeuThu.name + (isBoss ? " (Boss)" : ""),
     label: tier.label,
     isBoss: isBoss,
-    hp, hpmax:hp, str, def,
+    hp, hpmax:hp, str, def, agi,
     critRate:5, critDmg:50,
   }];
   return mobs;
 }
 
-function _twCalcAttackInterval(){
+function _twCalcAttackInterval(agiVal){
   // AGI: base 1 đòn/2s, mỗi 1000 AGI giảm 0.1s, min 0.4s
-  const agi = S.agi || 0;
+  const agi = agiVal || 0;
   const ms = Math.max(400, 2000 - Math.floor(agi/1000)*100);
   return ms;
 }
@@ -14302,6 +14304,7 @@ function _twPlayerStrike(){
   if(!_tw.active) return;
   const mob = _tw.mobs[_tw.currentMob];
   if(!mob || mob.hp<=0) return;
+  if(_tw.playerHp<=0) return;
 
   const str    = S.str || 0;
   const crit   = Math.random()*100 < (S.critRate||5);
@@ -14315,13 +14318,10 @@ function _twPlayerStrike(){
 
   if(mob.hp <= 0){
     _twOnMobDead();
-    return;
   }
-  // Mob phản công ngay sau đòn đánh của người chơi
-  _twMobStrike();
 }
 
-// ── Mob tấn công ──
+// ── Mob tấn công (luôn tự chạy theo nhịp riêng, không phụ thuộc người chơi có đánh hay không) ──
 function _twMobStrike(){
   if(!_tw.active) return;
   const mob = _tw.mobs[_tw.currentMob];
@@ -14334,12 +14334,51 @@ function _twMobStrike(){
 
   _tw.playerHp = Math.max(0, _tw.playerHp - dmg);
   const critTag = crit ? `<span style="color:#ff6060;font-weight:700;"> [Chí Mạng!]</span>` : "";
-  _twLog(`🔴 ${mob.name} phản công <b style="color:#e84545">${fmt(dmg)}</b>${critTag} → HP ngươi còn <span style="color:#e84545">${fmt(Math.max(0,_tw.playerHp))}</span>`);
+  _twLog(`🔴 ${mob.name} tấn công <b style="color:#e84545">${fmt(dmg)}</b>${critTag} → HP ngươi còn <span style="color:#e84545">${fmt(Math.max(0,_tw.playerHp))}</span>`);
   _twRenderPlayer();
 
   if(_tw.playerHp<=0){
     _twOnPlayerDead();
   }
+}
+
+// ── Vòng lặp tấn công của người chơi (chỉ chạy khi Auto bật) ──
+function _twPlayerLoop(){
+  if(!_tw.active || !_tw.auto) return;
+  _twPlayerStrike();
+  if(_tw.active && _tw.auto){
+    _tw.playerTimer = setTimeout(_twPlayerLoop, _twCalcAttackInterval(S.agi||0));
+  }
+}
+
+// ── Vòng lặp tấn công của quái (luôn chạy bất kể Auto bật/tắt, độc lập với người chơi) ──
+function _twMobLoop(){
+  if(!_tw.active) return;
+  const mob = _tw.mobs[_tw.currentMob];
+  _twMobStrike();
+  if(_tw.active){
+    _tw.mobTimer = setTimeout(_twMobLoop, _twCalcAttackInterval(mob ? mob.agi : 0));
+  }
+}
+
+function _twStartMobLoop(){
+  clearTimeout(_tw.mobTimer);
+  const mob = _tw.mobs[_tw.currentMob];
+  _tw.mobTimer = setTimeout(_twMobLoop, _twCalcAttackInterval(mob ? mob.agi : 0));
+}
+
+function _twStartPlayerLoop(){
+  clearTimeout(_tw.playerTimer);
+  if(_tw.auto){
+    _tw.playerTimer = setTimeout(_twPlayerLoop, _twCalcAttackInterval(S.agi||0));
+  }
+}
+
+function _twStopLoops(){
+  clearTimeout(_tw.playerTimer);
+  clearTimeout(_tw.mobTimer);
+  _tw.playerTimer = null;
+  _tw.mobTimer = null;
 }
 
 // ── Mob chết ──
@@ -14353,6 +14392,7 @@ function _twOnMobDead(){
     const next = _tw.mobs[_tw.currentMob];
     _twLog(`⚠ <span style="color:#ffaa60">Xuất hiện: ${next.name}!</span>`);
     _twRenderEnemy();
+    _twStartMobLoop(); // mob mới có AGI khác → khởi động lại nhịp đánh của quái
     return;
   }
 
@@ -14362,9 +14402,6 @@ function _twOnMobDead(){
 
 // ── Thắng tầng ──
 function _twOnFloorClear(){
-  _twStopAuto();
-  _tw.active = false;
-
   if(_tw.floor > (S.tower.bestFloor||0)){
     S.tower.bestFloor = _tw.floor;
     saveGame();
@@ -14372,21 +14409,45 @@ function _twOnFloorClear(){
 
   const tier = _twGetTier(_tw.floor);
   const isBoss = (_tw.floor === tier.maxFloor);
+  const nextFloor = _tw.floor + 1;
+  const maxFloor = TOWER_MOB_TIERS[TOWER_MOB_TIERS.length-1].maxFloor;
+  const nextTier = _twGetTier(Math.min(nextFloor, maxFloor));
+  const nextIsBoss = (nextFloor === nextTier.maxFloor);
+
+  // Khi đang Auto: tầng thường, tầng kế tiếp không phải boss và còn dữ liệu → tự động đi tiếp, không dừng lại hỏi
+  // Khi đánh tay (auto OFF): luôn dừng lại để người chơi tự chọn Lên Tầng hay Thoát Tháp
+  if(_tw.auto && !isBoss && !nextIsBoss && nextFloor <= maxFloor){
+    S.tower.floor = nextFloor;
+    saveGame();
+    _twStartFloor(nextFloor);
+    return;
+  }
+
+  // Còn lại: vừa hạ boss, hoặc tầng kế tiếp là boss, hoặc đã hết dữ liệu → dừng và hỏi người chơi
+  _twStopLoops();
+  _tw.active = false;
+
   const resBox = document.getElementById("tower-result-box");
   const resDiv = document.getElementById("tower-result");
+
+  const canContinue = nextFloor <= maxFloor;
+  const nextLabel = isBoss
+    ? `▶ Lên Tầng ${nextFloor}`
+    : `⚠ Đánh Boss Tầng ${nextFloor}`;
 
   if(resBox) resBox.innerHTML = `
     <div style="font-size:${isBoss?"36":"28"}px;margin-bottom:10px;">${isBoss?"👑":"✦"}</div>
     <div style="font-size:14px;font-weight:700;color:${isBoss?"#ffd700":"#70e880"};letter-spacing:1px;margin-bottom:6px;">
       ${isBoss?"BOSS BỊ TIÊU DIỆT!":"Tầng "+_tw.floor+" Hoàn Thành!"}
     </div>
-    <div style="font-size:10px;color:#5a6a40;margin-bottom:16px;">${tier.label}</div>
+    <div style="font-size:10px;color:#5a6a40;margin-bottom:16px;">${tier.label}${(!isBoss && nextIsBoss)?" — Tầng tiếp theo là Boss!":""}</div>
     <div style="display:flex;flex-direction:column;gap:7px;">
+      ${canContinue ? `
       <div onclick="G._towerNextFloor()" style="
         padding:10px;border-radius:9px;font-size:12px;font-weight:700;cursor:pointer;
         background:rgba(60,160,80,.15);border:1px solid rgba(60,160,80,.4);color:#70e880;">
-        ▶ Lên Tầng ${_tw.floor+1}
-      </div>
+        ${nextLabel}
+      </div>` : ``}
       <div onclick="G.closeTower()" style="
         padding:8px;border-radius:9px;font-size:11px;font-weight:700;cursor:pointer;
         background:rgba(201,168,76,.06);border:1px solid rgba(201,168,76,.2);color:#9a8040;">
@@ -14398,7 +14459,7 @@ function _twOnFloorClear(){
 
 // ── Thua ──
 function _twOnPlayerDead(){
-  _twStopAuto();
+  _twStopLoops();
   _tw.active = false;
 
   const resBox = document.getElementById("tower-result-box");
@@ -14427,19 +14488,10 @@ function _twOnPlayerDead(){
   if(resDiv) resDiv.style.display = "flex";
 }
 
-// ── Auto combat loop ──
-function _twAutoLoop(){
-  if(!_tw.active || !_tw.auto) return;
-  _twPlayerStrike();
-  if(_tw.active && _tw.auto){
-    _tw.autoTimer = setTimeout(_twAutoLoop, _twCalcAttackInterval());
-  }
-}
-
 function _twStopAuto(){
   _tw.auto = false;
-  clearTimeout(_tw.autoTimer);
-  _tw.autoTimer = null;
+  clearTimeout(_tw.playerTimer);
+  _tw.playerTimer = null;
   const btn = document.getElementById("tower-btn-auto");
   if(btn){ btn.textContent="▶ Auto"; btn.style.background="rgba(60,160,80,.12)"; btn.style.borderColor="rgba(60,160,80,.35)"; btn.style.color="#70e880"; }
 }
@@ -14457,7 +14509,7 @@ function _twStartFloor(floor){
   const isBossFloor = (floor === tier.maxFloor);
   _twLog(`<span style="color:#d6b15f">✦ Tầng ${floor} · ${tier.label}${isBossFloor?" [BOSS]":""} ✦</span>`);
   if(_tw.mobs.length>1) _twLog(`<span style="color:#ffaa60">⚠ ${_tw.mobs.length} con yêu thú xuất hiện!</span>`);
-  _twLog(`👁 ${mob.isBoss?"👑 ":""}${mob.name} — STR:${fmt(mob.str)} DEF:${fmt(mob.def)} HP:${fmt(mob.hpmax)}`);
+  _twLog(`👁 ${mob.isBoss?"👑 ":""}${mob.name} — STR:${fmt(mob.str)} DEF:${fmt(mob.def)} AGI:${fmt(mob.agi)} HP:${fmt(mob.hpmax)}`);
   _twLog(`⚔ Ngươi — STR:${fmt(S.str||0)} DEF:${fmt(S.def||0)} HP:${fmt(_tw.playerHp)} AGI:${fmt(S.agi||0)}`);
 
   // Hide result overlay
@@ -14468,11 +14520,10 @@ function _twStartFloor(floor){
   _twRenderPlayer();
   _twRenderFloorLabel();
 
-  // Nếu đang auto thì tiếp tục
-  if(_tw.auto){
-    clearTimeout(_tw.autoTimer);
-    _tw.autoTimer = setTimeout(_twAutoLoop, _twCalcAttackInterval());
-  }
+  // Quái LUÔN tự đánh theo nhịp riêng, dù Auto của người chơi có bật hay không
+  _twStartMobLoop();
+  // Người chơi chỉ tự đánh theo nhịp riêng nếu đang bật Auto
+  _twStartPlayerLoop();
 }
 
 // ── Public API ──
@@ -14481,17 +14532,20 @@ function openTower(){
 
   _tw.playerHp    = S.hp || S.hpmax || 100;
   _tw.playerHpMax = S.hpmax || 100;
-  _tw.auto = false;
-  clearTimeout(_tw.autoTimer);
+  _tw.auto = true; // Tự động đánh ngay khi vào tháp, không cần bấm nút Auto
+  _twStopLoops();
 
   const startFloor = Math.max(1, S.tower.floor||1);
   _twStartFloor(startFloor);
+
+  const btn = document.getElementById("tower-btn-auto");
+  if(btn){ btn.textContent="⏸ Auto ON"; btn.style.background="rgba(60,160,80,.28)"; btn.style.borderColor="rgba(60,160,80,.7)"; btn.style.color="#a0ff80"; }
 
   document.getElementById("tower-popup").style.display = "flex";
 }
 
 function closeTower(){
-  _twStopAuto();
+  _twStopLoops();
   _tw.active = false;
   // Lưu HP về S
   S.hp = Math.max(0, Math.min(_tw.playerHp, _tw.playerHpMax));
@@ -14508,15 +14562,16 @@ function _towerToggleAuto(){
   const btn = document.getElementById("tower-btn-auto");
   if(_tw.auto){
     if(btn){ btn.textContent="⏸ Auto ON"; btn.style.background="rgba(60,160,80,.28)"; btn.style.borderColor="rgba(60,160,80,.7)"; btn.style.color="#a0ff80"; }
-    _twAutoLoop();
+    _twStartPlayerLoop();
   } else {
     _twStopAuto();
   }
 }
 
+// Đánh tay 1 đòn (luôn dùng được, kể cả khi Auto đang bật — đánh thêm ngoài nhịp tự động)
 function _towerManualAttack(){
   if(!_tw.active) return;
-  if(_tw.auto) return; // auto đang chạy thì manual không cần
+  if(_tw.playerHp<=0) return;
   _twPlayerStrike();
 }
 
