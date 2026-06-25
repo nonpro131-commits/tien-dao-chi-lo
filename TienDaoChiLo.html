@@ -22,7 +22,7 @@
 
 <script>
 // ★ ĐỔI SỐ NÀY MỖI KHI DEPLOY BẢN MỚI (phải khớp với sw.js) ★
-const APP_VERSION = '1.0.8';
+const APP_VERSION = '1.0.9';
 
 // ── DEBUG PANEL: thêm ?debug=1 vào URL để xem chẩn đoán ngay trên màn hình ──
 // (không cần DevTools — hữu ích để chẩn đoán trên điện thoại)
@@ -385,7 +385,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:#06080e;font-family:
 
 /* ===== DIE POPUP ===== */
 #die-overlay{
-  position:fixed;inset:0;z-index:9999;
+  position:fixed;inset:0;z-index:4800;
   display:none;align-items:center;justify-content:center;
   background:rgba(120,0,0,.92);backdrop-filter:blur(6px);
   flex-direction:column;
@@ -443,7 +443,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:#06080e;font-family:
 
 /* ===== GAME CONFIRM DIALOG ===== */
 #gc-overlay{
-  position:fixed;inset:0;z-index:99999;
+  position:fixed;inset:0;z-index:5000;
   display:none;align-items:center;justify-content:center;
   background:rgba(0,0,0,.72);backdrop-filter:blur(4px);
 }
@@ -1199,7 +1199,7 @@ body.story-closed #main{
 #hud-notif{
   position:fixed;top:50%;left:50%;
   transform:translate(-50%,-50%) scale(.92);
-  z-index:3500;
+  z-index:4000;
   pointer-events:none;
   opacity:0;
   transition:opacity .25s ease, transform .25s cubic-bezier(.16,1,.3,1);
@@ -2205,7 +2205,7 @@ window._fsServerTimestamp = serverTimestamp;
 </script>
 
 <!-- ===== CLOUD AUTH SCREEN (Đăng Nhập từ Title) ===== -->
-<div id="cloud-auth-screen" style="display:none;position:fixed;inset:0;z-index:3500;background:rgba(0,0,0,.92);backdrop-filter:blur(8px);align-items:center;justify-content:center;">
+<div id="cloud-auth-screen" style="display:none;position:fixed;inset:0;z-index:3600;background:rgba(0,0,0,.92);backdrop-filter:blur(8px);align-items:center;justify-content:center;">
   <div style="width:90%;max-width:360px;background:rgba(8,6,2,.99);border:1px solid rgba(201,168,76,.3);border-radius:16px;padding:28px 24px;box-shadow:0 0 60px rgba(0,0,0,.8);">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
       <div style="font-size:15px;font-weight:700;color:#d6b15f;letter-spacing:1px;">☁️ Đăng Nhập</div>
@@ -2658,17 +2658,25 @@ window._fsServerTimestamp = serverTimestamp;
 
 <div id="tower-popup" style="display:none;position:fixed;inset:0;z-index:2800;background:#06080e;flex-direction:column;overflow:hidden;">
   <!-- Header -->
-  <div id="tower-hdr" style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-bottom:1px solid rgba(201,168,76,.15);background:rgba(4,6,12,.98);flex-shrink:0;">
-    <div style="display:flex;align-items:center;gap:8px;">
-      <span style="font-size:18px;">🗼</span>
-      <div>
-        <div style="font-size:12px;font-weight:700;color:#f0d98c;letter-spacing:1px;">PHONG THẦN THÁP</div>
-        <div id="tower-floor-label" style="font-size:9.5px;color:#7a6030;margin-top:1px;">Tầng 1</div>
+  <div id="tower-hdr" style="display:flex;flex-direction:column;gap:6px;padding:10px 14px;border-bottom:1px solid rgba(201,168,76,.15);background:rgba(4,6,12,.98);flex-shrink:0;">
+    <div style="display:flex;align-items:center;justify-content:space-between;">
+      <div style="display:flex;align-items:center;gap:8px;">
+        <span style="font-size:18px;">🗼</span>
+        <div>
+          <div style="font-size:12px;font-weight:700;color:#f0d98c;letter-spacing:1px;">PHONG THẦN THÁP</div>
+          <div id="tower-floor-label" style="font-size:9.5px;color:#7a6030;margin-top:1px;">Tầng 1</div>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <div id="tower-best-label" style="font-size:9px;color:#5a4020;">Kỷ lục: tầng <span id="tower-best-num" style="color:#f0c14b;font-weight:700;">0</span></div>
+        <div onclick="G.closeTower()" style="width:26px;height:26px;display:flex;align-items:center;justify-content:center;border:1px solid rgba(201,168,76,.25);border-radius:6px;color:#9a7a30;font-size:12px;cursor:pointer;">✕</div>
       </div>
     </div>
-    <div style="display:flex;align-items:center;gap:8px;">
-      <div id="tower-best-label" style="font-size:9px;color:#5a4020;">Kỷ lục: tầng <span id="tower-best-num" style="color:#f0c14b;font-weight:700;">0</span></div>
-      <div onclick="G.closeTower()" style="width:26px;height:26px;display:flex;align-items:center;justify-content:center;border:1px solid rgba(201,168,76,.25);border-radius:6px;color:#9a7a30;font-size:12px;cursor:pointer;">✕</div>
+    <div id="tower-btn-auto" onclick="G._towerToggleAuto()" style="
+      padding:7px 6px;border-radius:8px;text-align:center;font-size:11px;font-weight:700;
+      cursor:pointer;transition:all .15s;letter-spacing:.3px;
+      background:rgba(60,160,80,.12);border:1px solid rgba(60,160,80,.35);color:#70e880;">
+      ▶ Auto
     </div>
   </div>
 
@@ -2698,7 +2706,10 @@ window._fsServerTimestamp = serverTimestamp;
     <div style="flex:0 0 auto;padding:8px 14px;border-top:1px solid rgba(201,168,76,.1);background:rgba(4,6,12,.7);">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
         <div style="font-size:10px;color:#6a5028;"><span id="tower-player-name">Tu Sĩ</span> · <span id="tower-player-stage" style="color:#c8a84a;">—</span></div>
-        <div style="font-size:9.5px;color:#7a6030;">HP: <span id="tower-player-hp-txt" style="color:#e84545;font-weight:700;">—</span></div>
+        <div style="font-size:9.5px;color:#7a6030;">
+          <span id="tower-shield-txt-wrap" style="display:none;">Khiên: <span id="tower-shield-hp-txt" style="color:#80c8ff;font-weight:700;">—</span> | </span>
+          HP: <span id="tower-player-hp-txt" style="color:#e84545;font-weight:700;">—</span>
+        </div>
       </div>
       <div style="height:6px;background:rgba(232,69,69,.12);border-radius:3px;overflow:hidden;border:1px solid rgba(232,69,69,.15);margin-bottom:8px;">
         <div id="tower-player-hp-bar" style="height:100%;width:100%;background:linear-gradient(90deg,#7a1e1e,#e84545);border-radius:3px;transition:width .4s ease;"></div>
@@ -2706,17 +2717,32 @@ window._fsServerTimestamp = serverTimestamp;
 
       <!-- Action buttons -->
       <div style="display:flex;gap:6px;">
-        <div id="tower-btn-auto" onclick="G._towerToggleAuto()" style="
-          flex:1;padding:8px 6px;border-radius:8px;text-align:center;font-size:11px;font-weight:700;
-          cursor:pointer;transition:all .15s;letter-spacing:.3px;
-          background:rgba(60,160,80,.12);border:1px solid rgba(60,160,80,.35);color:#70e880;">
-          ▶ Auto
-        </div>
         <div id="tower-btn-attack" onclick="G._towerManualAttack()" style="
           flex:1;padding:8px 6px;border-radius:8px;text-align:center;font-size:11px;font-weight:700;
           cursor:pointer;transition:all .15s;letter-spacing:.3px;
           background:rgba(201,168,76,.08);border:1px solid rgba(201,168,76,.3);color:#f0d98c;">
           ⚔ Tấn Công
+        </div>
+        <div id="tower-btn-hothuan" onclick="G._twUseHoThuan()" style="
+          display:none;
+          flex:1;padding:8px 6px;border-radius:8px;text-align:center;font-size:11px;font-weight:700;
+          cursor:pointer;transition:all .15s;letter-spacing:.3px;
+          background:rgba(120,180,255,.08);border:1px solid rgba(120,180,255,.3);color:#80c8ff;">
+          🛡 Hộ Thuẫn
+        </div>
+        <div id="tower-btn-nhatdao" onclick="G._twUseNhatDao()" style="
+          display:none;
+          flex:1;padding:8px 6px;border-radius:8px;text-align:center;font-size:11px;font-weight:700;
+          cursor:pointer;transition:all .15s;letter-spacing:.3px;
+          background:rgba(255,112,96,.08);border:1px solid rgba(255,112,96,.3);color:#ff9080;">
+          🗡 Nhất Đao
+        </div>
+        <div id="tower-btn-anhkiem" onclick="G._twUseAnhKiem()" style="
+          display:none;
+          flex:1;padding:8px 6px;border-radius:8px;text-align:center;font-size:11px;font-weight:700;
+          cursor:pointer;transition:all .15s;letter-spacing:.3px;
+          background:rgba(90,176,255,.08);border:1px solid rgba(90,176,255,.3);color:#9ad4ff;">
+          ⚡ Ảnh Kiếm
         </div>
         <div onclick="G._towerOpenDan()" style="
           flex:1;padding:8px 6px;border-radius:8px;text-align:center;font-size:11px;font-weight:700;
@@ -2867,6 +2893,9 @@ const S = {
   _starterGearGranted: false,
   _tamPhapBookGranted: false,
   tamPhapBooks: [],
+  congPhapBooks: [],   // Sách Công Pháp trong Nhẫn Trữ Vật: [{uid, congPhapId, learned}]
+  congPhapHocs: {},    // Công pháp đã học: { hoThuan: { learned:true, attr:"Kim", exp:0, expMax:100, level:"Tiểu Thành" } }
+  congPhapOrder: [],   // Thứ tự học công pháp: ["ho_thuan", "nhat_dao", ...] — xác định ô nào chứa công pháp nào
   daoHuu: [],  // Danh sách Đạo Hữu: [{userKey, username, avatar, age, stageName, addedAt}]
 };
 
@@ -7269,7 +7298,7 @@ function rollPhapKhiMainStat(slotId){
   const weapSlots = ["van_kiem","thai_dao","nhat_quyen","van_phap_khi"];
   if(slotId==="non"){        // Trâm (id non)
     const type = pick(["hp","mana"]);
-    return { label: type==="hp"?"Hồi HP":"Hồi Mana", key:type+"Regen", value:rnd(3,10), unit:"%/5s" };
+    return { label: type==="hp"?"Hồi HP":"Hồi Mana", key:type+"Regen", value:rnd(500,1500), unit:"/5s" };
   } else if(slotId==="ao"){  // Áo (id ao)
     return { label:"Phòng Thủ", key:"def", value:rnd(500,1000), unit:"" };
   } else if(slotId==="quan"){
@@ -7829,7 +7858,7 @@ function _buildCharStatsSummaryHTML(){
 function openCharStatsPopup(){
   const overlay = document.createElement("div");
   overlay.id = "char-stats-popup-overlay";
-  overlay.style.cssText = "position:fixed;inset:0;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;z-index:9999;padding:20px;";
+  overlay.style.cssText = "position:fixed;inset:0;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;z-index:3200;padding:20px;";
   overlay.onclick = (e)=>{ if(e.target===overlay) overlay.remove(); };
   overlay.innerHTML = `
     <div style="background:#0c0802;border:1px solid rgba(201,168,76,.4);border-radius:12px;max-width:300px;width:100%;padding:16px;box-shadow:0 0 24px rgba(0,0,0,.6);">
@@ -8250,7 +8279,8 @@ function buildInventoryHTML(){
   const ct = S.congThucInv || [];
   const pk = S.phapKhiInv || [];
   const tpBooksAll = (S.tamPhapBooks || []);
-  const hasAnything = dlKeys.length > 0 || ddKeys.length > 0 || ct.length > 0 || pk.length > 0 || tpBooksAll.length > 0;
+  const cpBooksAll = (S.congPhapBooks || []);
+  const hasAnything = dlKeys.length > 0 || ddKeys.length > 0 || ct.length > 0 || pk.length > 0 || tpBooksAll.length > 0 || cpBooksAll.length > 0;
 
   if(!hasAnything){
     return `<div style="color:#5a4020;text-align:center;padding:20px 0;font-size:12px">Túi trữ vật đang trống.</div>`;
@@ -8407,6 +8437,29 @@ function buildInventoryHTML(){
     }
   }
 
+  // ── SÁCH CÔNG PHÁP ──
+  const cpBooks = cpBooksAll;
+  if(cpBooks.length > 0){
+    const hasOther4 = ddKeys.length>0 || dlKeys.length>0 || ct.length>0 || pk.length>0 || tpBooks.length>0;
+    html += `<div class="shop-section-title" style="${hasOther4?"margin-top:14px":"margin-top:0"}">Công Pháp</div>`;
+    for(const book of cpBooks){
+      const meta = CONG_PHAP_DB[book.congPhapId];
+      if(!meta) continue;
+      const learnedState = (S.congPhapHocs||{})[book.congPhapId];
+      const isLearned = !!(learnedState && learnedState.learned);
+      html += `<div class="shop-item" style="padding:7px 10px;cursor:pointer;" onclick="G.openCongPhapBookPopup('${book.uid}')">
+        <div class="shop-item-icon" style="font-size:22px">${meta.icon}</div>
+        <div class="shop-item-info">
+          <div class="shop-item-name" style="color:${meta.color}">${meta.name} <span style="font-size:8.5px;font-weight:400;color:#a08060;">${meta.grade||''}</span></div>
+          <div class="shop-item-desc">Công Pháp · ${isLearned
+            ? '<span style="color:#70e880">✦ Đã học</span>'
+            : '<span style="color:#c8a84a">Chưa Học · Ấn để học</span>'}</div>
+        </div>
+        <div style="font-size:18px;color:#5a4020;flex-shrink:0;">›</div>
+      </div>`;
+    }
+  }
+
   return html;
 }
 
@@ -8421,10 +8474,11 @@ function _invSlotsUsed(){
   const ct = S.congThucInv || [];
   const pk = S.phapKhiInv || [];
   const tpBooks = S.tamPhapBooks || [];
+  const cpBooks = S.congPhapBooks || [];
   const ddCount = Object.keys(dd).filter(k=>(dd[k]||0)>0).length;
   const dlCount = Object.keys(dl).filter(k=>(dl[k]||0)>0).length;
   const hgCount = Object.keys(hg).filter(k=>(hg[k]||0)>0).length;
-  return ddCount + dlCount + hgCount + pk.length + ct.length + tpBooks.length;
+  return ddCount + dlCount + hgCount + pk.length + ct.length + tpBooks.length + cpBooks.length;
 }
 
 // Kiểm tra còn chỗ để thêm 1 ô MỚI (loại chưa có trong túi). Trả về true nếu được phép.
@@ -8481,6 +8535,7 @@ function _buildInvGridHTML(filter){
   const ct = S.congThucInv || [];
   const pk = S.phapKhiInv || [];
   const tpBooks = S.tamPhapBooks || [];
+  const cpBooks = S.congPhapBooks || [];
 
   const cells = [];
 
@@ -8576,6 +8631,19 @@ function _buildInvGridHTML(filter){
     });
   }
 
+  // Sách công pháp (thuộc nhóm "Khác")
+  for(const book of cpBooks){
+    const meta = CONG_PHAP_DB[book.congPhapId];
+    cells.push({
+      cat: "khac",
+      icon: meta ? meta.icon : "📘",
+      color: meta ? meta.color : "#80c8ff",
+      border: "rgba(201,168,76,.3)",
+      qty: null,
+      onclick: `G.openCongPhapBookPopup('${book.uid}')`,
+    });
+  }
+
   // Lọc theo tab đang chọn
   const filteredCells = filter==="all" ? cells : cells.filter(c=>c.cat===filter);
 
@@ -8647,7 +8715,7 @@ function openInvSimpleDetail(kind, id){
 
   const overlay = document.createElement("div");
   overlay.id = "inv-simple-detail-overlay";
-  overlay.style.cssText = "position:fixed;inset:0;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;z-index:9999;padding:20px;";
+  overlay.style.cssText = "position:fixed;inset:0;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;z-index:3200;padding:20px;";
   overlay.onclick = (e)=>{ if(e.target===overlay) overlay.remove(); };
   overlay.innerHTML = `
     <div style="background:#0c0802;border:1px solid rgba(201,168,76,.4);border-radius:12px;max-width:300px;width:100%;padding:18px;box-shadow:0 0 24px rgba(0,0,0,.6);">
@@ -10226,6 +10294,83 @@ const CONG_PHAP_SLOTS = 15; // mỗi con đường tu tối đa 15 công pháp
 const CP_SLOT_STAGE_REQ = [0, 3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 27, 29, 33];
 // CP_SLOT_STAGE_REQ[i] = stage tối thiểu để mở ô i (index 1–15)
 
+// ===== HỘ THUẪN — dữ liệu công pháp ô đầu (Luyện Khí Hậu Kỳ) =====
+// Hiệu ứng theo thuộc tính linh căn người chơi tự chọn lúc học.
+const HO_THUAN_ATTR_INFO = {
+  Kim:  { color:"#f0d050", emoji:"🌕", name:"Kim",  desc:"Phản 10% sát thương của đối phương ngược lại vào người tấn công khi khiên còn tồn tại." },
+  Mộc:  { color:"#70d880", emoji:"🌿", name:"Mộc",  desc:"Biến 10% sát thương của đối phương thành Sinh Lực cho bản thân." },
+  Thủy: { color:"#5ac8e8", emoji:"💧", name:"Thủy", desc:"Giảm 10% sát thương phải nhận từ đối phương." },
+  Hỏa:  { color:"#ff6a4a", emoji:"🔥", name:"Hỏa",  desc:"Khi bị tấn công, gây thiêu đốt đối phương theo 10% sát thương của chúng, rải đều 1%/giây." },
+  Thổ:  { color:"#b08050", emoji:"🟫", name:"Thổ",  desc:"Biến 10% sát thương của đối phương thành +10% Giáp (DEF) cho bản thân." },
+  Lôi:  { color:"#a868f0", emoji:"⚡", name:"Lôi",  desc:"Biến 10% sát thương của đối phương thành 10% giảm Tốc Độ (AGI) của chúng." },
+  Ám:   { color:"#7a6aa0", emoji:"🌑", name:"Ám",   desc:"Giảm 10% sát thương của đối phương, tích đủ 5 tầng sẽ phản lại 50% tổng sát thương đã giảm." },
+  Băng: { color:"#3ab8e0", emoji:"❄️", name:"Băng", desc:"Giảm 10% sát thương của đối phương, tích đủ 5 tầng sẽ đóng băng đối phương trong 5 giây." },
+};
+// 4 cấp độ Hộ Thuẫn, mốc EXP giống tâm pháp (Tiểu/Trung/Đại/Viên Mãn)
+const HO_THUAN_LEVELS = [
+  { name:"Tiểu Thành",  min:0,   max:100,  shieldBonus:10, duration:15 },
+  { name:"Trung Thành", min:100, max:300,  shieldBonus:15, duration:20 },
+  { name:"Đại Thành",   min:300, max:900,  shieldBonus:20, duration:25 },
+  { name:"Viên Mãn",    min:900, max:1800, shieldBonus:30, duration:30 },
+];
+function hoThuanLevelFromExp(e){
+  for(let i=HO_THUAN_LEVELS.length-1;i>=0;i--){
+    if(e >= HO_THUAN_LEVELS[i].min) return HO_THUAN_LEVELS[i];
+  }
+  return HO_THUAN_LEVELS[0];
+}
+
+// ===== NHẤT ĐAO — công pháp đao tu, tụ lực rồi tung một đao toàn lực =====
+// 4 cấp độ: thời gian tụ lực giảm dần, % Mana→Str cộng thêm tăng dần
+const NHAT_DAO_LEVELS = [
+  { name:"Tiểu Thành",  min:0,   max:100,  channelSec:9, strBonusPct:50  },
+  { name:"Trung Thành", min:100, max:300,  channelSec:7, strBonusPct:75  },
+  { name:"Đại Thành",   min:300, max:900,  channelSec:5, strBonusPct:100 },
+  { name:"Viên Mãn",    min:900, max:1800, channelSec:3, strBonusPct:150 },
+];
+function nhatDaoLevelFromExp(e){
+  for(let i=NHAT_DAO_LEVELS.length-1;i>=0;i--){
+    if(e >= NHAT_DAO_LEVELS[i].min) return NHAT_DAO_LEVELS[i];
+  }
+  return NHAT_DAO_LEVELS[0];
+}
+
+
+// ===== ẢNH KIẾM — công pháp kiếm tu, vung kiếm theo tốc độ, không hồi chiêu =====
+// 4 cấp độ: mana tiêu hao giảm dần, % AGI→sát thương tăng dần
+const ANH_KIEM_LEVELS = [
+  { name:"Tiểu Thành",  min:0,   max:100,  manaCost:2500, agiBonusPct:50  },
+  { name:"Trung Thành", min:100, max:300,  manaCost:2000, agiBonusPct:75  },
+  { name:"Đại Thành",   min:300, max:900,  manaCost:1500, agiBonusPct:100 },
+  { name:"Viên Mãn",    min:900, max:1800, manaCost:1000, agiBonusPct:125 },
+];
+function anhKiemLevelFromExp(e){
+  for(let i=ANH_KIEM_LEVELS.length-1;i>=0;i--){
+    if(e >= ANH_KIEM_LEVELS[i].min) return ANH_KIEM_LEVELS[i];
+  }
+  return ANH_KIEM_LEVELS[0];
+}
+
+const CONG_PHAP_DB = {
+  "ho_thuan": {
+    id:"ho_thuan", name:"Hộ Thuẫn", grade:"Huyền Cấp Hạ Phẩm", icon:"🛡️", color:"#80c8ff",
+    desc:"Công pháp phòng ngự, dựa vào thuộc tính linh căn dựng lên một lớp khiên bảo vệ bằng 50% Sinh Lực tối đa, mang theo uy lực khác nhau theo từng thuộc tính.",
+    expMax: 1800,
+  },
+  "nhat_dao": {
+    id:"nhat_dao", name:"Nhất Đao", grade:"Huyền Cấp Trung Phẩm", icon:"🗡️", color:"#ff7060",
+    desc:"Công pháp đao tu, tụ lực toàn thân trong chớp mắt rồi tung ra một đao toàn lực, biến toàn bộ Mana tích lũy thành Sức Mạnh bổ sung cho nhất kích.",
+    expMax: 1800,
+    requiredSect: "Đao Tu",
+  },
+  "anh_kiem": {
+    id:"anh_kiem", name:"Ảnh Kiếm", grade:"Huyền Cấp Trung Phẩm", icon:"⚡", color:"#5ab0ff",
+    desc:"Công pháp kiếm tu, dựa vào tốc độ thân pháp để tung ra những nhát kiếm nhanh như chớp. AGI càng cao, mỗi nhát kiếm càng mạnh. Không có hồi chiêu, cứ đủ Mana là dùng được.",
+    expMax: 1800,
+    requiredSect: "Kiếm Tu",
+  },
+};
+
 // Số ô đã mở khóa trên 1 con đường, dựa theo stage
 function _cpUnlockedCount(){
   const stage = S.stage || 0;
@@ -10265,7 +10410,16 @@ function buildCongPhapTreeHTML(){
         ? `background:${meta.theme};border-color:${meta.color};color:${meta.color};box-shadow:0 0 5px ${meta.color}55;`
         : "";
       if(i>1) boxesHTML += `<div class="cp-arrow" style="color:${unlocked?meta.color:'#3a3a3a'}">→</div>`;
-      boxesHTML += `<div class="cp-box ${unlocked?'unlocked':'locked'}" style="${boxStyle}" onclick="G.onCongPhapBoxClick('${sectId}',${i},'${status}')">${unlocked?'+':'🔒'}</div>`;
+      let boxLabel = unlocked ? '+' : '🔒';
+      if(unlocked){
+        // Slot động: ô i chứa công pháp thứ i theo thứ tự học (S.congPhapOrder)
+        const cpId = (S.congPhapOrder || [])[i - 1];
+        if(cpId){
+          const cpMeta = CONG_PHAP_DB[cpId];
+          boxLabel = cpMeta ? cpMeta.icon : '+';
+        }
+      }
+      boxesHTML += `<div class="cp-box ${unlocked?'unlocked':'locked'}" style="${boxStyle}" onclick="G.onCongPhapBoxClick('${sectId}',${i},'${status}')">${boxLabel}</div>`;
     }
     rowsHTML += `
       <div class="cp-row">
@@ -10305,6 +10459,19 @@ function buildCongPhapTreeHTML(){
 function onCongPhapBoxClick(sectId, idx, status){
   const meta = LUYEN_KHI_SECT_META[sectId];
   if(status === "open"){
+    // Slot động: ô idx chứa công pháp S.congPhapOrder[idx-1]
+    const cpId = (S.congPhapOrder || [])[idx - 1];
+    if(cpId){
+      // Mở popup tương ứng với công pháp đang ở ô này
+      if(cpId === "ho_thuan"){ openHoThuanPopup(); return; }
+      if(cpId === "nhat_dao"){ openNhatDaoPopup(); return; }
+      if(cpId === "anh_kiem"){ openAnhKiemPopup(); return; }
+      // Các công pháp tương lai thêm vào đây
+      return;
+    }
+    // Ô trống — chưa có công pháp nào được đặt vào
+    showNotif({icon:"📖", title:`${meta.name} · Ô ${idx}`, lines:["Ô này chưa có Công Pháp.", "Học Công Pháp mới từ Nhẫn Trữ Vật để điền vào!"], color:meta.color, duration:2400});
+    return;
     showNotif({icon:"📖", title:`${meta.name} · Ô ${idx}`, lines:["Tính năng học Công Pháp tại đây đang được phát triển.","Đón chờ cập nhật!"], color:meta.color, duration:2600});
   } else if(status === "stage"){
     const reqStage = CP_SLOT_STAGE_REQ[idx];
@@ -12565,6 +12732,39 @@ function redeemCode(){
       S.lsCuc = (S.lsCuc || 0) + 9999;
       renderHUD();
       return "✅ [ADMIN999] Nhận 9999 Linh Thạch Cực Phẩm!";
+    },
+    "HOTHUAN999": function(){
+      S.congPhapBooks = S.congPhapBooks || [];
+      const already = S.congPhapBooks.find(b=>b.congPhapId==="ho_thuan") || (S.congPhapHocs && S.congPhapHocs.ho_thuan && S.congPhapHocs.ho_thuan.learned);
+      if(already) return "⚠ Ngươi đã sở hữu hoặc đã học Hộ Thuẫn rồi!";
+      if(!_invCanAddNewSlot("congphap")){
+        return "⚠ Nhẫn Trữ Vật đã đầy, không thể nhận thêm!";
+      }
+      S.congPhapBooks.push({ uid:"cpb_"+Date.now(), congPhapId:"ho_thuan", learned:false });
+      saveGame();
+      return "✅ [HOTHUAN999] Nhận được bí tịch <b style='color:#80c8ff'>Hộ Thuẫn</b>! Tìm trong Nhẫn Trữ Vật để học.";
+    },
+    "NHATDAO999": function(){
+      S.congPhapBooks = S.congPhapBooks || [];
+      const already = S.congPhapBooks.find(b=>b.congPhapId==="nhat_dao") || (S.congPhapHocs && S.congPhapHocs.nhat_dao && S.congPhapHocs.nhat_dao.learned);
+      if(already) return "⚠ Ngươi đã sở hữu hoặc đã học Nhất Đao rồi!";
+      if(!_invCanAddNewSlot("congphap")){
+        return "⚠ Nhẫn Trữ Vật đã đầy, không thể nhận thêm!";
+      }
+      S.congPhapBooks.push({ uid:"cpb_"+Date.now(), congPhapId:"nhat_dao", learned:false });
+      saveGame();
+      return "✅ [NHATDAO999] Nhận được bí tịch <b style='color:#ff7060'>Nhất Đao</b>! Tìm trong Nhẫn Trữ Vật để học. (Chỉ Đao Tu mới luyện được)";
+    },
+    "ANHKIEM999": function(){
+      S.congPhapBooks = S.congPhapBooks || [];
+      const already = S.congPhapBooks.find(b=>b.congPhapId==="anh_kiem") || (S.congPhapHocs && S.congPhapHocs.anh_kiem && S.congPhapHocs.anh_kiem.learned);
+      if(already) return "⚠ Ngươi đã sở hữu hoặc đã học Ảnh Kiếm rồi!";
+      if(!_invCanAddNewSlot("congphap")){
+        return "⚠ Nhẫn Trữ Vật đã đầy, không thể nhận thêm!";
+      }
+      S.congPhapBooks.push({ uid:"cpb_"+Date.now(), congPhapId:"anh_kiem", learned:false });
+      saveGame();
+      return "✅ [ANHKIEM999] Nhận được bí tịch <b style='color:#5ab0ff'>Ảnh Kiếm</b>! Tìm trong Nhẫn Trữ Vật để học. (Chỉ Kiếm Tu mới luyện được)";
     }
   };
   if(CODES[code]){
@@ -12665,6 +12865,15 @@ function loadGame(){ try{
   if(S.ageNguyenAnh === undefined) S.ageNguyenAnh = -1;
   if(!S.tower) S.tower = { floor:0, bestFloor:0, claimedRewards:[] };
   if(!Array.isArray(S.tower.claimedRewards)) S.tower.claimedRewards = [];
+  // Migration: người chơi cũ có congPhapHocs nhưng chưa có congPhapOrder
+  if(!Array.isArray(S.congPhapOrder) || S.congPhapOrder.length === 0){
+    S.congPhapOrder = [];
+    const hocs = S.congPhapHocs || {};
+    // Hộ Thuẫn luôn được học trước (ô 1), Nhất Đao sau (ô 2) nếu có
+    if(hocs.ho_thuan && hocs.ho_thuan.learned) S.congPhapOrder.push("ho_thuan");
+    if(hocs.nhat_dao && hocs.nhat_dao.learned) S.congPhapOrder.push("nhat_dao");
+    if(hocs.anh_kiem && hocs.anh_kiem.learned) S.congPhapOrder.push("anh_kiem");
+  }
   _danLoConfigs = S.danLoConfigs; // re-sync sau loadGame
   closeScreen(); calcBuffs(); renderHUD(); checkUnlocks();
   _updateDaoHuuBtnAvatar();
@@ -14087,6 +14296,859 @@ function _learnTamPhapBook(uid){
   });
 }
 
+/* ===== CÔNG PHÁP — HỘ THUẪN ===== */
+
+// Popup khi bấm vào sách Hộ Thuẫn trong Nhẫn Trữ Vật
+function openCongPhapBookPopup(uid){
+  const books = S.congPhapBooks || [];
+  const book = books.find(b=>b.uid===uid);
+  if(!book) return;
+  const meta = CONG_PHAP_DB[book.congPhapId];
+  if(!meta) return;
+
+  const hocState = (S.congPhapHocs||{})[book.congPhapId];
+  const alreadyLearned = !!(hocState && hocState.learned);
+  const sectMismatch = !!(meta.requiredSect && S.sect !== meta.requiredSect);
+
+  const pop = document.createElement("div");
+  pop.id = "congphapbook-popup";
+  pop.style.cssText = "position:fixed;inset:0;z-index:2700;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.82);backdrop-filter:blur(4px);padding:16px;";
+  pop.innerHTML = `
+    <div style="width:100%;max-width:300px;background:rgba(4,8,14,.99);border:1px solid rgba(${meta.color==='#80c8ff'?'80,200,255':'255,112,96'},.35);border-radius:14px;overflow:hidden;box-shadow:0 0 50px rgba(0,0,0,.8);">
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 13px;border-bottom:1px solid rgba(120,180,255,.12);">
+        <div style="font-size:12px;font-weight:700;color:${meta.color};">${meta.icon} Công Pháp · ${meta.name} <span style="font-size:9px;font-weight:400;color:#a08060;margin-left:4px;">${meta.grade||''}</span></div>
+        <div onclick="document.getElementById('congphapbook-popup').remove()" style="width:20px;height:20px;display:flex;align-items:center;justify-content:center;border:1px solid rgba(120,180,255,.2);border-radius:4px;color:#6a84a0;cursor:pointer;font-size:11px;">✕</div>
+      </div>
+      <div style="padding:14px 14px 12px;">
+        <div style="font-size:11.5px;color:#c0d0e0;line-height:1.75;margin-bottom:12px;">${meta.desc}</div>
+        ${meta.requiredSect ? `<div style="font-size:9.5px;color:${sectMismatch?'#e87060':'#7ab870'};margin-bottom:10px;">Yêu cầu con đường: <b>${meta.requiredSect}</b>${sectMismatch?` · Hiện tại: <b>${S.sect||"—"}</b>`:''}</div>` : ''}
+        ${alreadyLearned
+          ? `<div style="padding:9px;background:rgba(80,200,80,.08);border:1px solid rgba(80,200,80,.2);border-radius:9px;font-size:12px;color:#70e880;text-align:center;">✦ Đã học công pháp này rồi</div>`
+          : `<div onclick="G._learnCongPhapBookDispatch('${uid}')" style="
+              width:100%;padding:10px;text-align:center;
+              background:rgba(${meta.color==='#80c8ff'?'80,200,255':'255,112,96'},.1);border:1px solid rgba(${meta.color==='#80c8ff'?'80,200,255':'255,112,96'},.4);
+              border-radius:9px;font-size:13px;font-weight:700;color:${meta.color};
+              cursor:pointer;letter-spacing:.5px;box-sizing:border-box;transition:background .15s;"
+              onmouseover="this.style.opacity='0.85'" onmouseout="this.style.opacity='1'">
+              ✦ Học Công Pháp
+            </div>`
+        }
+      </div>
+    </div>`;
+  pop.onclick = e => { if(e.target===pop) pop.remove(); };
+  document.body.appendChild(pop);
+}
+
+// Điều hướng học công pháp theo loại — ho_thuan cần chọn thuộc tính, nhat_dao học thẳng
+function _learnCongPhapBookDispatch(uid){
+  const books = S.congPhapBooks || [];
+  const book = books.find(b=>b.uid===uid);
+  if(!book) return;
+  if(book.congPhapId === "ho_thuan"){
+    _openHoThuanAttrChoice(uid);
+  } else if(book.congPhapId === "nhat_dao"){
+    // Chỉ Đao Tu mới được học Nhất Đao
+    if(S.sect !== "Đao Tu"){
+      const bookPop = document.getElementById("congphapbook-popup");
+      if(bookPop) bookPop.remove();
+      showNotif({
+        icon:"⛔", title:"Không Thể Học Nhất Đao",
+        lines:[`Công pháp này chỉ dành cho <b>Đao Tu</b>.`, `Con đường của ngươi: <b>${S.sect || "Chưa chọn"}</b>.`, `Bí tịch vẫn còn trong Nhẫn Trữ Vật.`],
+        color:"#e87060", duration:3500
+      });
+      return;
+    }
+    _confirmLearnNhatDao(uid);
+  } else if(book.congPhapId === "anh_kiem"){
+    // Chỉ Kiếm Tu mới được học Ảnh Kiếm
+    if(S.sect !== "Kiếm Tu"){
+      const bookPop = document.getElementById("congphapbook-popup");
+      if(bookPop) bookPop.remove();
+      showNotif({
+        icon:"⛔", title:"Không Thể Học Ảnh Kiếm",
+        lines:[`Công pháp này chỉ dành cho <b>Kiếm Tu</b>.`, `Con đường của ngươi: <b>${S.sect || "Chưa chọn"}</b>.`, `Bí tịch vẫn còn trong Nhẫn Trữ Vật.`],
+        color:"#5ab0ff", duration:3500
+      });
+      return;
+    }
+    _confirmLearnAnhKiem(uid);
+  }
+}
+
+// Bước 2: chọn thuộc tính khiên dựa theo linh căn của người chơi
+function _openHoThuanAttrChoice(uid){
+  const oldPop = document.getElementById("congphapbook-popup");
+  if(oldPop) oldPop.remove();
+
+  const attrs = (S.linhcanAttrs || []).filter(a=>HO_THUAN_ATTR_INFO[a]);
+  if(attrs.length === 0){
+    showNotif({icon:"⚠️", title:"Không Thể Học", lines:["Linh căn của ngươi không có thuộc tính phù hợp để dựng Hộ Thuẫn."], color:"#e87060", duration:3000});
+    return;
+  }
+
+  const pop = document.createElement("div");
+  pop.id = "hothuan-attrchoice-popup";
+  pop.style.cssText = "position:fixed;inset:0;z-index:2750;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.85);backdrop-filter:blur(4px);padding:16px;";
+
+  const optionsHTML = attrs.map(a=>{
+    const info = HO_THUAN_ATTR_INFO[a];
+    return `<div onclick="G._confirmLearnHoThuan('${uid}','${a}')" style="
+        padding:10px 12px;margin-bottom:7px;border-radius:9px;cursor:pointer;
+        background:rgba(255,255,255,.03);border:1px solid ${info.color}55;transition:background .15s;"
+        onmouseover="this.style.background='${info.color}22'" onmouseout="this.style.background='rgba(255,255,255,.03)'">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:3px;">
+          <span style="font-size:16px;">${info.emoji}</span>
+          <span style="font-size:12.5px;font-weight:700;color:${info.color};">${info.name} Hộ Thuẫn</span>
+        </div>
+        <div style="font-size:9.5px;color:#a0a8b8;line-height:1.5;">${info.desc}</div>
+      </div>`;
+  }).join("");
+
+  pop.innerHTML = `
+    <div style="width:100%;max-width:310px;max-height:84vh;overflow-y:auto;background:rgba(4,8,14,.99);border:1px solid rgba(120,180,255,.35);border-radius:14px;box-shadow:0 0 50px rgba(0,0,0,.85);">
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 13px;border-bottom:1px solid rgba(120,180,255,.12);position:sticky;top:0;background:rgba(4,8,14,.99);">
+        <div style="font-size:12px;font-weight:700;color:#80c8ff;">🛡️ Chọn Thuộc Tính Khiên</div>
+        <div onclick="document.getElementById('hothuan-attrchoice-popup').remove()" style="width:20px;height:20px;display:flex;align-items:center;justify-content:center;border:1px solid rgba(120,180,255,.2);border-radius:4px;color:#6a84a0;cursor:pointer;font-size:11px;">✕</div>
+      </div>
+      <div style="padding:12px 13px;">
+        <div style="font-size:10px;color:#5a6a80;margin-bottom:10px;line-height:1.6;">Hộ Thuẫn sẽ vĩnh viễn mang thuộc tính được chọn — dựa theo Linh Căn hiện có của ngươi.</div>
+        ${optionsHTML}
+      </div>
+    </div>`;
+  pop.onclick = e => { if(e.target===pop) pop.remove(); };
+  document.body.appendChild(pop);
+}
+
+// Bước 3: xác nhận học — lưu vào S.congPhapHocs
+function _confirmLearnHoThuan(uid, attr){
+  const books = S.congPhapBooks || [];
+  const bookIdx = books.findIndex(b=>b.uid===uid);
+  if(bookIdx < 0) return;
+
+  // Kiểm tra còn ô trống để chứa công pháp mới không
+  S.congPhapOrder = S.congPhapOrder || [];
+  const unlockedCount = _cpUnlockedCount();
+  const usedSlots = S.congPhapOrder.length;
+  if(usedSlots >= unlockedCount){
+    // Đóng popup học rồi báo lỗi — không mất sách
+    const attrPop = document.getElementById("hothuan-attrchoice-popup");
+    if(attrPop) attrPop.remove();
+    const bookPop = document.getElementById("congphapbook-popup");
+    if(bookPop) bookPop.remove();
+    const needStage = CP_SLOT_STAGE_REQ[usedSlots + 1];
+    const needName = STAGE_DATA[needStage] ? STAGE_DATA[needStage].n : "???";
+    showNotif({
+      icon:"🔒", title:"Không Đủ Ô Công Pháp",
+      lines:[`Tất cả ${unlockedCount} ô Công Pháp đã đầy.`, `Cần đạt <b>${needName}</b> để mở thêm ô mới.`, `Bí tịch Hộ Thuẫn vẫn còn trong Nhẫn Trữ Vật.`],
+      color:"#a08840", duration:4000
+    });
+    return;
+  }
+
+  S.congPhapBooks.splice(bookIdx, 1);
+  S.congPhapHocs = S.congPhapHocs || {};
+  S.congPhapHocs.ho_thuan = { learned:true, attr:attr, exp:0, expMax:HO_THUAN_LEVELS[0].max, level:"Tiểu Thành" };
+  S.congPhapOrder.push("ho_thuan"); // xếp vào ô tiếp theo
+
+  saveGame();
+
+  const attrPop = document.getElementById("hothuan-attrchoice-popup");
+  if(attrPop) attrPop.remove();
+  const bookPop = document.getElementById("congphapbook-popup");
+  if(bookPop) bookPop.remove();
+
+  // Refresh màn hình đang mở (Nhẫn Trữ Vật / Công Pháp)
+  const screenBody = document.getElementById("screen-body");
+  if(screenBody && document.getElementById("screen-overlay")?.classList.contains("active")){
+    const invGridNow = document.getElementById("char-inv-grid");
+    const titleEl = document.getElementById("screen-title");
+    const titleText = titleEl ? titleEl.textContent : "";
+    if(invGridNow){
+      invGridNow.innerHTML = _buildInvGridHTML(window._charInvFilter || "all");
+      const tabsElNow = document.getElementById("char-inv-tabs");
+      if(tabsElNow) tabsElNow.innerHTML = _buildInvTabsHTML(window._charInvFilter || "all");
+    } else if(titleText.includes("Nhẫn")) {
+      screenBody.innerHTML = buildInventoryHTML();
+    } else if(titleText.includes("Công Pháp")) {
+      openScreen("skills");
+    }
+  }
+
+  const info = HO_THUAN_ATTR_INFO[attr];
+  showNotif({
+    icon:"🛡️",
+    title:"Đã Học Hộ Thuẫn!",
+    lines:[`Thuộc tính: <b style="color:${info.color}">${info.emoji} ${info.name}</b>`,`<span style="color:#7ab870">Công Pháp bắt đầu có hiệu lực!</span>`],
+    color:"#80c8ff", duration:3200
+  });
+}
+
+// Popup chi tiết Hộ Thuẫn (mở khi bấm ô 1 đã học) — giống style popup Tâm Pháp
+function openHoThuanPopup(){
+  const hoc = (S.congPhapHocs||{}).ho_thuan;
+  if(!hoc || !hoc.learned) return;
+  const info = HO_THUAN_ATTR_INFO[hoc.attr] || HO_THUAN_ATTR_INFO.Kim;
+  const e = hoc.exp || 0;
+  const curLevel = hoThuanLevelFromExp(e);
+
+  function segPct(seg){
+    if(e <= seg.min) return 0;
+    if(e >= seg.max) return 100;
+    return (e - seg.min) / (seg.max - seg.min) * 100;
+  }
+  const segsHTML = HO_THUAN_LEVELS.map(seg=>{
+    const pct = segPct(seg);
+    const isCurrent = curLevel.name === seg.name;
+    const reached = pct >= 100;
+    const labelColor = isCurrent ? info.color : (reached ? "#9aa8b8" : "#3a4858");
+    return `<div style="flex:1;min-width:0;">
+      <div style="height:7px;border-radius:99px;background:rgba(255,255,255,.06);overflow:hidden;">
+        <div style="height:100%;width:${pct}%;background:linear-gradient(90deg,${info.color}55,${info.color});border-radius:99px;transition:width .4s;"></div>
+      </div>
+      <div style="font-size:7.3px;text-align:center;margin-top:3px;color:${labelColor};font-weight:${isCurrent?700:400};white-space:nowrap;">${seg.name}</div>
+    </div>`;
+  }).join('<div style="width:4px;flex-shrink:0;"></div>');
+
+  const pop = document.createElement("div");
+  pop.id = "hothuan-status-popup";
+  pop.style.cssText = "position:fixed;inset:0;z-index:3000;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.82);backdrop-filter:blur(4px);padding:16px;";
+  pop.innerHTML = `
+    <div style="width:100%;max-width:300px;background:rgba(4,8,14,.99);border:1px solid ${info.color}55;border-radius:14px;overflow:hidden;box-shadow:0 0 50px rgba(0,0,0,.8);">
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 13px;border-bottom:1px solid rgba(120,180,255,.12);">
+        <div style="font-size:12px;font-weight:700;color:${info.color};">🛡️ Hộ Thuẫn · ${info.emoji} ${info.name} <span style="font-size:9px;font-weight:400;color:#a08060;margin-left:4px;">Huyền Cấp Hạ Phẩm</span></div>
+        <div onclick="document.getElementById('hothuan-status-popup').remove()" style="width:20px;height:20px;display:flex;align-items:center;justify-content:center;border:1px solid rgba(120,180,255,.2);border-radius:4px;color:#6a84a0;cursor:pointer;font-size:11px;">✕</div>
+      </div>
+      <div style="padding:14px 14px 12px;">
+        <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px;">
+          <span style="font-size:13px;font-weight:700;color:#dce8f8;">${curLevel.name}</span>
+          <span style="font-size:9.5px;color:#5a6a80;">${fmt(e)} / ${fmt(HO_THUAN_LEVELS[HO_THUAN_LEVELS.length-1].max)}</span>
+        </div>
+        <div style="display:flex;align-items:flex-start;margin-bottom:14px;">${segsHTML}</div>
+        <div style="background:rgba(255,255,255,.03);border:1px solid ${info.color}33;border-radius:9px;padding:9px 11px;margin-bottom:12px;">
+          <div style="font-size:10px;color:#a0a8b8;line-height:1.65;">${info.desc}</div>
+          <div style="font-size:9.5px;color:${info.color};margin-top:6px;">Khiên: <b>50% HP +${curLevel.shieldBonus}%</b> · Kéo dài <b>${curLevel.duration}s</b></div>
+        </div>
+        <div style="display:flex;justify-content:flex-end;gap:8px;">
+          <div onclick="document.getElementById('hothuan-status-popup').remove();G.openTamPhapComingSoon('Tu Luyện Công Pháp');" style="
+            padding:8px 14px;background:rgba(120,180,255,.1);border:1px solid rgba(120,180,255,.4);
+            border-radius:8px;font-size:11.5px;font-weight:700;color:#bcdcff;cursor:pointer;transition:background .15s;"
+            onmouseover="this.style.background='rgba(120,180,255,.2)'"
+            onmouseout="this.style.background='rgba(120,180,255,.1)'">Tu Luyện</div>
+        </div>
+      </div>
+    </div>`;
+  pop.onclick = ev => { if(ev.target===pop) pop.remove(); };
+  document.body.appendChild(pop);
+}
+
+/* ===== CÔNG PHÁP — NHẤT ĐAO ===== */
+
+// Học thẳng (không cần chọn thuộc tính) — vẫn cho học dù không phải Đao Tu, nhưng sẽ không dùng được
+function _confirmLearnNhatDao(uid){
+  const books = S.congPhapBooks || [];
+  const bookIdx = books.findIndex(b=>b.uid===uid);
+  if(bookIdx < 0) return;
+
+  // Kiểm tra còn ô trống để chứa công pháp mới không
+  S.congPhapOrder = S.congPhapOrder || [];
+  const unlockedCount = _cpUnlockedCount();
+  const usedSlots = S.congPhapOrder.length;
+  if(usedSlots >= unlockedCount){
+    const bookPop = document.getElementById("congphapbook-popup");
+    if(bookPop) bookPop.remove();
+    const needStage = CP_SLOT_STAGE_REQ[usedSlots + 1];
+    const needName = STAGE_DATA[needStage] ? STAGE_DATA[needStage].n : "???";
+    showNotif({
+      icon:"🔒", title:"Không Đủ Ô Công Pháp",
+      lines:[`Tất cả ${unlockedCount} ô Công Pháp đã đầy.`, `Cần đạt <b>${needName}</b> để mở thêm ô mới.`, `Bí tịch Nhất Đao vẫn còn trong Nhẫn Trữ Vật.`],
+      color:"#a08840", duration:4000
+    });
+    return;
+  }
+
+  S.congPhapBooks.splice(bookIdx, 1);
+  S.congPhapHocs = S.congPhapHocs || {};
+  S.congPhapHocs.nhat_dao = { learned:true, exp:0, expMax:NHAT_DAO_LEVELS[0].max, level:"Tiểu Thành" };
+  S.congPhapOrder.push("nhat_dao"); // xếp vào ô tiếp theo
+
+  saveGame();
+
+  const bookPop = document.getElementById("congphapbook-popup");
+  if(bookPop) bookPop.remove();
+
+  // Refresh màn hình đang mở (Nhẫn Trữ Vật / Công Pháp)
+  const screenBody = document.getElementById("screen-body");
+  if(screenBody && document.getElementById("screen-overlay")?.classList.contains("active")){
+    const invGridNow = document.getElementById("char-inv-grid");
+    const titleEl = document.getElementById("screen-title");
+    const titleText = titleEl ? titleEl.textContent : "";
+    if(invGridNow){
+      invGridNow.innerHTML = _buildInvGridHTML(window._charInvFilter || "all");
+      const tabsElNow = document.getElementById("char-inv-tabs");
+      if(tabsElNow) tabsElNow.innerHTML = _buildInvTabsHTML(window._charInvFilter || "all");
+    } else if(titleText.includes("Nhẫn")) {
+      screenBody.innerHTML = buildInventoryHTML();
+    } else if(titleText.includes("Công Pháp")) {
+      openScreen("skills");
+    }
+  }
+
+  const isDaoTu = S.sect === "Đao Tu";
+  showNotif({
+    icon:"🗡️",
+    title:"Đã Học Nhất Đao!",
+    lines:[`<span style="color:#7ab870">Công Pháp bắt đầu có hiệu lực!</span>`],
+    color:"#ff7060", duration:3200
+  });
+}
+
+function _confirmLearnAnhKiem(uid){
+  const books = S.congPhapBooks || [];
+  const bookIdx = books.findIndex(b=>b.uid===uid);
+  if(bookIdx < 0) return;
+
+  // Kiểm tra còn ô trống không
+  S.congPhapOrder = S.congPhapOrder || [];
+  const unlockedCount = _cpUnlockedCount();
+  const usedSlots = S.congPhapOrder.length;
+  if(usedSlots >= unlockedCount){
+    const bookPop = document.getElementById("congphapbook-popup");
+    if(bookPop) bookPop.remove();
+    const needStage = CP_SLOT_STAGE_REQ[usedSlots + 1];
+    const needName = STAGE_DATA[needStage] ? STAGE_DATA[needStage].n : "???";
+    showNotif({
+      icon:"🔒", title:"Không Đủ Ô Công Pháp",
+      lines:[`Tất cả ${unlockedCount} ô Công Pháp đã đầy.`, `Cần đạt <b>${needName}</b> để mở thêm ô mới.`, `Bí tịch Ảnh Kiếm vẫn còn trong Nhẫn Trữ Vật.`],
+      color:"#a08840", duration:4000
+    });
+    return;
+  }
+
+  S.congPhapBooks.splice(bookIdx, 1);
+  S.congPhapHocs = S.congPhapHocs || {};
+  S.congPhapHocs.anh_kiem = { learned:true, exp:0, expMax:ANH_KIEM_LEVELS[0].max, level:"Tiểu Thành" };
+  S.congPhapOrder.push("anh_kiem");
+
+  saveGame();
+
+  const bookPop = document.getElementById("congphapbook-popup");
+  if(bookPop) bookPop.remove();
+
+  // Refresh màn hình đang mở
+  const screenBody = document.getElementById("screen-body");
+  if(screenBody && document.getElementById("screen-overlay")?.classList.contains("active")){
+    const invGridNow = document.getElementById("char-inv-grid");
+    const titleEl = document.getElementById("screen-title");
+    const titleText = titleEl ? titleEl.textContent : "";
+    if(invGridNow){
+      invGridNow.innerHTML = _buildInvGridHTML(window._charInvFilter || "all");
+      const tabsElNow = document.getElementById("char-inv-tabs");
+      if(tabsElNow) tabsElNow.innerHTML = _buildInvTabsHTML(window._charInvFilter || "all");
+    } else if(titleText.includes("Nhẫn")) {
+      screenBody.innerHTML = buildInventoryHTML();
+    } else if(titleText.includes("Công Pháp")) {
+      openScreen("skills");
+    }
+  }
+
+  showNotif({
+    icon:"⚡",
+    title:"Đã Học Ảnh Kiếm!",
+    lines:[`<span style="color:#7ab870">Công Pháp bắt đầu có hiệu lực!</span>`],
+    color:"#5ab0ff", duration:3200
+  });
+}
+
+// Popup chi tiết Nhất Đao (mở khi bấm ô đã học) — giống style popup Hộ Thuẫn
+function openNhatDaoPopup(){
+  const hoc = (S.congPhapHocs||{}).nhat_dao;
+  if(!hoc || !hoc.learned) return;
+  const e = hoc.exp || 0;
+  const curLevel = nhatDaoLevelFromExp(e);
+  const isDaoTu = S.sect === "Đao Tu";
+  const color = "#ff7060";
+
+  function segPct(seg){
+    if(e <= seg.min) return 0;
+    if(e >= seg.max) return 100;
+    return (e - seg.min) / (seg.max - seg.min) * 100;
+  }
+  const segsHTML = NHAT_DAO_LEVELS.map(seg=>{
+    const pct = segPct(seg);
+    const isCurrent = curLevel.name === seg.name;
+    const reached = pct >= 100;
+    const labelColor = isCurrent ? color : (reached ? "#9aa8b8" : "#3a4858");
+    return `<div style="flex:1;min-width:0;">
+      <div style="height:7px;border-radius:99px;background:rgba(255,255,255,.06);overflow:hidden;">
+        <div style="height:100%;width:${pct}%;background:linear-gradient(90deg,${color}55,${color});border-radius:99px;transition:width .4s;"></div>
+      </div>
+      <div style="font-size:7.3px;text-align:center;margin-top:3px;color:${labelColor};font-weight:${isCurrent?700:400};white-space:nowrap;">${seg.name}</div>
+    </div>`;
+  }).join('<div style="width:4px;flex-shrink:0;"></div>');
+
+  const pop = document.createElement("div");
+  pop.id = "nhatdao-status-popup";
+  pop.style.cssText = "position:fixed;inset:0;z-index:3000;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.82);backdrop-filter:blur(4px);padding:16px;";
+  pop.innerHTML = `
+    <div style="width:100%;max-width:300px;background:rgba(4,8,14,.99);border:1px solid ${color}55;border-radius:14px;overflow:hidden;box-shadow:0 0 50px rgba(0,0,0,.8);">
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 13px;border-bottom:1px solid rgba(120,180,255,.12);">
+        <div style="font-size:12px;font-weight:700;color:${color};">🗡️ Nhất Đao <span style="font-size:9px;font-weight:400;color:#a08060;margin-left:4px;">Huyền Cấp Trung Phẩm</span></div>
+        <div onclick="document.getElementById('nhatdao-status-popup').remove()" style="width:20px;height:20px;display:flex;align-items:center;justify-content:center;border:1px solid rgba(120,180,255,.2);border-radius:4px;color:#6a84a0;cursor:pointer;font-size:11px;">✕</div>
+      </div>
+      <div style="padding:14px 14px 12px;">
+        ${!isDaoTu ? `<div style="padding:8px 10px;margin-bottom:10px;background:rgba(232,112,96,.08);border:1px solid rgba(232,112,96,.25);border-radius:8px;font-size:10px;color:#e87060;line-height:1.6;">⚠ Công pháp này chỉ phù hợp với <b>Đao Tu</b>. Con đường hiện tại của ngươi (<b>${S.sect||"—"}</b>) không thể vận chuyển Nhất Đao.</div>` : ''}
+        <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px;">
+          <span style="font-size:13px;font-weight:700;color:#dce8f8;">${curLevel.name}</span>
+          <span style="font-size:9.5px;color:#5a6a80;">${fmt(e)} / ${fmt(NHAT_DAO_LEVELS[NHAT_DAO_LEVELS.length-1].max)}</span>
+        </div>
+        <div style="display:flex;align-items:flex-start;margin-bottom:14px;">${segsHTML}</div>
+        <div style="background:rgba(255,255,255,.03);border:1px solid ${color}33;border-radius:9px;padding:9px 11px;margin-bottom:12px;">
+          <div style="font-size:10px;color:#a0a8b8;line-height:1.65;">Tụ lực toàn thân, không thể tấn công hay dùng Auto trong lúc tụ lực. Hết thời gian, tung ra một đao toàn lực: biến toàn bộ Mana hiện có thành Sức Mạnh bổ sung.</div>
+          <div style="font-size:9.5px;color:${color};margin-top:6px;">Tụ lực: <b>${curLevel.channelSec}s</b> · Mana → Str: <b>+${curLevel.strBonusPct}%</b></div>
+        </div>
+        <div style="display:flex;justify-content:flex-end;gap:8px;">
+          <div onclick="document.getElementById('nhatdao-status-popup').remove();G.openTamPhapComingSoon('Tu Luyện Công Pháp');" style="
+            padding:8px 14px;background:rgba(120,180,255,.1);border:1px solid rgba(120,180,255,.4);
+            border-radius:8px;font-size:11.5px;font-weight:700;color:#bcdcff;cursor:pointer;transition:background .15s;"
+            onmouseover="this.style.background='rgba(120,180,255,.2)'"
+            onmouseout="this.style.background='rgba(120,180,255,.1)'">Tu Luyện</div>
+        </div>
+      </div>
+    </div>`;
+  pop.onclick = ev => { if(ev.target===pop) pop.remove(); };
+  document.body.appendChild(pop);
+}
+
+// Popup chi tiết Ảnh Kiếm (mở khi bấm ô đã học)
+function openAnhKiemPopup(){
+  const hoc = (S.congPhapHocs||{}).anh_kiem;
+  if(!hoc || !hoc.learned) return;
+  const e = hoc.exp || 0;
+  const curLevel = anhKiemLevelFromExp(e);
+  const isKiemTu = S.sect === "Kiếm Tu";
+  const color = "#5ab0ff";
+
+  function segPct(seg){
+    if(e <= seg.min) return 0;
+    if(e >= seg.max) return 100;
+    return (e - seg.min) / (seg.max - seg.min) * 100;
+  }
+  const segsHTML = ANH_KIEM_LEVELS.map(seg=>{
+    const pct = segPct(seg);
+    const isCurrent = curLevel.name === seg.name;
+    const reached = pct >= 100;
+    const labelColor = isCurrent ? color : (reached ? "#9aa8b8" : "#3a4858");
+    return `<div style="flex:1;min-width:0;">
+      <div style="height:7px;border-radius:99px;background:rgba(255,255,255,.06);overflow:hidden;">
+        <div style="height:100%;width:${pct}%;background:linear-gradient(90deg,${color}55,${color});border-radius:99px;transition:width .4s;"></div>
+      </div>
+      <div style="font-size:7.3px;text-align:center;margin-top:3px;color:${labelColor};font-weight:${isCurrent?700:400};white-space:nowrap;">${seg.name}</div>
+    </div>`;
+  }).join('<div style="width:4px;flex-shrink:0;"></div>');
+
+  const pop = document.createElement("div");
+  pop.id = "anhkiem-status-popup";
+  pop.style.cssText = "position:fixed;inset:0;z-index:3000;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.82);backdrop-filter:blur(4px);padding:16px;";
+  pop.innerHTML = `
+    <div style="width:100%;max-width:300px;background:rgba(4,8,14,.99);border:1px solid ${color}55;border-radius:14px;overflow:hidden;box-shadow:0 0 50px rgba(0,0,0,.8);">
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 13px;border-bottom:1px solid rgba(90,176,255,.12);">
+        <div style="font-size:12px;font-weight:700;color:${color};">⚡ Ảnh Kiếm <span style="font-size:9px;font-weight:400;color:#a08060;margin-left:4px;">Huyền Cấp Trung Phẩm</span></div>
+        <div onclick="document.getElementById('anhkiem-status-popup').remove()" style="width:20px;height:20px;display:flex;align-items:center;justify-content:center;border:1px solid rgba(90,176,255,.2);border-radius:4px;color:#6a84a0;cursor:pointer;font-size:11px;">✕</div>
+      </div>
+      <div style="padding:14px 14px 12px;">
+        ${!isKiemTu ? `<div style="padding:8px 10px;margin-bottom:10px;background:rgba(90,176,255,.08);border:1px solid rgba(90,176,255,.25);border-radius:8px;font-size:10px;color:#5ab0ff;line-height:1.6;">⚠ Công pháp này chỉ phù hợp với <b>Kiếm Tu</b>. Con đường hiện tại (<b>${S.sect||"—"}</b>) không thể vận chuyển Ảnh Kiếm.</div>` : ''}
+        <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px;">
+          <span style="font-size:13px;font-weight:700;color:#dce8f8;">${curLevel.name}</span>
+          <span style="font-size:9.5px;color:#5a6a80;">${fmt(e)} / ${fmt(ANH_KIEM_LEVELS[ANH_KIEM_LEVELS.length-1].max)}</span>
+        </div>
+        <div style="display:flex;align-items:flex-start;margin-bottom:14px;">${segsHTML}</div>
+        <div style="background:rgba(255,255,255,.03);border:1px solid ${color}33;border-radius:9px;padding:9px 11px;margin-bottom:12px;">
+          <div style="font-size:10px;color:#a0a8b8;line-height:1.65;">Vung kiếm tức thì dựa vào tốc độ thân pháp. Không có hồi chiêu — cứ đủ Mana là dùng được liên tục.</div>
+          <div style="font-size:9.5px;color:${color};margin-top:6px;">Mana tiêu hao: <b>${curLevel.manaCost.toLocaleString()}</b> · AGI → sát thương: <b>+${curLevel.agiBonusPct}%</b></div>
+        </div>
+        <div style="display:flex;justify-content:flex-end;gap:8px;">
+          <div onclick="document.getElementById('anhkiem-status-popup').remove();G.openTamPhapComingSoon('Tu Luyện Công Pháp');" style="
+            padding:8px 14px;background:rgba(90,176,255,.1);border:1px solid rgba(90,176,255,.4);
+            border-radius:8px;font-size:11.5px;font-weight:700;color:#9ad4ff;cursor:pointer;transition:background .15s;"
+            onmouseover="this.style.background='rgba(90,176,255,.2)'"
+            onmouseout="this.style.background='rgba(90,176,255,.1)'">Tu Luyện</div>
+        </div>
+      </div>
+    </div>`;
+  pop.onclick = ev => { if(ev.target===pop) pop.remove(); };
+  document.body.appendChild(pop);
+}
+
+/* ===== HỘ THUẪN — ÁP DỤNG TRONG COMBAT PHONG THẦN THÁP ===== */
+// Trạng thái khiên hiện hành trong 1 trận tower (reset mỗi khi vào tầng mới / mở tháp)
+// _tw.shield = { hp, max, attr, level, endMs, amStacks, iceStacks, fireBurn:{dmgPerSec, remainSec} }
+
+function _hoThuanAvailable(){
+  const hoc = (S.congPhapHocs||{}).ho_thuan;
+  return !!(hoc && hoc.learned);
+}
+
+// Cooldown đơn giản theo thời gian thực (60s) để tránh spam dựng khiên liên tục
+let _hoThuanCooldownUntil = 0;
+
+function _twResetShield(){
+  if(_tw) _tw.shield = null;
+  _hoThuanCooldownUntil = 0;
+}
+
+function _twUseHoThuan(){
+  if(!_tw || !_tw.active) return;
+  if(!_hoThuanAvailable()){
+    showNotif({icon:"🛡️", title:"Chưa Học Hộ Thuẫn", lines:["Hãy học công pháp Hộ Thuẫn trước!"], color:"#e87060", duration:2200});
+    return;
+  }
+  const now = Date.now();
+  if(now < _hoThuanCooldownUntil){
+    const left = Math.ceil((_hoThuanCooldownUntil-now)/1000);
+    _twLog(`<span style="color:#7a8090">🛡 Hộ Thuẫn còn hồi ${left}s.</span>`);
+    return;
+  }
+  const hoc = S.congPhapHocs.ho_thuan;
+  const info = HO_THUAN_ATTR_INFO[hoc.attr] || HO_THUAN_ATTR_INFO.Kim;
+  const level = hoThuanLevelFromExp(hoc.exp||0);
+  const baseShield = Math.floor((_tw.playerHpMax||S.hpmax||100) * 0.5);
+  const bonusShield = Math.floor(baseShield * (level.shieldBonus/100));
+  const shieldHp = baseShield + bonusShield;
+
+  _tw.shield = {
+    hp: shieldHp,
+    max: shieldHp,
+    attr: hoc.attr,
+    level: level.name,
+    endMs: now + level.duration*1000,
+    amStacks: 0,
+    iceStacks: 0,
+    fireBurn: null,
+  };
+  _hoThuanCooldownUntil = now + 60000; // hồi 60s
+  _twLog(`<span style="color:${info.color};font-weight:700;">🛡 ${info.emoji} Hộ Thuẫn (${level.name}) khởi động! +${fmt(shieldHp)} HP khiên, kéo dài ${level.duration}s.</span>`);
+  _twRenderShield();
+}
+
+function _twShieldActive(){
+  return !!(_tw && _tw.shield && _tw.shield.hp > 0 && Date.now() < _tw.shield.endMs);
+}
+
+// Hiển thị thanh khiên đè lên HP bar người chơi (chèn 1 div phụ nếu chưa có)
+function _twRenderShield(){
+  const wrap = document.getElementById("tower-shield-txt-wrap");
+  const txt  = document.getElementById("tower-shield-hp-txt");
+  if(!wrap || !txt) return;
+  if(_twShieldActive()){
+    const info = HO_THUAN_ATTR_INFO[_tw.shield.attr] || HO_THUAN_ATTR_INFO.Kim;
+    wrap.style.display = "";
+    txt.textContent = fmt(Math.max(0,_tw.shield.hp))+" / "+fmt(_tw.shield.max);
+    txt.style.color = info.color;
+  } else {
+    wrap.style.display = "none";
+  }
+}
+
+// Gọi từ _twMobStrike TRƯỚC khi trừ HP người chơi.
+// Trả về dmg đã được khiên xử lý (có thể đã giảm), và tự xử lý hiệu ứng phụ lên mob/người chơi.
+// dmg: sát thương gốc mob định gây ra (trước giáp, đã tính theo TOWER_ARMOR_RATIO ở nơi gọi)
+function _twApplyShieldOnIncomingDamage(rawDmg, mob){
+  if(!_twShieldActive()) return rawDmg;
+  const shield = _tw.shield;
+  const info = HO_THUAN_ATTR_INFO[shield.attr] || HO_THUAN_ATTR_INFO.Kim;
+  let dmgToPlayer = rawDmg;
+
+  switch(shield.attr){
+    case "Kim": {
+      // Phản 10% dame vào mob
+      const reflect = Math.max(1, Math.floor(rawDmg*0.10));
+      mob.hp = Math.max(0, mob.hp - reflect);
+      _twLog(`<span style="color:${info.color};">🛡 ${info.emoji} Hộ Thuẫn phản <b>${fmt(reflect)}</b> sát thương vào ${mob.name}!</span>`);
+      _twRenderEnemy();
+      break;
+    }
+    case "Mộc": {
+      // 10% dame biến thành HP người chơi
+      const heal = Math.max(1, Math.floor(rawDmg*0.10));
+      _tw.playerHp = Math.min(_tw.playerHpMax, _tw.playerHp + heal);
+      _twLog(`<span style="color:${info.color};">🛡 ${info.emoji} Hộ Thuẫn hóa <b>${fmt(heal)}</b> sát thương thành Sinh Lực!</span>`);
+      break;
+    }
+    case "Thủy": {
+      // Giảm 10% dame nhận vào
+      const reduced = Math.max(0, Math.floor(rawDmg*0.10));
+      dmgToPlayer = Math.max(1, rawDmg - reduced);
+      _twLog(`<span style="color:${info.color};">🛡 ${info.emoji} Hộ Thuẫn giảm <b>${fmt(reduced)}</b> sát thương!</span>`);
+      break;
+    }
+    case "Hỏa": {
+      // Thiêu đốt mob theo 10% dame, rải đều 1%/giây (1% dame gốc mỗi giây cho tới khi đủ 10%)
+      const totalBurn = Math.max(1, Math.floor(rawDmg*0.10));
+      const perSec = Math.max(1, Math.floor(rawDmg*0.01));
+      const burnSecs = Math.max(1, Math.round(totalBurn/perSec));
+      shield.fireBurn = shield.fireBurn || { dmgPerSec:0, remainSec:0 };
+      shield.fireBurn.dmgPerSec = perSec;
+      shield.fireBurn.remainSec = burnSecs;
+      _twLog(`<span style="color:${info.color};">🛡 ${info.emoji} Hộ Thuẫn gây thiêu đốt ${fmt(perSec)}/giây trong ${burnSecs}s lên ${mob.name}!</span>`);
+      break;
+    }
+    case "Thổ": {
+      // 10% dame biến thành +10% giáp bản thân (tích lũy, tạm thời trong trận)
+      const defGain = Math.max(1, Math.floor((S.def||0)*0.10));
+      S._twTempDefBonus = (S._twTempDefBonus||0) + defGain;
+      _twLog(`<span style="color:${info.color};">🛡 ${info.emoji} Hộ Thuẫn chuyển hóa sát thương thành <b>+${fmt(defGain)}</b> Giáp!</span>`);
+      break;
+    }
+    case "Lôi": {
+      // 10% dame biến thành 10% giảm AGI của mob (tạm thời, tích lũy trong trận hiện tại)
+      const agiReduce = Math.max(1, Math.floor((mob.agi||0)*0.10));
+      mob.agi = Math.max(1, mob.agi - agiReduce);
+      _twLog(`<span style="color:${info.color};">🛡 ${info.emoji} Hộ Thuẫn làm ${mob.name} giảm <b>${fmt(agiReduce)}</b> Tốc Độ!</span>`);
+      break;
+    }
+    case "Ám": {
+      // Giảm 10% dame, tích đủ 5 tầng thì phản 50% tổng dame đã giảm
+      const reduced = Math.max(0, Math.floor(rawDmg*0.10));
+      dmgToPlayer = Math.max(1, rawDmg - reduced);
+      shield.amStacks = (shield.amStacks||0) + 1;
+      shield._amAccum = (shield._amAccum||0) + reduced;
+      if(shield.amStacks >= 5){
+        const reflect = Math.max(1, Math.floor((shield._amAccum||0) * 0.5));
+        mob.hp = Math.max(0, mob.hp - reflect);
+        _twLog(`<span style="color:${info.color};">🛡 ${info.emoji} Hộ Thuẫn (Ám) tích đủ 5 tầng, phản <b>${fmt(reflect)}</b> sát thương vào ${mob.name}!</span>`);
+        _twRenderEnemy();
+        shield.amStacks = 0; shield._amAccum = 0;
+      } else {
+        _twLog(`<span style="color:${info.color};">🛡 ${info.emoji} Hộ Thuẫn (Ám) giảm <b>${fmt(reduced)}</b> sát thương — tầng ${shield.amStacks}/5.</span>`);
+      }
+      break;
+    }
+    case "Băng": {
+      // Giảm 10% dame, tích đủ 5 tầng thì đóng băng mob 5s
+      const reduced = Math.max(0, Math.floor(rawDmg*0.10));
+      dmgToPlayer = Math.max(1, rawDmg - reduced);
+      shield.iceStacks = (shield.iceStacks||0) + 1;
+      if(shield.iceStacks >= 5){
+        mob._frozenUntil = Date.now() + 5000;
+        _twLog(`<span style="color:${info.color};">🛡 ${info.emoji} Hộ Thuẫn (Băng) tích đủ 5 tầng — ${mob.name} bị đóng băng 5 giây!</span>`);
+        shield.iceStacks = 0;
+      } else {
+        _twLog(`<span style="color:${info.color};">🛡 ${info.emoji} Hộ Thuẫn (Băng) giảm <b>${fmt(reduced)}</b> sát thương — tầng ${shield.iceStacks}/5.</span>`);
+      }
+      break;
+    }
+  }
+
+  // Khiên hứng damage trước, người chơi chỉ chịu phần vượt quá khiên
+  let dmgAfterShield = dmgToPlayer;
+  if(shield.hp > 0){
+    if(shield.hp >= dmgToPlayer){
+      shield.hp -= dmgToPlayer;
+      dmgAfterShield = 0;
+    } else {
+      dmgAfterShield = dmgToPlayer - shield.hp;
+      shield.hp = 0;
+    }
+    if(shield.hp <= 0){
+      _twLog(`<span style="color:#7a8090;">🛡 Hộ Thuẫn đã vỡ!</span>`);
+      _tw.shield = null;
+    }
+  }
+  _twRenderShield();
+  return dmgAfterShield;
+}
+
+// Tick mỗi giây cho thiêu đốt Hỏa và hết hạn khiên theo thời gian — gọi từ vòng lặp mob hiện có
+function _twTickShieldDuration(){
+  if(!_tw || !_tw.shield) return;
+  const shield = _tw.shield;
+  // Hỏa: thiêu đốt mob mỗi giây nếu còn hạn
+  if(shield.fireBurn && shield.fireBurn.remainSec > 0){
+    const mob = _tw.mobs ? _tw.mobs[_tw.currentMob] : null;
+    if(mob && mob.hp > 0){
+      mob.hp = Math.max(0, mob.hp - shield.fireBurn.dmgPerSec);
+      _twLog(`<span style="color:#ff6a4a;">🔥 Thiêu đốt gây <b>${fmt(shield.fireBurn.dmgPerSec)}</b> sát thương lên ${mob.name}!</span>`);
+      _twRenderEnemy();
+      if(mob.hp<=0) _twOnMobDead();
+    }
+    shield.fireBurn.remainSec--;
+    if(shield.fireBurn.remainSec<=0) shield.fireBurn = null;
+  }
+  // Hết hạn khiên theo thời gian
+  if(Date.now() >= shield.endMs && shield.hp > 0){
+    _twLog(`<span style="color:#7a8090;">🛡 Hộ Thuẫn đã hết hiệu lực.</span>`);
+    _tw.shield = null;
+  }
+  _twRenderShield();
+}
+setInterval(_twTickShieldDuration, 1000);
+
+/* ===== NHẤT ĐAO — ÁP DỤNG TRONG COMBAT PHONG THẦN THÁP ===== */
+// _tw.channeling = { endMs, level, totalMs }  — null khi không tụ lực
+
+function _nhatDaoLearned(){
+  const hoc = (S.congPhapHocs||{}).nhat_dao;
+  return !!(hoc && hoc.learned);
+}
+function _nhatDaoAvailable(){
+  return _nhatDaoLearned() && S.sect === "Đao Tu";
+}
+function _twIsChanneling(){
+  return !!(_tw && _tw.channeling);
+}
+
+function _twResetChanneling(){
+  if(_tw) _tw.channeling = null;
+  const btn = document.getElementById("tower-btn-nhatdao");
+  if(btn) btn.textContent = "🗡 Nhất Đao";
+  _twUpdateLockUI();
+}
+
+// Cập nhật khóa/mở các nút Tấn Công & Auto theo trạng thái tụ lực
+function _twUpdateLockUI(){
+  const channeling = _twIsChanneling();
+  const btnAttack = document.getElementById("tower-btn-attack");
+  const btnAuto   = document.getElementById("tower-btn-auto");
+  if(btnAttack){
+    btnAttack.style.opacity = channeling ? "0.35" : "1";
+    btnAttack.style.pointerEvents = channeling ? "none" : "";
+  }
+  if(btnAuto){
+    btnAuto.style.opacity = channeling ? "0.35" : "1";
+    btnAuto.style.pointerEvents = channeling ? "none" : "";
+  }
+}
+
+function _twUseNhatDao(){
+  if(!_tw || !_tw.active) return;
+  if(_twIsChanneling()) return;
+  if(!_nhatDaoLearned()){
+    showNotif({icon:"🗡️", title:"Chưa Học Nhất Đao", lines:["Hãy học công pháp Nhất Đao trước!"], color:"#e87060", duration:2200});
+    return;
+  }
+  if(S.sect !== "Đao Tu"){
+    showNotif({icon:"⚠️", title:"Không Thể Vận Chuyển", lines:["Nhất Đao chỉ phù hợp với <b>Đao Tu</b>.",`Con đường hiện tại: <b>${S.sect||"—"}</b>`], color:"#e87060", duration:2800});
+    return;
+  }
+  const hoc = S.congPhapHocs.nhat_dao;
+  const level = nhatDaoLevelFromExp(hoc.exp||0);
+  const now = Date.now();
+  _tw.channeling = { endMs: now + level.channelSec*1000, totalMs: level.channelSec*1000, level: level };
+
+  // Tạm dừng Auto trong lúc tụ lực (không tắt cờ auto, chỉ ngưng nhịp đánh)
+  clearTimeout(_tw.playerTimer);
+  _tw.playerTimer = null;
+
+  _twLog(`<span style="color:#ff7060;font-weight:700;">🗡 Bắt đầu tụ lực Nhất Đao (${level.name})... ${level.channelSec}s</span>`);
+  _twUpdateLockUI();
+}
+
+// Tick mỗi 200ms để cập nhật đếm ngược + tự tung đòn khi hết giờ
+function _twTickChanneling(){
+  if(!_tw || !_tw.channeling) return;
+  const ch = _tw.channeling;
+  const now = Date.now();
+  const remainMs = Math.max(0, ch.endMs - now);
+  const btn = document.getElementById("tower-btn-nhatdao");
+  if(btn) btn.textContent = `🗡 Tụ Lực ${(remainMs/1000).toFixed(1)}s`;
+
+  if(remainMs <= 0){
+    _twUnleashNhatDao(ch.level);
+  }
+}
+setInterval(_twTickChanneling, 100);
+
+// Tung đòn toàn lực: biến toàn bộ Mana hiện có thành Str bổ sung cho 1 đòn duy nhất
+function _twUnleashNhatDao(level){
+  if(!_tw || !_tw.active){ _twResetChanneling(); return; }
+  const mob = _tw.mobs ? _tw.mobs[_tw.currentMob] : null;
+  _tw.channeling = null;
+
+  if(!mob || mob.hp<=0 || _tw.playerHp<=0){
+    _twResetChanneling();
+    return;
+  }
+
+  const manaSpent = S.mana || 0;
+  const strBonus  = Math.floor(manaSpent * (level.strBonusPct/100));
+  const totalStr  = (S.str||0) + strBonus;
+
+  const crit   = Math.random()*100 < (S.critRate||5);
+  const afterCrit = crit ? Math.floor(totalStr * (1 + (S.critDmg||50)/100)) : totalStr;
+  const dmg    = Math.max(1, Math.floor(afterCrit - (mob.def||0) * TOWER_ARMOR_RATIO));
+
+  S.mana = 0; // Toàn bộ Mana đã hóa thành lực đao
+
+  mob.hp = Math.max(0, mob.hp - dmg);
+  const critTag = crit ? `<span style="color:#ffd700;font-weight:700;"> [Chí Mạng!]</span>` : "";
+  _twLog(`<span style="color:#ff7060;font-weight:700;">🗡 NHẤT ĐAO! Tiêu ${fmt(manaSpent)} Mana → +${fmt(strBonus)} Str → gây <b>${fmt(dmg)}</b> sát thương${critTag} lên ${mob.name}!</span>`);
+  _twRenderEnemy();
+
+  _twResetChanneling();
+
+  if(mob.hp <= 0){
+    _twOnMobDead();
+  } else if(_tw.auto){
+    _twStartPlayerLoop();
+  }
+}
+
+/* ===== ẢNH KIẾM — ÁP DỤNG TRONG COMBAT PHONG THẦN THÁP ===== */
+// Không hồi chiêu — mỗi lần bấm tiêu mana và gây sát thương ngay lập tức
+
+function _anhKiemLearned(){
+  const hoc = (S.congPhapHocs||{}).anh_kiem;
+  return !!(hoc && hoc.learned);
+}
+function _anhKiemAvailable(){
+  return _anhKiemLearned() && S.sect === "Kiếm Tu";
+}
+
+function _twUseAnhKiem(){
+  if(!_tw || !_tw.active) return;
+  if(_twIsChanneling()) return; // Không dùng khi đang tụ lực Nhất Đao
+  if(!_anhKiemLearned()){
+    showNotif({icon:"⚡", title:"Chưa Học Ảnh Kiếm", lines:["Hãy học công pháp Ảnh Kiếm trước!"], color:"#5ab0ff", duration:2200});
+    return;
+  }
+  if(S.sect !== "Kiếm Tu"){
+    showNotif({icon:"⚠️", title:"Không Thể Vận Chuyển", lines:["Ảnh Kiếm chỉ phù hợp với <b>Kiếm Tu</b>.",`Con đường hiện tại: <b>${S.sect||"—"}</b>`], color:"#5ab0ff", duration:2800});
+    return;
+  }
+  const mob = _tw.mobs ? _tw.mobs[_tw.currentMob] : null;
+  if(!mob || mob.hp<=0 || _tw.playerHp<=0) return;
+
+  const hoc = S.congPhapHocs.anh_kiem;
+  const level = anhKiemLevelFromExp(hoc.exp||0);
+
+  // Kiểm tra đủ Mana
+  if((S.mana||0) < level.manaCost){
+    _twLog(`<span style="color:#3a5878;">⚡ Ảnh Kiếm: Không đủ Mana! Cần ${fmt(level.manaCost)}, hiện có ${fmt(S.mana||0)}.</span>`);
+    return;
+  }
+
+  // Tiêu Mana
+  S.mana = Math.max(0, (S.mana||0) - level.manaCost);
+
+  // Tính sát thương: STR + AGI + AGI × agiBonusPct%
+  const str    = S.str||0;
+  const agi    = S.agi||0;
+  const agiDmg = Math.floor(str + agi + agi * (level.agiBonusPct / 100));
+  const crit = Math.random()*100 < (S.critRate||5);
+  const afterCrit = crit ? Math.floor(agiDmg * (1 + (S.critDmg||50)/100)) : agiDmg;
+  const dmg = Math.max(1, Math.floor(afterCrit - (mob.def||0) * TOWER_ARMOR_RATIO));
+
+  mob.hp = Math.max(0, mob.hp - dmg);
+  const critTag = crit ? `<span style="color:#ffd700;font-weight:700;"> [Chí Mạng!]</span>` : "";
+  _twLog(`<span style="color:#5ab0ff;font-weight:700;">⚡ ẢNH KIẾM! STR ${fmt(str)} + AGI ${fmt(agi)} × ${level.agiBonusPct}% → gây <b>${fmt(dmg)}</b> sát thương${critTag} lên ${mob.name}! (−${fmt(level.manaCost)} Mana)</span>`);
+  _twRenderEnemy();
+  renderHUD();
+
+  if(mob.hp <= 0){
+    _twOnMobDead();
+  }
+}
+
 /* ===== INIT ===== */
 function init(){
   // Init title screen
@@ -14430,6 +15492,17 @@ function _twRenderPlayer(){
   if(hpBar) hpBar.style.width = pct+"%";
   if(stEl)  stEl.textContent = S.stageName||"—";
   if(nmEl)  nmEl.textContent = S.name||"Tu Sĩ";
+  // Nút Hộ Thuẫn chỉ hiện khi đã học công pháp này
+  const btnHt = document.getElementById("tower-btn-hothuan");
+  if(btnHt) btnHt.style.display = _hoThuanAvailable() ? "" : "none";
+  // Nút Nhất Đao hiện khi đã học (kể cả không đúng Đao Tu, để bấm vào còn báo lý do)
+  const btnNd = document.getElementById("tower-btn-nhatdao");
+  if(btnNd) btnNd.style.display = _nhatDaoLearned() ? "" : "none";
+  // Nút Ảnh Kiếm hiện khi đã học (kể cả không đúng Kiếm Tu)
+  const btnAk = document.getElementById("tower-btn-anhkiem");
+  if(btnAk) btnAk.style.display = _anhKiemLearned() ? "" : "none";
+  _twUpdateLockUI();
+  _twRenderShield();
 }
 
 function _twRenderFloorLabel(){
@@ -14495,9 +15568,23 @@ function _twMobStrike(){
   if(!mob || mob.hp<=0) return;
   if(_tw.playerHp<=0) return;
 
+  // Mob bị đóng băng (hiệu ứng Hộ Thuẫn - Băng) → bỏ lượt đánh
+  if(mob._frozenUntil && Date.now() < mob._frozenUntil){
+    _twLog(`<span style="color:#3ab8e0;">❄️ ${mob.name} đang bị đóng băng, không thể tấn công!</span>`);
+    return;
+  }
+
+  const effDef = (S.def||0) + (S._twTempDefBonus||0); // +Giáp tạm thời từ Hộ Thuẫn (Thổ)
   const crit   = Math.random()*100 < mob.critRate;
   const afterCrit = crit ? Math.floor(mob.str * (1 + mob.critDmg/100)) : mob.str;
-  const dmg    = Math.max(1, Math.floor(afterCrit - (S.def||0) * TOWER_ARMOR_RATIO));
+  let dmg    = Math.max(1, Math.floor(afterCrit - effDef * TOWER_ARMOR_RATIO));
+
+  // Áp dụng Hộ Thuẫn (khiên + hiệu ứng thuộc tính) trước khi trừ vào HP thật
+  dmg = _twApplyShieldOnIncomingDamage(dmg, mob);
+  if(dmg <= 0){
+    _twRenderPlayer();
+    return; // Khiên đã hứng hết sát thương, người chơi không mất HP lượt này
+  }
 
   const tier = _twGetTier(_tw.floor);
   const isBossFloor = (_tw.floor === tier.maxFloor);
@@ -14543,6 +15630,7 @@ function _twMobStrike(){
 // ── Vòng lặp tấn công của người chơi (chỉ chạy khi Auto bật) ──
 function _twPlayerLoop(){
   if(!_tw.active || !_tw.auto) return;
+  if(_twIsChanneling()) return; // Đang tụ lực Nhất Đao — bỏ lượt tự động
   _twPlayerStrike();
   if(_tw.active && _tw.auto){
     _tw.playerTimer = setTimeout(_twPlayerLoop, _twCalcAttackInterval(S.agi||0));
@@ -14719,6 +15807,7 @@ function _twStartFloor(floor){
   if(_tw.mobs.length>1) _twLog(`<span style="color:#ffaa60">⚠ ${_tw.mobs.length} con yêu thú xuất hiện!</span>`);
   _twLog(`👁 ${mob.isBoss?"👑 ":""}${mob.name} — STR:${fmt(mob.str)} DEF:${fmt(mob.def)} AGI:${fmt(mob.agi)} HP:${fmt(mob.hpmax)}`);
   _twLog(`⚔ Ngươi — STR:${fmt(S.str||0)} DEF:${fmt(S.def||0)} HP:${fmt(_tw.playerHp)} AGI:${fmt(S.agi||0)}`);
+  _twRenderShield();
 
   // Hide result overlay
   const resDiv = document.getElementById("tower-result");
@@ -14896,6 +15985,9 @@ function _towerSelectFloor(floor){
   _tw.playerHpMax = S.hpmax || 100;
   _tw.auto = true;
   _twStopLoops();
+  S._twTempDefBonus = 0;
+  _twResetShield();
+  _twResetChanneling();
   S.tower.floor = floor;
   _twStartFloor(floor);
 
@@ -14947,6 +16039,9 @@ function closeTower(){
   // Lưu HP về S
   S.hp = Math.max(0, Math.min(_tw.playerHp, _tw.playerHpMax));
   S.tower.floor = _tw.floor;
+  S._twTempDefBonus = 0;
+  _twResetShield();
+  _twResetChanneling();
   calcBuffs(); renderHUD(); saveGame();
   document.getElementById("tower-popup").style.display = "none";
   const resDiv = document.getElementById("tower-result");
@@ -14957,6 +16052,10 @@ function closeTower(){
 
 function _towerToggleAuto(){
   if(!_tw.active) return;
+  if(_twIsChanneling()){
+    _twLog(`<span style="color:#7a8090;">🗡 Đang tụ lực Nhất Đao, không thể bật/tắt Auto!</span>`);
+    return;
+  }
   _tw.auto = !_tw.auto;
   const btn = document.getElementById("tower-btn-auto");
   if(_tw.auto){
@@ -14971,6 +16070,10 @@ function _towerToggleAuto(){
 function _towerManualAttack(){
   if(!_tw.active) return;
   if(_tw.playerHp<=0) return;
+  if(_twIsChanneling()){
+    _twLog(`<span style="color:#7a8090;">🗡 Đang tụ lực Nhất Đao, không thể tấn công!</span>`);
+    return;
+  }
   _twPlayerStrike();
 }
 
@@ -15042,7 +16145,7 @@ function _tickEqRegen(){
     if(eqHpRegenTick >= 5){
       eqHpRegenTick = 0;
       if(S.hp < S.hpmax && (S.hp||0) > 0){
-        const heal = Math.max(1, Math.floor(S.hpmax * eqB.hpRegen / 100));
+        const heal = Math.max(1, Math.floor(eqB.hpRegen));
         S.hp = Math.min(S.hpmax, S.hp + heal);
         if(typeof _tw !== "undefined" && _tw.active){
           _tw.playerHp = Math.min(_tw.playerHpMax, _tw.playerHp + heal);
@@ -15062,7 +16165,7 @@ function _tickEqRegen(){
     if(eqManaRegenTick >= 5){
       eqManaRegenTick = 0;
       if(S.mana < S.manamax){
-        const mBonus = Math.max(1, Math.floor(S.manamax * eqB.manaRegen / 100));
+        const mBonus = Math.max(1, Math.floor(eqB.manaRegen));
         S.mana = Math.min(S.manamax, S.mana + mBonus);
         const fbMv = document.getElementById("fb-mana-v");
         const fbMb = document.getElementById("fb-mana-b");
@@ -15143,9 +16246,9 @@ function _showRegenPopup(type){
     const tramName = eqNon ? eqNon.name : null;
     const tramRegen = eqB.hpRegen || 0;
     const tramActive = tramRegen > 0 && S.hp < S.hpmax;
-    const tramHeal = tramRegen > 0 ? Math.max(1, Math.floor(S.hpmax * tramRegen / 100)) : 0;
+    const tramHeal = Math.max(0, Math.floor(tramRegen));
     rows += row("🎴", "Hồi HP Trang Bị",
-      tramRegen > 0 ? `+${fs(tramHeal)} HP (${tramRegen}%)` : "—",
+      tramRegen > 0 ? `+${fs(tramHeal)} HP` : "—",
       "mỗi 5 giây",
       "#c8a84a",
       tramActive,
@@ -15212,9 +16315,9 @@ function _showRegenPopup(type){
     // 2. Trang Bị
     const tramManaR = eqB.manaRegen || 0;
     const tramManaActive = tramManaR > 0 && S.mana < S.manamax;
-    const tramManaBonus = tramManaR > 0 ? Math.max(1, Math.floor(S.manamax * tramManaR / 100)) : 0;
+    const tramManaBonus = Math.max(0, Math.floor(tramManaR));
     rows += row("🎴", "Hồi Mana Trang Bị",
-      tramManaR > 0 ? `+${fs(tramManaBonus)} Mana (${tramManaR}%)` : "—",
+      tramManaR > 0 ? `+${fs(tramManaBonus)} Mana` : "—",
       "mỗi 5 giây",
       "#c8a84a",
       tramManaActive,
@@ -15257,7 +16360,7 @@ function _showRegenPopup(type){
 
   const pop = document.createElement("div");
   pop.id = "regen-detail-popup";
-  pop.style.cssText = "position:fixed;inset:0;z-index:3500;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.75);backdrop-filter:blur(4px);padding:16px;";
+  pop.style.cssText = "position:fixed;inset:0;z-index:3300;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.75);backdrop-filter:blur(4px);padding:16px;";
   pop.innerHTML = `
     <div style="width:100%;max-width:360px;background:rgba(8,6,2,.99);border:1.5px solid ${accentColor}44;border-radius:16px;overflow:hidden;box-shadow:0 0 50px rgba(0,0,0,.8);">
       <!-- Header -->
@@ -15292,7 +16395,7 @@ function _showNapDiemPopup(){
   if(old) old.remove();
   const pop = document.createElement("div");
   pop.id = "nap-diem-popup";
-  pop.style.cssText = "position:fixed;inset:0;z-index:3500;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.82);backdrop-filter:blur(4px);padding:16px;";
+  pop.style.cssText = "position:fixed;inset:0;z-index:3300;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.82);backdrop-filter:blur(4px);padding:16px;";
   pop.innerHTML = `
     <div style="width:100%;max-width:320px;background:rgba(8,6,2,.99);border:1.5px solid rgba(240,193,75,.4);border-radius:16px;overflow:hidden;box-shadow:0 0 50px rgba(0,0,0,.8);">
       <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border-bottom:1px solid rgba(240,193,75,.12);">
@@ -15326,6 +16429,9 @@ function _showNapDiemPopup(){
 
 return { 
   openTamPhapBookPopup, _learnTamPhapBook,
+  openCongPhapBookPopup, _learnCongPhapBookDispatch, _openHoThuanAttrChoice, _confirmLearnHoThuan, openHoThuanPopup,
+  _confirmLearnNhatDao, openNhatDaoPopup,
+  _confirmLearnAnhKiem, openAnhKiemPopup,
   buildCongPhapTreeHTML, onCongPhapBoxClick, onCongPhapComingSoon, showCongPhapRootInfo,
   openTamPhapPopup, openTamPhapComingSoon, openTamPhapTuLuyenPopup,
   doCamNhanLinhKhi, doNghiNgoi, _showAnisHudTutorial,
@@ -15439,7 +16545,7 @@ return {
   _uploadAvatar: _uploadAvatar,
   _confirmAvatar: _confirmAvatar,
   checkDie, _showDiePopup, _dieRevivePrompt, _dieDoRevive, _dieAccept,
-  openTower, closeTower, _towerToggleAuto, _towerManualAttack, _towerNextFloor, _towerRetry, _towerOpenDan, _towerCloseDan, _towerUseDan,
+  openTower, closeTower, _towerToggleAuto, _towerManualAttack, _towerNextFloor, _towerRetry, _towerOpenDan, _towerCloseDan, _towerUseDan, _twUseHoThuan, _twUseNhatDao, _twUseAnhKiem,
   openTowerSelectScreen, _towerSelectClose, _towerSelectFloor, _towerClaimReward, _towerRefreshFloatBtn,
   openInvSimpleDetail,
   openCharStatsPopup,
