@@ -22,7 +22,7 @@
 
 <script>
 // ★ ĐỔI SỐ NÀY MỖI KHI DEPLOY BẢN MỚI (phải khớp với sw.js) ★
-const APP_VERSION = '1.0.3';
+const APP_VERSION = '1.0.4';
 
 // ── DEBUG PANEL: thêm ?debug=1 vào URL để xem chẩn đoán ngay trên màn hình ──
 // (không cần DevTools — hữu ích để chẩn đoán trên điện thoại)
@@ -824,62 +824,65 @@ async function _doUpdate() {
   <!-- Combat area -->
   <div id="tower-combat-area" style="flex:1;display:flex;flex-direction:column;overflow:hidden;min-height:0;">
 
-    <!-- Enemy zone -->
-    <div id="tower-enemy-zone" style="flex:0 0 auto;padding:14px 16px 10px;text-align:center;background:linear-gradient(180deg,rgba(30,10,10,.6) 0%,transparent 100%);">
-      <div id="tower-combat-timer" style="font-size:10px;font-weight:700;color:#c8a84a;letter-spacing:1px;margin-bottom:4px;font-family:monospace;">⏱ 00:00</div>
-      <div id="tower-enemy-name" style="font-size:11px;font-weight:700;color:#e08080;letter-spacing:.8px;margin-bottom:6px;">—</div>
-      <div id="tower-enemy-rank" style="font-size:9px;color:#7a4030;margin-bottom:8px;">—</div>
+    <!-- Enemy zone (trên) -->
+    <div id="tower-enemy-zone" style="flex:0 0 auto;padding:18px 20px 14px;text-align:center;background:linear-gradient(180deg,rgba(30,10,10,.7) 0%,transparent 100%);">
+      <div id="tower-combat-timer" style="font-size:10px;font-weight:700;color:#c8a84a;letter-spacing:1px;margin-bottom:6px;font-family:monospace;">⏱ 00:00</div>
+      <div id="tower-enemy-name" style="font-size:13px;font-weight:700;color:#e08080;letter-spacing:.8px;margin-bottom:3px;">—</div>
+      <div id="tower-enemy-rank" style="font-size:9.5px;color:#7a4030;margin-bottom:10px;">—</div>
       <!-- Enemy HP bar -->
-      <div style="max-width:260px;margin:0 auto;">
-        <div style="display:flex;justify-content:space-between;font-size:9px;color:#7a4030;margin-bottom:3px;">
+      <div style="max-width:320px;margin:0 auto;">
+        <div style="display:flex;justify-content:space-between;font-size:9px;color:#7a4030;margin-bottom:4px;">
           <span>HP</span><span id="tower-enemy-hp-txt">0 / 0</span>
         </div>
-        <div style="height:7px;background:rgba(180,40,40,.15);border-radius:4px;overflow:hidden;border:1px solid rgba(180,40,40,.2);">
+        <div style="height:8px;background:rgba(180,40,40,.15);border-radius:4px;overflow:hidden;border:1px solid rgba(180,40,40,.2);">
           <div id="tower-enemy-hp-bar" style="height:100%;width:100%;background:linear-gradient(90deg,#7a1e1e,#e84545);border-radius:4px;transition:width .3s ease;"></div>
         </div>
       </div>
     </div>
 
-    <!-- Battle log -->
-    <div id="tower-log" style="flex:1;overflow-y:auto;padding:6px 14px;font-size:10.5px;line-height:1.8;color:#7a6840;min-height:0;"></div>
+    <!-- Battle log (thu nhỏ, cuộn được) -->
+    <div id="tower-log" style="flex:1;overflow-y:auto;padding:4px 14px;font-size:10px;line-height:1.75;color:#7a6840;min-height:0;"></div>
 
-    <!-- Player status -->
-    <div style="flex:0 0 auto;padding:8px 14px;border-top:1px solid rgba(201,168,76,.1);background:rgba(4,6,12,.7);">
-      <!-- Avatar + info row -->
-      <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;">
-        <!-- Avatar tròn -->
-        <div style="flex:0 0 auto;width:44px;height:44px;border-radius:50%;overflow:hidden;border:2px solid rgba(201,168,76,.45);box-shadow:0 0 8px rgba(201,168,76,.2);background:rgba(20,14,4,.9);">
-          <img id="tower-player-avatar" src="" alt="" style="width:100%;height:100%;object-fit:cover;object-position:top;display:block;">
+    <!-- Player zone (giữa-dưới) -->
+    <div style="flex:0 0 auto;padding:12px 20px 10px;border-top:1px solid rgba(201,168,76,.1);background:rgba(4,6,12,.8);display:flex;flex-direction:column;align-items:center;gap:8px;">
+
+      <!-- Avatar tròn căn giữa -->
+      <div style="width:64px;height:64px;border-radius:50%;overflow:hidden;border:2px solid rgba(201,168,76,.5);box-shadow:0 0 14px rgba(201,168,76,.18);background:rgba(20,14,4,.9);">
+        <img id="tower-player-avatar" src="" alt="" style="width:100%;height:100%;object-fit:cover;object-position:top;display:block;">
+      </div>
+
+      <!-- Tên + cảnh giới -->
+      <div style="text-align:center;">
+        <div style="font-size:11px;font-weight:700;color:#c8a84a;"><span id="tower-player-name">Tu Sĩ</span></div>
+        <div style="font-size:9px;color:#6a5028;margin-top:1px;"><span id="tower-player-stage">—</span></div>
+      </div>
+
+      <!-- HP bar người chơi -->
+      <div style="width:100%;max-width:320px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px;">
+          <span id="tower-shield-txt-wrap" style="display:none;font-size:9px;color:#80c8ff;">🛡 <span id="tower-shield-hp-txt" style="font-weight:700;">—</span></span>
+          <span style="font-size:9px;color:#7a6030;">HP: <span id="tower-player-hp-txt" style="color:#e84545;font-weight:700;">—</span></span>
         </div>
-        <!-- Tên + cảnh giới + HP -->
-        <div style="flex:1;min-width:0;">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px;">
-            <div style="font-size:10px;color:#c8a84a;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"><span id="tower-player-name">Tu Sĩ</span></div>
-            <div style="font-size:9px;color:#6a5028;white-space:nowrap;margin-left:6px;"><span id="tower-player-stage">—</span></div>
-          </div>
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px;">
-            <span id="tower-shield-txt-wrap" style="display:none;font-size:9px;color:#80c8ff;">🛡 <span id="tower-shield-hp-txt" style="font-weight:700;">—</span></span>
-            <span style="font-size:9px;color:#7a6030;">HP: <span id="tower-player-hp-txt" style="color:#e84545;font-weight:700;">—</span></span>
-          </div>
-          <div style="height:5px;background:rgba(232,69,69,.12);border-radius:3px;overflow:hidden;border:1px solid rgba(232,69,69,.15);">
-            <div id="tower-player-hp-bar" style="height:100%;width:100%;background:linear-gradient(90deg,#7a1e1e,#e84545);border-radius:3px;transition:width .4s ease;"></div>
-          </div>
+        <div style="height:7px;background:rgba(232,69,69,.12);border-radius:4px;overflow:hidden;border:1px solid rgba(232,69,69,.15);">
+          <div id="tower-player-hp-bar" style="height:100%;width:100%;background:linear-gradient(90deg,#7a1e1e,#e84545);border-radius:4px;transition:width .4s ease;"></div>
         </div>
       </div>
 
-      <!-- Action buttons -->
-      <div style="display:flex;gap:5px;margin-bottom:6px;">
+      <!-- Skill slots (7 ô) -->
+      <div id="tower-skill-slots" style="display:grid;grid-template-columns:repeat(7,1fr);gap:5px;width:100%;max-width:340px;">
+        ${buildCombatSkillSlotsHTML()}
+      </div>
+
+      <!-- Đan Dược -->
+      <div style="width:100%;max-width:320px;">
         <div onclick="G._towerOpenDan()" style="
-          flex:1;padding:7px 4px;border-radius:7px;text-align:center;font-size:10.5px;font-weight:700;
+          padding:8px;border-radius:8px;text-align:center;font-size:10.5px;font-weight:700;
           cursor:pointer;transition:all .15s;letter-spacing:.3px;
           background:rgba(80,160,220,.08);border:1px solid rgba(80,160,220,.25);color:#80c8ff;">
           💊 Đan Dược
         </div>
       </div>
-      <!-- Skill slots (7 ô chiêu thức) -->
-      <div id="tower-skill-slots" style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px;">
-        ${buildCombatSkillSlotsHTML()}
-      </div>
+
     </div>
   </div>
 
