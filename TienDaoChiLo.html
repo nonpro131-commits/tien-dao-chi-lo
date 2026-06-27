@@ -22,7 +22,7 @@
 
 <script>
 // ★ ĐỔI SỐ NÀY MỖI KHI DEPLOY BẢN MỚI (phải khớp với sw.js) ★
-const APP_VERSION = '1.0.7';
+const APP_VERSION = '1.0.8';
 
 // ── DEBUG PANEL: thêm ?debug=1 vào URL để xem chẩn đoán ngay trên màn hình ──
 // (không cần DevTools — hữu ích để chẩn đoán trên điện thoại)
@@ -849,13 +849,15 @@ async function _doUpdate() {
   <style>
   @keyframes twFloatUp {
     0%   { opacity:1; transform:translateY(0) scale(1); }
-    20%  { opacity:1; transform:translateY(-8px) scale(1.12); }
-    100% { opacity:0; transform:translateY(-52px) scale(0.85); }
+    15%  { opacity:1; transform:translateY(-6px) scale(1.1); }
+    60%  { opacity:1; transform:translateY(-36px) scale(0.95); }
+    100% { opacity:0; transform:translateY(-58px) scale(0.85); }
   }
   @keyframes twFloatUpBig {
     0%   { opacity:1; transform:translateY(0) scale(1.2); }
-    15%  { opacity:1; transform:translateY(-10px) scale(1.35); }
-    100% { opacity:0; transform:translateY(-62px) scale(0.9); }
+    12%  { opacity:1; transform:translateY(-8px) scale(1.38); }
+    60%  { opacity:1; transform:translateY(-42px) scale(1.0); }
+    100% { opacity:0; transform:translateY(-68px) scale(0.88); }
   }
   .tw-float-num {
     position:absolute;
@@ -863,13 +865,13 @@ async function _doUpdate() {
     font-weight:800;
     letter-spacing:.5px;
     text-shadow:0 1px 6px rgba(0,0,0,.9), 0 0 12px currentColor;
-    animation:twFloatUp 1.1s cubic-bezier(.2,.8,.4,1) forwards;
+    animation:twFloatUp 1.65s cubic-bezier(.15,.85,.35,1) forwards;
     white-space:nowrap;
     pointer-events:none;
     line-height:1;
   }
   .tw-float-num.crit {
-    animation:twFloatUpBig 1.15s cubic-bezier(.2,.8,.4,1) forwards;
+    animation:twFloatUpBig 1.75s cubic-bezier(.15,.85,.35,1) forwards;
   }
   </style>
 
@@ -885,14 +887,22 @@ async function _doUpdate() {
     <div style="font-size:10px;font-weight:700;color:#c8a84a;margin-bottom:1px;"><span id="tower-player-name">Tu Sĩ</span></div>
     <div style="font-size:8.5px;color:#5a4020;margin-bottom:5px;"><span id="tower-player-stage">—</span></div>
 
-    <!-- HP bar người chơi -->
+    <!-- HP + Mana bars -->
     <div id="tower-player-hp-zone" style="width:60%;max-width:280px;margin-bottom:10px;position:relative;">
+      <!-- HP -->
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px;">
         <span id="tower-shield-txt-wrap" style="display:none;font-size:8px;color:#80c8ff;">🛡 <span id="tower-shield-hp-txt" style="font-weight:700;">—</span></span>
         <span style="font-size:8px;color:#6a5028;">HP: <span id="tower-player-hp-txt" style="color:#e84545;font-weight:700;">—</span></span>
       </div>
-      <div style="height:7px;background:rgba(232,69,69,.13);border-radius:4px;overflow:hidden;border:1px solid rgba(232,69,69,.2);">
+      <div style="height:7px;background:rgba(232,69,69,.13);border-radius:4px;overflow:hidden;border:1px solid rgba(232,69,69,.2);margin-bottom:5px;">
         <div id="tower-player-hp-bar" style="height:100%;width:100%;background:linear-gradient(90deg,#8b1a1a,#e84545);border-radius:4px;transition:width .4s ease;"></div>
+      </div>
+      <!-- Mana -->
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px;">
+        <span style="font-size:8px;color:#3a5878;">Mana: <span id="tower-player-mana-txt" style="color:#5ab0ff;font-weight:700;">—</span></span>
+      </div>
+      <div style="height:5px;background:rgba(80,160,240,.1);border-radius:4px;overflow:hidden;border:1px solid rgba(80,160,240,.2);">
+        <div id="tower-player-mana-bar" style="height:100%;width:100%;background:linear-gradient(90deg,#1a3a6a,#5ab0ff);border-radius:4px;transition:width .4s ease;"></div>
       </div>
     </div>
 
@@ -1488,7 +1498,7 @@ function calcEquipmentBonuses(){
 function calcBuffMana(){
   calcMindSystem();
   const manaUnits = S.mana > 0 ? Math.floor(S.mana / 10) : 0;
-  S.bonusHP   = manaUnits * 10;
+  S.bonusHP   = manaUnits * 20;
   S.bonusStr  = manaUnits * 5;
   S.bonusDef  = manaUnits * 3;
   S.bonusAgi  = manaUnits * 1;
@@ -11144,6 +11154,9 @@ function loadGame(){ try{
   if(S.ageNguyenAnh === undefined) S.ageNguyenAnh = -1;
   if(!S.tower) S.tower = { floor:0, bestFloor:0, claimedRewards:[] };
   if(!Array.isArray(S.tower.claimedRewards)) S.tower.claimedRewards = [];
+  // Migration: đồng bộ rewardedFloor với bestFloor để save cũ không bị trao thưởng lại
+  if(S.tower.rewardedFloor === undefined) S.tower.rewardedFloor = S.tower.bestFloor || 0;
+  if(!S.tower.rewardedBoxFloors) S.tower.rewardedBoxFloors = {};
   // Migration: người chơi cũ có congPhapHocs nhưng chưa có congPhapOrder
   if(!Array.isArray(S.congPhapOrder) || S.congPhapOrder.length === 0){
     S.congPhapOrder = [];
@@ -12226,13 +12239,8 @@ function doCamNhanLinhKhi(){
   };
   const lcColor = LC_COLOR_MAP[lc] || "#d6b15f";
 
-  // Đóng screen trước khi hiện popup
+  // Đóng screen trước khi cập nhật
   closeScreen();
-
-  // Tạo popup kết quả giống đột phá
-  const popup = document.createElement("div");
-  popup.id = "cam-nhan-popup";
-  popup.style.cssText = "position:fixed;inset:0;z-index:3000;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.82);backdrop-filter:blur(6px);padding:20px;";
 
   if(thanhCong){
     // ── THÀNH CÔNG ──
@@ -12247,31 +12255,6 @@ function doCamNhanLinhKhi(){
     renderHUD();
 
     const stageColor = "#80d8ff";
-    popup.innerHTML = `
-      <div style="width:100%;max-width:340px;background:rgba(4,12,20,.99);border:2px solid rgba(80,180,255,.45);border-radius:16px;padding:28px 20px;text-align:center;box-shadow:0 0 60px rgba(80,180,255,.2);animation:cnPopIn .35s cubic-bezier(.16,1,.3,1);">
-        <style>
-          @keyframes cnPopIn{from{opacity:0;transform:scale(.88)}to{opacity:1;transform:scale(1)}}
-          @keyframes cnPulse{0%,100%{box-shadow:0 0 60px rgba(80,180,255,.2)}50%{box-shadow:0 0 100px rgba(80,180,255,.4)}}
-        </style>
-        <div style="font-size:40px;margin-bottom:12px;animation:cnPulse 2s ease-in-out infinite;">✦</div>
-        <div style="font-size:15px;font-weight:700;color:${stageColor};letter-spacing:1.5px;margin-bottom:8px;">Cảm Nhận Thành Công!</div>
-        <div style="font-size:11px;color:#5a8090;margin-bottom:14px;line-height:1.8;">
-          Linh khí thiên địa tuôn chảy vào kinh mạch —<br>
-          con đường tu tiên chính thức khai mở!
-        </div>
-        <div style="margin-bottom:16px;padding:10px 14px;background:rgba(80,180,255,.08);border:1px solid rgba(80,180,255,.25);border-radius:10px;">
-          <div style="font-size:13px;font-weight:700;color:${stageColor};margin-bottom:4px;">✦ ${S.stageName}</div>
-          <div style="font-size:10px;color:#5a8090;">Linh Căn: <b style="color:${lcColor}">${lc}${cap?" · "+cap:""}</b></div>
-          <div style="font-size:10px;color:#5a8090;margin-top:2px;">Linh Khí phục hồi đầy · Nhân Vật đã mở khóa</div>
-        </div>
-        <div onclick="document.getElementById('cam-nhan-popup').remove();G._showAnisHudTutorial();" style="
-          padding:11px 28px;background:rgba(80,180,255,.12);border:1px solid rgba(80,180,255,.4);
-          border-radius:10px;font-size:13px;font-weight:700;color:${stageColor};
-          cursor:pointer;letter-spacing:1px;display:inline-block;transition:all .2s;
-        " onmouseover="this.style.background='rgba(80,180,255,.24)'"
-           onmouseout="this.style.background='rgba(80,180,255,.12)'">Bước Vào Tu Đạo ✦</div>
-      </div>
-    `;
 
     showNotif({
       icon:"🌊",
@@ -12285,6 +12268,7 @@ function doCamNhanLinhKhi(){
       pulseColor: stageColor,
       duration: 4500
     });
+    G._showAnisHudTutorial();
 
   } else {
     // ── THẤT BẠI: trừ 20% HP ──
@@ -12294,32 +12278,6 @@ function doCamNhanLinhKhi(){
     if((S.hp||0) <= 0){ checkDie(); return; }
     const hpAfterPct = S.hpmax > 0 ? Math.floor(S.hp / S.hpmax * 100) : 0;
     const canRetry = (S.hp / S.hpmax) >= 0.80;
-    const rollDisp = roll.toFixed(1);
-    const retryNote = canRetry
-      ? `<div style="font-size:10px;color:#70a870;margin-top:4px;">HP vẫn đủ (≥80%) — có thể thử lại ngay.</div>`
-      : `<div style="font-size:10px;color:#e84545;margin-top:4px;">⚠ HP dưới 80% — cần dưỡng thương trước khi thử lại.</div>`;
-    popup.innerHTML = `
-      <div style="width:100%;max-width:340px;background:rgba(12,4,4,.99);border:2px solid rgba(180,60,60,.35);border-radius:16px;padding:28px 20px;text-align:center;box-shadow:0 0 40px rgba(180,60,60,.15);animation:cnPopIn .35s cubic-bezier(.16,1,.3,1);">
-        <style>@keyframes cnPopIn{from{opacity:0;transform:scale(.88)}to{opacity:1;transform:scale(1)}}</style>
-        <div style="font-size:40px;margin-bottom:12px;">💨</div>
-        <div style="font-size:15px;font-weight:700;color:#e08888;letter-spacing:1.5px;margin-bottom:8px;">Cảm Nhận Thất Bại</div>
-        <div style="font-size:11px;color:#7a4040;margin-bottom:14px;line-height:1.8;">
-          Linh khí thiên địa quá mong manh, kinh mạch<br>phản tấu gây tổn thương nội tạng!
-        </div>
-        <div style="margin-bottom:16px;padding:10px 14px;background:rgba(180,60,60,.06);border:1px solid rgba(180,60,60,.2);border-radius:10px;">
-          <div style="font-size:11px;color:#e84545;font-weight:700;margin-bottom:4px;">🩸 HP −${fmt(hpLoss)} (−20%) · Còn lại: ${hpAfterPct}%</div>
-          <div style="font-size:10px;color:#7a4040;">Roll: ${rollDisp} / cần dưới ${rate} — sai lệch ${(rollDisp - rate).toFixed(1)}%</div>
-          <div style="font-size:10px;color:#7a4040;margin-top:2px;">Linh Căn: <b style="color:${lcColor}">${lc}${cap?" · "+cap:""}</b> · Tỷ lệ: ${rate}%</div>
-          ${retryNote}
-        </div>
-        <div onclick="document.getElementById('cam-nhan-popup').remove()" style="
-          padding:11px 28px;background:rgba(180,60,60,.08);border:1px solid rgba(180,60,60,.3);
-          border-radius:10px;font-size:13px;font-weight:700;color:#e08888;
-          cursor:pointer;letter-spacing:1px;display:inline-block;transition:all .2s;
-        " onmouseover="this.style.background='rgba(180,60,60,.18)'"
-           onmouseout="this.style.background='rgba(180,60,60,.08)'">← Quay Lại</div>
-      </div>
-    `;
 
     showNotif({
       icon:"💨",
@@ -12333,9 +12291,6 @@ function doCamNhanLinhKhi(){
       duration:3500
     });
   }
-
-  popup.onclick = function(e){ if(e.target===popup) popup.remove(); };
-  document.body.appendChild(popup);
 }
 
 /* ===== TRANG BỊ KHỞI ĐẦU TÔNG MÔN ===== */
@@ -13251,14 +13206,35 @@ function _twResetVnq(){
 }
 
 // Gọi khi người chơi bấm nút "Vạn Ngã Quyền" trong combat — tung 1 đấm vào mob hiện tại
+let _vnqCooldownUntil = 0;
+
+function _twResetVnqCooldown(){
+  _vnqCooldownUntil = 0;
+}
+
 function _twUseVanNgaQuyen(){
   if(!_tw || !_tw.active) return;
   if(!_vanNgaQuyenLearned()){
     showNotif({icon:"👊", title:"Chưa Học Vạn Ngã Quyền", lines:["Hãy học công pháp trước!"], color:"#e87060", duration:2200});
     return;
   }
+  const _nowVnqCd = Date.now();
+  if(_nowVnqCd < _vnqCooldownUntil){
+    const left = Math.ceil((_vnqCooldownUntil-_nowVnqCd)/1000);
+    _twLog(`<span style="color:#7a8090">👊 Vạn Ngã Quyền còn hồi ${left}s.</span>`);
+    return;
+  }
   const mob = _tw.mobs ? _tw.mobs[_tw.currentMob] : null;
   if(!mob || mob.hp<=0 || _tw.playerHp<=0) return;
+
+  const vnqManaCost = Math.floor((S.manamax||0) * 0.03);
+  if((S.mana||0) < vnqManaCost){
+    _twLog(`<span style="color:#3a5878;">👊 Vạn Ngã Quyền: Không đủ Mana! Cần ${fmt(vnqManaCost)}, hiện có ${fmt(S.mana||0)}.</span>`);
+    return;
+  }
+  S.mana = Math.max(0, (S.mana||0) - vnqManaCost);
+  _vnqCooldownUntil = _nowVnqCd + 3000; // hồi 3s
+  renderHUD();
 
   const hoc = S.congPhapHocs.van_nga_quyen;
   const level = vanNgaQuyenLevelFromExp(hoc.exp||0);
@@ -13290,7 +13266,7 @@ function _twUseVanNgaQuyen(){
 
   mob.hp = Math.max(0, mob.hp - dmg);
   _twSpawnFloat(dmg, "enemy-dmg", crit);
-  _twLog(`<span style="color:${info.color};font-weight:700;">${info.emoji} Vạn Ngã Quyền! Gây <b>${fmt(dmg)}</b> sát thương${critTag} lên ${mob.name}!</span>`);
+  _twLog(`<span style="color:${info.color};font-weight:700;">${info.emoji} Vạn Ngã Quyền! Gây <b>${fmt(dmg)}</b> sát thương${critTag} lên ${mob.name}! (−${fmt(vnqManaCost)} Mana)</span>`);
   _twRenderEnemy();
 
   // Áp dụng hiệu ứng thuộc tính
@@ -13431,6 +13407,7 @@ setInterval(_twTickVnq, 1000);
 // Hàm reset khi sang tầng mới
 function _twResetVnqState(){
   if(_tw) { _tw.vnq = null; _tw.vnqShield = 0; }
+  _vnqCooldownUntil = 0;
 }
 
 /* ===== NGŨ HÀNH QUYẾT — HỌC VÀ PHÂN BỔ ĐIỂM ===== */
@@ -13718,8 +13695,11 @@ function _nhqLearned(){
   return !!_nhqGetHoc();
 }
 
+let _nhqCooldownUntil = 0;
+
 function _twResetNhq(){
   if(_tw) _tw.nhq = {};
+  _nhqCooldownUntil = 0;
 }
 
 // Kích hoạt 1 chiêu thức (gọi từ combat slot sub-buttons)
@@ -13733,12 +13713,26 @@ function _twUseNguHanhQuyet(attrKey){
     showNotif({icon:"⚠️", title:"Không Thể Vận Chuyển", lines:["Ngũ Hành Quyết chỉ phù hợp với <b>Pháp Tu</b>.",`Con đường hiện tại: <b>${S.sect||"—"}</b>`], color:"#c8a84a", duration:2800});
     return;
   }
+  const _nowNhqCd = Date.now();
+  if(_nowNhqCd < _nhqCooldownUntil){
+    const left = Math.ceil((_nhqCooldownUntil-_nowNhqCd)/1000);
+    _twLog(`<span style="color:#7a8090">☯ Ngũ Hành Quyết còn hồi ${left}s.</span>`);
+    return;
+  }
   const alloc = _nhqGetAlloc();
   const pts = alloc[attrKey] || 0;
   if(pts <= 0){
     showNotif({icon:"☯️", title:"Chưa Phân Bổ", lines:[`Chưa đầu tư điểm vào hành <b>${attrKey}</b>.`], color:"#e87060", duration:2000});
     return;
   }
+  const nhqManaCost = Math.floor((S.manamax||0) * 0.05);
+  if((S.mana||0) < nhqManaCost){
+    _twLog(`<span style="color:#3a5878;">☯ Ngũ Hành Quyết: Không đủ Mana! Cần ${fmt(nhqManaCost)}, hiện có ${fmt(S.mana||0)}.</span>`);
+    return;
+  }
+  S.mana = Math.max(0, (S.mana||0) - nhqManaCost);
+  _nhqCooldownUntil = _nowNhqCd + 5000; // hồi 5s
+  renderHUD();
   const def = NGU_HANH_ATTR[attrKey];
   const pct = _nhqCalcPct(attrKey, pts);
   const val = _nhqGetAttrValue(attrKey, pts);
@@ -13748,7 +13742,7 @@ function _twUseNguHanhQuyet(attrKey){
   if(def.type === "reflect"){
     // Kim: phản — cấp stacks, không hồi chiêu đặc biệt
     _tw.nhq.Kim = { active:true, stacks: val.stacks, pct: pct };
-    _twLog(`<span style="color:${def.color};font-weight:700;">${def.emoji} Kim Hành! Sẽ phản <b>${pct}%</b> sát thương nhận vào trong <b>${val.stacks}</b> đòn tiếp theo.</span>`);
+    _twLog(`<span style="color:${def.color};font-weight:700;">${def.emoji} Kim Hành! Sẽ phản <b>${pct}%</b> sát thương nhận vào trong <b>${val.stacks}</b> đòn tiếp theo. (−${fmt(nhqManaCost)} Mana)</span>`);
     _twRenderNhqSlots();
     return;
   }
@@ -13756,21 +13750,21 @@ function _twUseNguHanhQuyet(attrKey){
   const endMs = now + val.duration * 1000;
   if(def.type === "regen_time"){
     _tw.nhq.Mộc = { active:true, endMs, pct };
-    _twLog(`<span style="color:${def.color};font-weight:700;">${def.emoji} Mộc Hành! Hồi <b>${pct}%</b> mỗi lần bị đánh trong <b>${val.duration}s</b>.</span>`);
+    _twLog(`<span style="color:${def.color};font-weight:700;">${def.emoji} Mộc Hành! Hồi <b>${pct}%</b> mỗi lần bị đánh trong <b>${val.duration}s</b>. (−${fmt(nhqManaCost)} Mana)</span>`);
   } else if(def.type === "reduce_time"){
     _tw.nhq.Thủy = { active:true, endMs, pct };
-    _twLog(`<span style="color:${def.color};font-weight:700;">${def.emoji} Thủy Hành! Giảm <b>${pct}%</b> sát thương nhận vào trong <b>${val.duration}s</b>.</span>`);
+    _twLog(`<span style="color:${def.color};font-weight:700;">${def.emoji} Thủy Hành! Giảm <b>${pct}%</b> sát thương nhận vào trong <b>${val.duration}s</b>. (−${fmt(nhqManaCost)} Mana)</span>`);
   } else if(def.type === "fire_attack"){
     const mob = _tw.mobs ? _tw.mobs[_tw.currentMob] : null;
     if(!mob || mob.hp<=0){ _twLog(`<span style="color:#7a5030;">☯️ Không có mục tiêu để thiêu đốt.</span>`); return; }
     const burnDmgPerSec = Math.max(1, Math.floor((S.str||0) * pct / 100));
     // Không cộng dồn — ghi đè
     _tw.nhq.Hỏa = { active:true, endMs, pct, burnDmgPerSec };
-    _twLog(`<span style="color:${def.color};font-weight:700;">${def.emoji} Hỏa Hành! Thiêu đốt <b>${Math.round(burnDmgPerSec)}/s</b> lên ${mob.name} trong <b>${val.duration}s</b>!</span>`);
+    _twLog(`<span style="color:${def.color};font-weight:700;">${def.emoji} Hỏa Hành! Thiêu đốt <b>${Math.round(burnDmgPerSec)}/s</b> lên ${mob.name} trong <b>${val.duration}s</b>! (−${fmt(nhqManaCost)} Mana)</span>`);
   } else if(def.type === "shield_time"){
     const shieldHp = Math.max(1, Math.floor((_tw.playerHpMax||S.hpmax||100) * pct / 100));
     _tw.nhq.Thổ = { active:true, endMs, pct, hp: shieldHp, max: shieldHp };
-    _twLog(`<span style="color:${def.color};font-weight:700;">${def.emoji} Thổ Hành! Tạo khiên <b>${Math.round(shieldHp).toLocaleString()}</b> HP trong <b>${val.duration}s</b>.</span>`);
+    _twLog(`<span style="color:${def.color};font-weight:700;">${def.emoji} Thổ Hành! Tạo khiên <b>${Math.round(shieldHp).toLocaleString()}</b> HP trong <b>${val.duration}s</b>. (−${fmt(nhqManaCost)} Mana)</span>`);
   }
   _twRenderNhqSlots();
 }
@@ -14094,7 +14088,7 @@ function _hoThuanAvailable(){
   return !!(hoc && hoc.learned);
 }
 
-// Cooldown đơn giản theo thời gian thực (60s) để tránh spam dựng khiên liên tục
+// Cooldown đơn giản theo thời gian thực (40s) để tránh spam dựng khiên liên tục
 let _hoThuanCooldownUntil = 0;
 
 function _twResetShield(){
@@ -14114,12 +14108,21 @@ function _twUseHoThuan(){
     _twLog(`<span style="color:#7a8090">🛡 Hộ Thuẫn còn hồi ${left}s.</span>`);
     return;
   }
+  const manaCost = Math.floor((S.manamax||0) * 0.25);
+  if((S.mana||0) < manaCost){
+    _twLog(`<span style="color:#3a5878;">🛡 Hộ Thuẫn: Không đủ Mana! Cần ${fmt(manaCost)}, hiện có ${fmt(S.mana||0)}.</span>`);
+    return;
+  }
+
   const hoc = S.congPhapHocs.ho_thuan;
   const info = HO_THUAN_ATTR_INFO[hoc.attr] || HO_THUAN_ATTR_INFO.Kim;
   const level = hoThuanLevelFromExp(hoc.exp||0);
   const baseShield = Math.floor((_tw.playerHpMax||S.hpmax||100) * 0.5);
   const bonusShield = Math.floor(baseShield * (level.shieldBonus/100));
   const shieldHp = baseShield + bonusShield;
+
+  // Tiêu Mana
+  S.mana = Math.max(0, (S.mana||0) - manaCost);
 
   _tw.shield = {
     hp: shieldHp,
@@ -14131,9 +14134,10 @@ function _twUseHoThuan(){
     iceStacks: 0,
     fireBurn: null,
   };
-  _hoThuanCooldownUntil = now + 60000; // hồi 60s
-  _twLog(`<span style="color:${info.color};font-weight:700;">🛡 ${info.emoji} Hộ Thuẫn (${level.name}) khởi động! +${fmt(shieldHp)} HP khiên, kéo dài ${level.duration}s.</span>`);
+  _hoThuanCooldownUntil = now + 40000; // hồi 40s
+  _twLog(`<span style="color:${info.color};font-weight:700;">🛡 ${info.emoji} Hộ Thuẫn (${level.name}) khởi động! +${fmt(shieldHp)} HP khiên, kéo dài ${level.duration}s. (−${fmt(manaCost)} Mana)</span>`);
   _twRenderShield();
+  renderHUD();
 }
 
 function _twShieldActive(){
@@ -14399,7 +14403,13 @@ function _twUnleashNhatDao(level){
 }
 
 /* ===== ẢNH KIẾM — ÁP DỤNG TRONG COMBAT PHONG THẦN THÁP ===== */
-// Không hồi chiêu — mỗi lần bấm tiêu mana và gây sát thương ngay lập tức
+// Hồi chiêu 3 giây — mỗi lần bấm tiêu mana và gây sát thương ngay lập tức
+
+let _anhKiemCooldownUntil = 0;
+
+function _twResetAnhKiemCooldown(){
+  _anhKiemCooldownUntil = 0;
+}
 
 function _anhKiemLearned(){
   const hoc = (S.congPhapHocs||{}).anh_kiem;
@@ -14420,6 +14430,12 @@ function _twUseAnhKiem(){
     showNotif({icon:"⚠️", title:"Không Thể Vận Chuyển", lines:["Ảnh Kiếm chỉ phù hợp với <b>Kiếm Tu</b>.",`Con đường hiện tại: <b>${S.sect||"—"}</b>`], color:"#5ab0ff", duration:2800});
     return;
   }
+  const _nowAk = Date.now();
+  if(_nowAk < _anhKiemCooldownUntil){
+    const left = Math.ceil((_anhKiemCooldownUntil-_nowAk)/1000);
+    _twLog(`<span style="color:#7a8090">⚡ Ảnh Kiếm còn hồi ${left}s.</span>`);
+    return;
+  }
   const mob = _tw.mobs ? _tw.mobs[_tw.currentMob] : null;
   if(!mob || mob.hp<=0 || _tw.playerHp<=0) return;
 
@@ -14434,6 +14450,7 @@ function _twUseAnhKiem(){
 
   // Tiêu Mana
   S.mana = Math.max(0, (S.mana||0) - level.manaCost);
+  _anhKiemCooldownUntil = _nowAk + 3000; // hồi 3s
 
   // Tính sát thương: STR + AGI + AGI × agiBonusPct%
   const str    = S.str||0;
@@ -14898,16 +14915,24 @@ function _twRenderEnemy(){
 
 function _twRenderPlayer(){
   const pct = _tw.playerHpMax>0 ? Math.max(0,_tw.playerHp/_tw.playerHpMax*100) : 0;
-  const hpTxt = document.getElementById("tower-player-hp-txt");
-  const hpBar = document.getElementById("tower-player-hp-bar");
-  const stEl  = document.getElementById("tower-player-stage");
-  const nmEl  = document.getElementById("tower-player-name");
-  const avEl  = document.getElementById("tower-player-avatar");
+  const hpTxt  = document.getElementById("tower-player-hp-txt");
+  const hpBar  = document.getElementById("tower-player-hp-bar");
+  const stEl   = document.getElementById("tower-player-stage");
+  const nmEl   = document.getElementById("tower-player-name");
+  const avEl   = document.getElementById("tower-player-avatar");
+  const manaTxt = document.getElementById("tower-player-mana-txt");
+  const manaBar = document.getElementById("tower-player-mana-bar");
   if(hpTxt) hpTxt.textContent = fmt(Math.max(0,_tw.playerHp))+" / "+fmt(_tw.playerHpMax);
   if(hpBar) hpBar.style.width = pct+"%";
   if(stEl)  stEl.textContent = S.stageName||"—";
   if(nmEl)  nmEl.textContent = S.name||"Tu Sĩ";
   if(avEl)  avEl.src = S.avatar||"./avatar1.jpg";
+  // Mana
+  const mana    = S.mana || 0;
+  const manaMax = S.manamax || 1;
+  const manaPct = Math.min(100, mana / manaMax * 100);
+  if(manaTxt) manaTxt.textContent = fmt(mana)+" / "+fmt(manaMax);
+  if(manaBar) manaBar.style.width = manaPct+"%";
   // Render 7 ô chiêu thức theo danh sách đã trang bị
   _twRenderSkillSlots();
   _twUpdateLockUI();
@@ -15086,7 +15111,13 @@ function _twStopLoops(){
 
 // ── Mob chết ──
 function _twOnMobDead(){
+  // Guard: tránh gọi nhiều lần khi nhiều nguồn sát thương cùng hạ mob 1 tick
+  if(!_tw.active) return;
   const mob = _tw.mobs[_tw.currentMob];
+  if(!mob) return;
+  // Đảm bảo mob thực sự chết (HP = 0), tránh race condition
+  if(mob.hp > 0) return;
+
   _twLog(`✦ <b style="color:#70e880">${mob.name} đã bị tiêu diệt!</b>`);
 
   // Còn mob tiếp theo trong tầng không?
@@ -15100,6 +15131,9 @@ function _twOnMobDead(){
   }
 
   // Hết toàn bộ mob → thắng tầng
+  // Đánh dấu inactive NGAY để các tick burn/reflect đang pending không gọi lại
+  _tw.active = false;
+  _twStopLoops();
   _twOnFloorClear();
 }
 
@@ -15140,18 +15174,17 @@ function _twOnFloorClear(){
   const nextTier = _twGetTier(Math.min(nextFloor, maxFloor));
   const nextIsBoss = (nextFloor === nextTier.maxFloor);
 
-  // Khi đang Auto: tầng thường, tầng kế tiếp không phải boss và còn dữ liệu → tự động đi tiếp, không dừng lại hỏi
-  // Khi đánh tay (auto OFF): luôn dừng lại để người chơi tự chọn Lên Tầng hay Thoát Tháp
+  // Khi đang Auto: tầng thường, tầng kế tiếp không phải boss và còn dữ liệu → tự động đi tiếp
   if(_tw.auto && !isBoss && !nextIsBoss && nextFloor <= maxFloor){
     S.tower.floor = nextFloor;
     saveGame();
+    // active được set lại bên trong _twStartFloor
     _twStartFloor(nextFloor);
     return;
   }
 
   // Còn lại: vừa hạ boss, hoặc tầng kế tiếp là boss, hoặc đã hết dữ liệu → dừng và hỏi người chơi
-  _twStopLoops();
-  _tw.active = false;
+  // (_tw.active đã = false và loops đã dừng từ _twOnMobDead)
 
   const resBox = document.getElementById("tower-result-box");
   const resDiv = document.getElementById("tower-result");
@@ -15290,6 +15323,9 @@ function _twFloorLsRange(floor){
 function _twGiveFloorLsHa(floor){
   const isBoss = (floor === _twGetTier(floor).maxFloor);
   if(isBoss) return 0;
+  // Chỉ thưởng nếu là tầng MỚI hơn kỷ lục (tránh farm thưởng tầng cũ)
+  if(floor <= (S.tower.rewardedFloor||0)) return 0;
+  S.tower.rewardedFloor = floor;
   const [min, max] = _twFloorLsRange(floor);
   const earn = Math.floor(Math.random() * (max - min + 1)) + min;
   S.tower.pendingLs = (S.tower.pendingLs||0) + earn;
@@ -15307,6 +15343,10 @@ function _twFloorBoxIsBoss(floor){
 
 // Tích lũy số hộp quà (chưa trao ngay — đợi bấm Nhận Thưởng)
 function _twGiveFloorBox(floor){
+  // Chỉ trao hộp quà cho tầng MỚI (chưa từng nhận)
+  if(!S.tower.rewardedBoxFloors) S.tower.rewardedBoxFloors = {};
+  if(S.tower.rewardedBoxFloors[floor]) return;
+  S.tower.rewardedBoxFloors[floor] = true;
   const isBoss = _twFloorBoxIsBoss(floor);
   S.tower.pendingBoxes = S.tower.pendingBoxes || {normal:0, boss:0};
   if(isBoss) S.tower.pendingBoxes.boss++;
@@ -15463,6 +15503,8 @@ function _towerSelectFloor(floor){
   _twResetShield();
   _twResetChanneling();
   _twResetNhq();
+  _twResetAnhKiemCooldown();
+  _twResetVnqCooldown();
   _twStartFloor(floor);
 
   const btn = document.getElementById("tower-btn-auto");
@@ -15557,6 +15599,8 @@ function closeTower(){
   _twResetShield();
   _twResetChanneling();
   _twResetNhq();
+  _twResetAnhKiemCooldown();
+  _twResetVnqCooldown();
   calcBuffs(); renderHUD(); saveGame();
   document.getElementById("tower-popup").style.display = "none";
   const resDiv = document.getElementById("tower-result");
