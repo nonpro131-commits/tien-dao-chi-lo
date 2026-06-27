@@ -22,7 +22,7 @@
 
 <script>
 // ★ ĐỔI SỐ NÀY MỖI KHI DEPLOY BẢN MỚI (phải khớp với sw.js) ★
-const APP_VERSION = '1.0.5';
+const APP_VERSION = '1.0.6';
 
 // ── DEBUG PANEL: thêm ?debug=1 vào URL để xem chẩn đoán ngay trên màn hình ──
 // (không cần DevTools — hữu ích để chẩn đoán trên điện thoại)
@@ -797,87 +797,89 @@ async function _doUpdate() {
   </div>
 </div>
 
-<div id="tower-popup" style="display:none;position:fixed;inset:0;z-index:2800;background:#06080e;overflow:hidden;">
+<div id="tower-popup" style="display:none;position:fixed;inset:0;z-index:2800;background:#0d0f14;overflow:hidden;">
 
   <!-- Nút X góc trên phải -->
-  <div onclick="G.closeTower()" style="position:absolute;top:12px;right:12px;z-index:5;width:32px;height:32px;display:flex;align-items:center;justify-content:center;background:rgba(180,40,40,.18);border:1.5px solid rgba(220,60,60,.5);border-radius:8px;color:#e84545;font-size:14px;cursor:pointer;">✕</div>
+  <div onclick="G.closeTower()" style="position:absolute;top:14px;right:14px;z-index:10;width:34px;height:34px;display:flex;align-items:center;justify-content:center;background:rgba(180,40,40,.25);border:1.5px solid rgba(220,60,60,.55);border-radius:8px;color:#e84545;font-size:15px;cursor:pointer;font-weight:700;">✕</div>
 
-  <!-- Cột phải: Auto + Đan Dược -->
-  <div style="position:absolute;top:54px;right:12px;z-index:5;display:flex;flex-direction:column;gap:8px;width:80px;">
+  <!-- Auto + Đan Dược: dọc, sát dưới nút X bên phải -->
+  <div style="position:absolute;top:58px;right:14px;z-index:10;display:flex;flex-direction:column;gap:7px;width:76px;">
     <div id="tower-btn-auto" onclick="G._towerToggleAuto()" style="
-      padding:9px 4px;border-radius:9px;text-align:center;font-size:10.5px;font-weight:700;
-      cursor:pointer;transition:all .15s;
-      background:rgba(60,160,80,.12);border:1.5px solid rgba(60,160,80,.35);color:#70e880;">
+      padding:9px 6px;border-radius:8px;text-align:center;font-size:10px;font-weight:700;
+      cursor:pointer;transition:all .18s;letter-spacing:.2px;
+      background:rgba(60,160,80,.13);border:1.5px solid rgba(60,160,80,.38);color:#70e880;">
       ▶ Auto
     </div>
     <div onclick="G._towerOpenDan()" style="
-      padding:9px 4px;border-radius:9px;text-align:center;font-size:10.5px;font-weight:700;
-      cursor:pointer;transition:all .15s;
-      background:rgba(80,160,220,.08);border:1.5px solid rgba(80,160,220,.3);color:#80c8ff;">
+      padding:9px 6px;border-radius:8px;text-align:center;font-size:10px;font-weight:700;
+      cursor:pointer;transition:all .18s;
+      background:rgba(80,160,220,.1);border:1.5px solid rgba(80,160,220,.32);color:#80c8ff;">
       💊 Đan Dược
     </div>
   </div>
 
   <!-- Góc trên trái: tầng + kỷ lục -->
-  <div style="position:absolute;top:12px;left:12px;z-index:5;">
-    <div style="display:flex;align-items:center;gap:6px;margin-bottom:2px;">
-      <span style="font-size:14px;">🗼</span>
-      <span id="tower-floor-label" style="font-size:10px;font-weight:700;color:#f0d98c;letter-spacing:.5px;">Tầng 1</span>
+  <div style="position:absolute;top:14px;left:14px;z-index:10;">
+    <div style="display:flex;align-items:center;gap:5px;">
+      <span style="font-size:13px;">🗼</span>
+      <span id="tower-floor-label" style="font-size:10px;font-weight:700;color:#f0d98c;letter-spacing:.4px;">Tầng 1</span>
     </div>
-    <div style="font-size:8.5px;color:#5a4020;">Kỷ lục: tầng <span id="tower-best-num" style="color:#f0c14b;font-weight:700;">0</span></div>
+    <div style="font-size:8px;color:#5a4020;margin-top:2px;">Kỷ lục: tầng <span id="tower-best-num" style="color:#c8a84a;font-weight:700;">0</span></div>
   </div>
 
-  <!-- Vùng quái: tên + cảnh giới + HP — góc trái, bên dưới tầng -->
-  <div id="tower-enemy-zone" style="position:absolute;top:58px;left:12px;right:104px;z-index:5;">
-    <div id="tower-combat-timer" style="font-size:9px;color:#7a6030;font-family:monospace;margin-bottom:4px;">⏱ 00:00</div>
-    <div id="tower-enemy-name" style="font-size:12px;font-weight:700;color:#e08080;letter-spacing:.5px;margin-bottom:2px;">—</div>
-    <div id="tower-enemy-rank" style="font-size:9px;color:#7a4030;margin-bottom:6px;">—</div>
-    <div style="display:flex;justify-content:space-between;font-size:8.5px;color:#7a4030;margin-bottom:3px;">
+  <!-- QUÁI VẬT: trên giữa -->
+  <div id="tower-enemy-zone" style="position:absolute;top:14px;left:50%;transform:translateX(-50%);z-index:10;width:54%;text-align:center;">
+    <div id="tower-enemy-name" style="font-size:11.5px;font-weight:700;color:#e08080;letter-spacing:.5px;margin-bottom:1px;">—</div>
+    <div id="tower-enemy-rank" style="font-size:8.5px;color:#7a4030;margin-bottom:5px;">—</div>
+    <div style="display:flex;justify-content:space-between;font-size:8px;color:#7a4030;margin-bottom:3px;">
       <span>HP</span><span id="tower-enemy-hp-txt">0 / 0</span>
     </div>
-    <div style="height:7px;background:rgba(180,40,40,.15);border-radius:4px;overflow:hidden;border:1px solid rgba(180,40,40,.2);">
-      <div id="tower-enemy-hp-bar" style="height:100%;width:100%;background:linear-gradient(90deg,#7a1e1e,#e84545);border-radius:4px;transition:width .3s ease;"></div>
+    <div style="height:7px;background:rgba(180,40,40,.18);border-radius:4px;overflow:hidden;border:1px solid rgba(180,40,40,.25);">
+      <div id="tower-enemy-hp-bar" style="height:100%;width:100%;background:linear-gradient(90deg,#8b1a1a,#e84545);border-radius:4px;transition:width .3s ease;"></div>
     </div>
+    <div id="tower-combat-timer" style="font-size:8px;color:#5a4828;font-family:monospace;margin-top:4px;">⏱ 00:00</div>
   </div>
 
   <!-- Battle log (giữa màn hình, trong suốt) -->
-  <div id="tower-log" style="position:absolute;top:180px;bottom:180px;left:0;right:0;overflow-y:auto;padding:6px 16px;font-size:10px;line-height:1.8;color:#7a6840;"></div>
+  <div id="tower-log" style="position:absolute;top:110px;bottom:190px;left:0;right:100px;overflow-y:auto;padding:4px 14px 4px 14px;font-size:9.5px;line-height:1.75;color:#6a5838;"></div>
 
-  <!-- Vùng người chơi: căn giữa dưới -->
-  <div style="position:absolute;bottom:0;left:0;right:0;z-index:5;padding:10px 16px 14px;background:linear-gradient(0deg,rgba(4,6,12,1) 70%,transparent 100%);">
+  <!-- NGƯỜI CHƠI: dưới giữa -->
+  <div style="position:absolute;bottom:0;left:0;right:0;z-index:10;display:flex;flex-direction:column;align-items:center;padding:0 14px 12px;">
 
-    <!-- Avatar căn giữa + tên + HP -->
-    <div style="display:flex;flex-direction:column;align-items:center;margin-bottom:8px;">
-      <div style="width:52px;height:52px;border-radius:50%;overflow:hidden;border:2px solid rgba(201,168,76,.5);box-shadow:0 0 10px rgba(201,168,76,.18);background:rgba(20,14,4,.9);margin-bottom:5px;">
-        <img id="tower-player-avatar" src="" alt="" style="width:100%;height:100%;object-fit:cover;object-position:top;display:block;">
+    <!-- Avatar tròn -->
+    <div style="width:54px;height:54px;border-radius:50%;overflow:hidden;border:2px solid rgba(201,168,76,.48);background:rgba(16,12,4,.95);margin-bottom:5px;box-shadow:0 0 0 3px rgba(201,168,76,.08);">
+      <img id="tower-player-avatar" src="" alt="" style="width:100%;height:100%;object-fit:cover;object-position:top;display:block;">
+    </div>
+
+    <!-- Tên + cảnh giới -->
+    <div style="font-size:10px;font-weight:700;color:#c8a84a;margin-bottom:1px;"><span id="tower-player-name">Tu Sĩ</span></div>
+    <div style="font-size:8.5px;color:#5a4020;margin-bottom:5px;"><span id="tower-player-stage">—</span></div>
+
+    <!-- HP bar người chơi -->
+    <div style="width:60%;max-width:280px;margin-bottom:10px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px;">
+        <span id="tower-shield-txt-wrap" style="display:none;font-size:8px;color:#80c8ff;">🛡 <span id="tower-shield-hp-txt" style="font-weight:700;">—</span></span>
+        <span style="font-size:8px;color:#6a5028;">HP: <span id="tower-player-hp-txt" style="color:#e84545;font-weight:700;">—</span></span>
       </div>
-      <div style="font-size:10.5px;font-weight:700;color:#c8a84a;margin-bottom:1px;"><span id="tower-player-name">Tu Sĩ</span></div>
-      <div style="font-size:8.5px;color:#6a5028;margin-bottom:5px;"><span id="tower-player-stage">—</span></div>
-      <div style="width:100%;max-width:300px;">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px;">
-          <span id="tower-shield-txt-wrap" style="display:none;font-size:8.5px;color:#80c8ff;">🛡 <span id="tower-shield-hp-txt" style="font-weight:700;">—</span></span>
-          <span style="font-size:8.5px;color:#7a6030;">HP: <span id="tower-player-hp-txt" style="color:#e84545;font-weight:700;">—</span></span>
-        </div>
-        <div style="height:6px;background:rgba(232,69,69,.12);border-radius:3px;overflow:hidden;border:1px solid rgba(232,69,69,.18);">
-          <div id="tower-player-hp-bar" style="height:100%;width:100%;background:linear-gradient(90deg,#7a1e1e,#e84545);border-radius:3px;transition:width .4s ease;"></div>
-        </div>
+      <div style="height:7px;background:rgba(232,69,69,.13);border-radius:4px;overflow:hidden;border:1px solid rgba(232,69,69,.2);">
+        <div id="tower-player-hp-bar" style="height:100%;width:100%;background:linear-gradient(90deg,#8b1a1a,#e84545);border-radius:4px;transition:width .4s ease;"></div>
       </div>
     </div>
 
-    <!-- Skill slots (7 ô) -->
-    <div id="tower-skill-slots" style="display:grid;grid-template-columns:repeat(7,1fr);gap:5px;">
+    <!-- 7 ô skill -->
+    <div id="tower-skill-slots" style="display:grid;grid-template-columns:repeat(7,1fr);gap:5px;width:100%;max-width:380px;">
       ${buildCombatSkillSlotsHTML()}
     </div>
 
   </div>
 
   <!-- Result overlay -->
-  <div id="tower-result" style="display:none;position:absolute;inset:0;z-index:10;background:rgba(0,0,0,.85);backdrop-filter:blur(4px);align-items:center;justify-content:center;padding:20px;">
+  <div id="tower-result" style="display:none;position:absolute;inset:0;z-index:20;background:rgba(0,0,0,.85);backdrop-filter:blur(4px);align-items:center;justify-content:center;padding:20px;">
     <div id="tower-result-box" style="width:100%;max-width:280px;background:rgba(8,6,2,.99);border-radius:14px;padding:24px 20px;text-align:center;"></div>
   </div>
 
   <!-- Dan duoc quick panel -->
-  <div id="tower-dan-panel" style="display:none;position:absolute;bottom:0;left:0;right:0;z-index:9;background:rgba(4,6,12,.97);border-top:1px solid rgba(201,168,76,.2);padding:12px 14px;max-height:55%;overflow-y:auto;">
+  <div id="tower-dan-panel" style="display:none;position:absolute;bottom:0;left:0;right:0;z-index:15;background:rgba(4,6,12,.97);border-top:1px solid rgba(201,168,76,.2);padding:12px 14px;max-height:55%;overflow-y:auto;">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
       <div style="font-size:11px;font-weight:700;color:#d6b15f;">💊 Sử Dụng Đan Dược</div>
       <div onclick="G._towerCloseDan()" style="font-size:11px;color:#5a4020;cursor:pointer;padding:2px 6px;">✕</div>
