@@ -22,7 +22,7 @@
 
 <script>
 // ★ ĐỔI SỐ NÀY MỖI KHI DEPLOY BẢN MỚI (phải khớp với sw.js) ★
-const APP_VERSION = '1.0.9';
+const APP_VERSION = '1.0.1';
 
 // ── DEBUG PANEL: thêm ?debug=1 vào URL để xem chẩn đoán ngay trên màn hình ──
 // (không cần DevTools — hữu ích để chẩn đoán trên điện thoại)
@@ -15197,8 +15197,12 @@ function _twOnFloorClear(){
   const nextTier = _twGetTier(Math.min(nextFloor, maxFloor));
   const nextIsBoss = (nextFloor === nextTier.maxFloor);
 
-  // Khi đang Auto: tầng thường, tầng kế tiếp không phải boss và còn dữ liệu → tự động đi tiếp
-  if(_tw.auto && !isBoss && !nextIsBoss && nextFloor <= maxFloor){
+  console.log("[Tower] FloorClear debug:", {floor:_tw.floor, isBoss, nextFloor, nextIsBoss, auto:_tw.auto, canGoNext: nextFloor<=maxFloor});
+
+  // Khi đang Auto: CHỈ dừng lại hỏi xác nhận khi tầng SẮP TỚI là tầng Boss.
+  // Sau khi vừa hạ xong Boss, tầng kế tiếp (đầu cảnh giới mới) KHÔNG phải Boss
+  // → tự động tiến luôn, không cần hỏi lại (đã hỏi 1 lần trước khi đánh Boss đó).
+  if(_tw.auto && !nextIsBoss && nextFloor <= maxFloor){
     S.tower.floor = nextFloor;
     saveGame();
     // active được set lại bên trong _twStartFloor
